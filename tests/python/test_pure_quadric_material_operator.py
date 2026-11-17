@@ -43,7 +43,7 @@ class PureQuadricMaterialOperatorTests(unittest.TestCase):
         self.assertTrue(np.allclose(a.moments,b.moments,rtol=1e-12,atol=1e-12))
         self.assertTrue(np.allclose(b.jacobian,a.jacobian/k,rtol=1e-12,atol=1e-12))
         self.assertTrue(np.allclose(a.jacobian@Q,np.zeros(10),atol=1e-12))
-        self.assertFalse(np.allclose(a.moments,plane_cut_box_moments_and_jacobian(-Q,BOUNDS,RHO).moments))
+        self.assertFalse(np.allclose(a.moments,numerical_quadric_box_moments(-Q,BOUNDS,RHO)))
 
     def test_plane_is_regular_even_though_quadric_matrix_rank_is_zero(self):
         result=classify_repeated_root_or_plane_event(Q,BOUNDS)
