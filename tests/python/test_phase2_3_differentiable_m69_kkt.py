@@ -29,10 +29,10 @@ class Phase23DifferentiableKKTTests(unittest.TestCase):
 
  def test_smooth_branch_constraint_jacobian_matches_finite_difference(self):
   x=CANDIDATE.clone().requires_grad_(True)
-  def fn(v): return m69_constraint_slacks_torch(v,ORIGINAL,TASK,length_scale=2.).slack
-  r=fn(x)
+  def evaluate(v): return m69_constraint_slacks_torch(v,ORIGINAL,TASK,length_scale=2.)
+  r=evaluate(x)
   self.assertTrue(r.derivative_valid,r.invalid_reasons)
-  jac=torch.autograd.functional.jacobian(fn,x)
+  jac=torch.autograd.functional.jacobian(lambda v:evaluate(v).slack,x)
   eps=1e-5; fd=torch.empty_like(jac)
   for j in range(10):
    d=torch.zeros(10,dtype=torch.float64);d[j]=eps
@@ -71,9 +71,9 @@ class Phase23DifferentiableKKTTests(unittest.TestCase):
     torch.tensor([True]),active_inequality_multipliers=torch.tensor([1.]))
   z=result.unknowns.detach()
   def residual(zz):
-   xx=zz[:1];lam=zz[1:]
-   grad=torch.autograd.grad(fn(xx),xx,create_graph=True)[0]+lam[0]*torch.autograd.grad(g(xx)[0],xx,create_graph=True)[0]
-   return torch.cat((grad,g(xx)))
+   xx=zz[:1]
+   lam=zz[1:]
+   return torch.stack((2.0*(xx[0]-2.0)+lam[0],xx[0]-1.0))
   eps=1e-6
   fd=torch.empty_like(result.jacobian)
   for j in range(2):
