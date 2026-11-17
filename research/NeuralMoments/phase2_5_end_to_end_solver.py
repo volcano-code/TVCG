@@ -211,7 +211,7 @@ def solve_synthetic_qp(*,method:str,seed:int=0,max_iterations:int=30,
         x_new,state,step=_one_step(x,model_obj,exact_obj,constraints,active,
             trust_radius=trust_radius,penalty=penalty,minimum_ratio=.05,
             scales=scales,oracle_counter=oracle)
-        if step.used_exact_fallback: fallbacks+=1
+        if step.used_exact_fallback and method=="surrogate_newton": fallbacks+=1
         if not step.accepted and method=="surrogate_newton":
             # The synthetic benchmark has a registered closed-form exact
             # active-set solver. This is the terminal exact fallback, not a
@@ -244,7 +244,7 @@ def solve_synthetic_qp(*,method:str,seed:int=0,max_iterations:int=30,
             comp=torch.zeros((),dtype=dtype)
         violation=torch.clamp(g,min=0).max()
         history.append({"iteration":iteration+1,"objective":float(exact_obj(x).detach()),
-            "max_violation":float(violation),"stationarity":float(torch.linalg.vector_norm(stationarity)),
+            "max_violation":float(violation.detach()),"stationarity":float(torch.linalg.vector_norm(stationarity).detach()),
             "complementarity":float(comp),"accepted":step.accepted,
             "fallback":step.used_exact_fallback,"ratio":step.ratio})
         if (float(violation)<=tolerance and float(torch.linalg.vector_norm(stationarity))<=1e-6
@@ -283,3 +283,45 @@ def compare_exact_and_surrogate(*,seeds=(2501,2502,2503),max_iterations=30):
         "methods":["exact_newton","surrogate_newton"],"exact_merit_penalty":100.},
       "results":rows
     }
+
+
+def propose_m69_neural_newton_step(
+    local:Tensor,beta_anchor:Tensor,beta_to_moments:Callable[[Tensor],Tensor],
+    original_moments:Tensor,task:dict,*,length_scale:float,active_mask,
+    trust_radius:float,event_tolerance:float=1e-8
+):
+    """Bridge M80/S9/M69 KKT into the Phase 2.4 safeguarded Newton direction.
+
+    beta_to_moments may close over a task-conditioned M80 model/cache. The
+    returned direction is only a proposal; caller must pass the trial through
+    an independent exact M69 oracle merit and use fallback on rejection.
+    """
+    from research.NeuralMoments.phase2_4_neural_newton import (
+        build_s9_m69_kkt_system,safeguarded_kkt_newton_direction
+    )
+    chart,system=build_s9_m69_kkt_system(
+        local,beta_anchor,beta_to_moments,original_moments,task,
+        length_scale=length_scale,active_mask=active_mask,
+        event_tolerance=event_tolerance
+    )
+    if not system.derivative_valid:
+        raise ValueError("M69 KKT differential invalid: "+",".join(system.invalid_reasons))
+    direction=safeguarded_kkt_newton_direction(
+        system.residual,system.jacobian,primal_dimension=9,
+        trust_radius=trust_radius
+    )
+    return chart,system,direction
+
+
+def accept_m69_neural_newton_step(
+    state,direction,*,decode:Callable[[Any,Tensor],Any],
+    exact_m69_merit:Callable[[Any],float],predicted_reduction:float,
+    exact_solver_fallback:Callable[[Any],Any]|None=None
+):
+    """Accept/reject an M69 neural proposal using independent exact merit."""
+    from research.NeuralMoments.phase2_4_neural_newton import safeguarded_newton_iteration
+    return safeguarded_newton_iteration(
+        state,direction,decode=decode,exact_merit=exact_m69_merit,
+        predicted_reduction=predicted_reduction,
+        exact_fallback=exact_solver_fallback
+    )
