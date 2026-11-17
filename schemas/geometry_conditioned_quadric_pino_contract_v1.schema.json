@@ -1,0 +1,289 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/volcano-code/TVCG/blob/research/tvcg-initial-import/schemas/geometry_conditioned_quadric_pino_contract_v1.schema.json",
+  "title": "TVCG Geometry-conditioned Quadric-PINO Contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "geometry",
+    "task",
+    "material",
+    "moments",
+    "objective",
+    "derivatives",
+    "kkt"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "tvcg.geometry-conditioned-quadric-pino.v1"
+    },
+    "status": {
+      "enum": [
+        "phase1_contract_fixture_not_physical_admission",
+        "draft",
+        "frozen"
+      ]
+    },
+    "geometry": {
+      "type": "object",
+      "required": [
+        "geometry_id",
+        "source_sha256",
+        "coordinate_space",
+        "length_unit",
+        "native_representation"
+      ],
+      "properties": {
+        "geometry_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_sha256": {
+          "type": "string",
+          "minLength": 1
+        },
+        "coordinate_space": {
+          "const": "registered-task"
+        },
+        "length_unit": {
+          "enum": [
+            "m",
+            "mm",
+            "cm",
+            "source_unit_unscaled",
+            "dimensionless"
+          ]
+        },
+        "native_representation": {
+          "enum": [
+            "mesh",
+            "voxel",
+            "rle",
+            "native_interval",
+            "analytic_box"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "task": {
+      "type": "object",
+      "required": [
+        "mode",
+        "target_frame",
+        "spin_axis_target",
+        "contact_point_model",
+        "origin_contact_relation",
+        "task_spec_identity"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "spinning_top",
+            "static_balance",
+            "yoyo",
+            "fidget_spinner",
+            "buoyant_stability"
+          ]
+        },
+        "target_frame": {
+          "type": "object",
+          "required": [
+            "origin",
+            "axes"
+          ],
+          "properties": {
+            "origin": {
+              "$ref": "#/$defs/vector3"
+            },
+            "axes": {
+              "$ref": "#/$defs/matrix3"
+            }
+          },
+          "additionalProperties": false
+        },
+        "spin_axis_target": {
+          "$ref": "#/$defs/vector3"
+        },
+        "contact_point_model": {
+          "$ref": "#/$defs/vector3"
+        },
+        "origin_contact_relation": {
+          "enum": [
+            "same_by_task_definition",
+            "separate",
+            "same_by_fixture_definition",
+            "unspecified"
+          ]
+        },
+        "task_spec_identity": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "material": {
+      "type": "object",
+      "required": [
+        "single_material",
+        "density_kg_m3",
+        "regions",
+        "representation",
+        "fixed_added_once"
+      ],
+      "properties": {
+        "single_material": {
+          "const": true
+        },
+        "density_kg_m3": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "regions": {
+          "type": "object",
+          "required": [
+            "fixed",
+            "protected",
+            "editable"
+          ],
+          "properties": {
+            "fixed": {
+              "type": "string"
+            },
+            "protected": {
+              "type": "string"
+            },
+            "editable": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "representation": {
+          "enum": [
+            "pure_quadric",
+            "quadric_local_correction"
+          ]
+        },
+        "fixed_added_once": {
+          "const": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "moments": {
+      "type": "object",
+      "required": [
+        "order",
+        "kind"
+      ],
+      "properties": {
+        "order": {
+          "const": [
+            "mass",
+            "x",
+            "y",
+            "z",
+            "xx",
+            "yy",
+            "zz",
+            "yz",
+            "xz",
+            "xy"
+          ]
+        },
+        "kind": {
+          "const": "density_weighted_raw_mass_moments"
+        }
+      },
+      "additionalProperties": true
+    },
+    "objective": {
+      "type": "object",
+      "required": [
+        "primary_profile_selected",
+        "available_profiles",
+        "decision_note"
+      ],
+      "properties": {
+        "primary_profile_selected": {
+          "type": "boolean"
+        },
+        "available_profiles": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "minimum_mass_under_frozen_task_constraints",
+              "spin_it_faster_moment_objective"
+            ]
+          }
+        },
+        "decision_note": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "derivatives": {
+      "type": "object",
+      "required": [
+        "material_jacobian",
+        "query_jacobian",
+        "unknown_or_event_never_zero"
+      ],
+      "properties": {
+        "material_jacobian": {
+          "const": "dM_dalpha"
+        },
+        "query_jacobian": {
+          "const": "dM_dbeta_query"
+        },
+        "unknown_or_event_never_zero": {
+          "const": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "kkt": {
+      "type": "object",
+      "required": [
+        "lagrangian_sign",
+        "inequality_convention",
+        "active_set_fixed_for_smooth_newton"
+      ],
+      "properties": {
+        "lagrangian_sign": {
+          "const": "f + lambda^T g + nu^T h"
+        },
+        "inequality_convention": {
+          "const": "g<=0"
+        },
+        "active_set_fixed_for_smooth_newton": {
+          "const": true
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "vector3": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "number"
+      }
+    },
+    "matrix3": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "$ref": "#/$defs/vector3"
+      }
+    }
+  }
+}
