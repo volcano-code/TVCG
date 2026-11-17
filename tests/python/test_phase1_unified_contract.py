@@ -126,7 +126,7 @@ class Phase1MomentContractTests(unittest.TestCase):
         record = {
             "schema_version": CONTRACT_VERSION,
             "geometry": {}, "task": {},
-            "material": {"single_material": True, "density_kg_m3": 1000.0,
+            "material": {"single_material": True, "density": {"value": 1.0, "unit": "registered_scalar"},
                          "regions": {"fixed": "fixed-v1", "protected": "protected-v1",
                                      "editable": "editable-v1"}},
             "moments": {"order": list(MOMENT_ORDER)},
