@@ -95,11 +95,14 @@ class Phase26UnifiedOperatorIntegrationTests(unittest.TestCase):
  def test_independent_exact_oracle_is_not_replaced_by_model_prediction(self):
     problem,geometry=make_problem()
     calls={"count":0}
+    exact_candidate=torch.as_tensor(
+      geometry["fixed_moments"]+.99*(geometry["mass"]@geometry["moment_basis"]),
+      dtype=torch.float64)
     def oracle(beta):
       calls["count"]+=1
-      # The fixture's independent reference is the registered original
-      # geometry moment integration, not the M80 predicted Moment.
-      return {"moments":torch.as_tensor(geometry["original_moments"]),
+      # Independent exact fixture retains 99% of the editable material,
+      # satisfying this synthetic TaskSpec's 1% minimum-removal requirement.
+      return {"moments":exact_candidate,
         "connected":True,"topology_valid":True,"event_valid":True,
         "source":"synthetic-independent-native-moment-fixture"}
     evaluation=evaluate_exact_m69_candidate(problem.beta_anchor,
@@ -107,7 +110,7 @@ class Phase26UnifiedOperatorIntegrationTests(unittest.TestCase):
       task=problem.task,length_scale=problem.length_scale)
     self.assertEqual(calls["count"],1)
     self.assertEqual(evaluation.source,"synthetic-independent-native-moment-fixture")
-    self.assertTrue(torch.equal(evaluation.moments,problem.original_moments))
+    self.assertTrue(torch.equal(evaluation.moments,exact_candidate))
     merit=exact_m69_merit(evaluation,connectivity_penalty=1e6,feasibility_penalty=1e4)
     expected=float(evaluation.moments[0])+1e4*float(
       torch.clamp(evaluation.constraints.g_le_zero,min=0).sum())
@@ -157,11 +160,14 @@ class Phase26UnifiedOperatorIntegrationTests(unittest.TestCase):
 
 
  def test_counted_exact_merit_callback_uses_independent_oracle(self):
-    problem,_=make_problem()
+    problem,geometry=make_problem()
     calls={"count":0}
+    exact_candidate=torch.as_tensor(
+      geometry["fixed_moments"]+.99*(geometry["mass"]@geometry["moment_basis"]),
+      dtype=torch.float64)
     def oracle(beta):
       calls["count"]+=1
-      return {"moments":problem.original_moments,"connected":True,
+      return {"moments":exact_candidate,"connected":True,
         "topology_valid":True,"event_valid":True,"source":"independent-test-oracle"}
     merit=make_exact_m69_merit_callback(problem,exact_material_oracle=oracle,
       state_to_beta=lambda state:state["beta"],connectivity_penalty=1e6,
