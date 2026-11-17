@@ -9,6 +9,8 @@ on:
       - "research/NeuralMoments/models/pcraft_ufno/spin_pino/native_pcraft.py"
       - "tests/python/test_phase2_2_architecture_comparison.py"
       - "tests/python/test_phase2_2_task_conditioned_m80.py"
+      - "research/NeuralMoments/phase2_2_controlled_distillation.py"
+      - "tests/python/test_phase2_2_controlled_distillation.py"
       - ".github/workflows/phase2-2-architecture-comparison.yml"
   pull_request:
     branches:
@@ -44,4 +46,30 @@ jobs:
           OMP_NUM_THREADS: "1"
           OPENBLAS_NUM_THREADS: "1"
           MKL_NUM_THREADS: "1"
-        run: python -m pytest -q -s tests/python/test_phase2_2_task_conditioned_m80.py tests/python/test_phase2_2_architecture_comparison.py
+        run: |
+          python -m pytest -q -s \
+            tests/python/test_phase2_2_task_conditioned_m80.py \
+            tests/python/test_phase2_2_architecture_comparison.py \
+            tests/python/test_phase2_2_controlled_distillation.py
+      - name: Run three-seed controlled synthetic distillation
+        env:
+          PYTHONPATH: .
+          OMP_NUM_THREADS: "1"
+          OPENBLAS_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+        run: |
+          python - <<'PY'
+          import json
+          from research.NeuralMoments.phase2_2_controlled_distillation import run_controlled_distillation
+          report = run_controlled_distillation(seeds=(22021,22022,22023), steps=60)
+          with open("phase2_2_controlled_distillation_results.json", "w") as f:
+              json.dump(report, f, indent=2, sort_keys=True)
+          print("CONTROLLED_DISTILLATION_RESULTS")
+          print(json.dumps(report, indent=2, sort_keys=True))
+          PY
+      - name: Upload controlled experiment results
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase2-2-controlled-distillation-results
+          path: phase2_2_controlled_distillation_results.json
+          if-no-files-found: error
