@@ -51,7 +51,7 @@ The adapter returns constraint values even when the derivative is invalid, but m
 - repeated eigenvalues in the transverse inertia block used by principal dominance;
 - repeated minimum covariance eigenvalues used by the PSD constraint;
 - nonfinite constraints;
-- active-set switching boundaries (inactive constraint near zero).
+- inactive constraints near zero, which are active-set switching boundaries. A constraint that is exactly active remains differentiable on a fixed active set; its derivative is valid unless another spectral/norm event occurs.
 
 No softplus, epsilon smoothing, or fake zero Jacobian is used to conceal these events. Connectivity, binary topology changes, and material-interface topology remain discrete and outside this smooth KKT layer.
 
