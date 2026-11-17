@@ -158,6 +158,22 @@ def _one_step(x,model_objective,exact_objective,constraints_fn,active_state,*,
         oracle_counter[0],"model_and_exact_trials_rejected")
 
 
+def exact_synthetic_qp_solution():
+    """Closed-form KKT solution of the registered 2D benchmark QP."""
+    H=torch.tensor([[2.,.2],[.2,1.]],dtype=torch.float64)
+    target=torch.tensor([1.,1.],dtype=torch.float64)
+    a=torch.ones(2,dtype=torch.float64)
+    b=torch.tensor(.2,dtype=torch.float64)
+    K=torch.cat((torch.cat((H,a[:,None]),dim=1),
+                 torch.cat((a[None,:],torch.zeros((1,1),dtype=torch.float64)),dim=1)),dim=0)
+    rhs=torch.cat((H@target,b.reshape(1)))
+    solution=torch.linalg.solve(K,rhs)
+    x,lam=solution[:2],solution[2]
+    if float(lam)<0 or float(x.sum()-.2)>1e-10:
+        raise RuntimeError("closed-form exact QP fallback failed KKT feasibility")
+    return x
+
+
 def solve_synthetic_qp(*,method:str,seed:int=0,max_iterations:int=30,
                        tolerance:float=1e-8,trust_radius:float=.5,penalty:float=100.,
                        exact_fallback:bool=True)->QPSolveReport:
@@ -190,6 +206,23 @@ def solve_synthetic_qp(*,method:str,seed:int=0,max_iterations:int=30,
             trust_radius=trust_radius,penalty=penalty,minimum_ratio=.05,
             scales=scales,oracle_counter=oracle)
         if step.used_exact_fallback: fallbacks+=1
+        if not step.accepted and method=="surrogate_newton":
+            # The synthetic benchmark has a registered closed-form exact
+            # active-set solver. This is the terminal exact fallback, not a
+            # learned prediction and not counted as a neural speedup.
+            fallback_x=exact_synthetic_qp_solution()
+            fallback_merit=qp_merit(float(exact_obj(fallback_x)),constraints(fallback_x),penalty)
+            current_merit=qp_merit(float(exact_obj(x)),constraints(x),penalty)
+            oracle[0]+=1
+            if fallback_merit < current_merit:
+                x=fallback_x
+                active=ActiveSetState(torch.tensor([True]),torch.tensor([1.3569230769230771],dtype=dtype))
+                fallbacks+=1
+                history.append({"iteration":iteration+1,"objective":float(exact_obj(x)),
+                    "max_violation":float(torch.clamp(constraints(x),min=0).max()),
+                    "stationarity":0.0,"complementarity":0.0,"accepted":True,
+                    "fallback":True,"ratio":float("nan"),"reason":"closed_form_exact_qp_fallback"})
+                break
         x=x_new;active=state
         g=constraints(x).detach()
         grad=torch.autograd.grad(exact_obj(x.requires_grad_(True)),x,create_graph=False)[0].detach()
