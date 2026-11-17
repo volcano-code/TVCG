@@ -247,8 +247,8 @@ def solve_synthetic_qp(*,method:str,seed:int=0,max_iterations:int=30,
             "max_violation":float(violation.detach()),"stationarity":float(torch.linalg.vector_norm(stationarity).detach()),
             "complementarity":float(comp.detach()),"accepted":step.accepted,
             "fallback":step.used_exact_fallback,"ratio":step.ratio})
-        if (float(violation)<=tolerance and float(torch.linalg.vector_norm(stationarity))<=1e-6
-            and float(comp)<=1e-6):
+        if (float(violation.detach())<=tolerance and float(torch.linalg.vector_norm(stationarity).detach())<=1e-6
+            and float(comp.detach())<=1e-6):
             break
         if not step.accepted:
             break
