@@ -262,11 +262,11 @@ def solve_synthetic_qp(*,method:str,seed:int=0,max_iterations:int=30,
     else:
         stationarity=grad;comp=torch.zeros((),dtype=dtype)
     return QPSolveReport(method,
-        bool(float(torch.clamp(g,min=0).max())<=tolerance and
-             float(torch.linalg.vector_norm(stationarity))<=1e-6 and float(comp)<=1e-6),
+        bool(float(torch.clamp(g,min=0).max().detach())<=tolerance and
+             float(torch.linalg.vector_norm(stationarity).detach())<=1e-6 and float(comp.detach())<=1e-6),
         tuple(float(v) for v in x.detach()),float(exact_obj(x).detach()),
-        float(torch.clamp(g,min=0).max()),float(torch.linalg.vector_norm(stationarity)),
-        float(comp),len(history),oracle[0],fallbacks,tuple(history))
+        float(torch.clamp(g,min=0).max().detach()),float(torch.linalg.vector_norm(stationarity).detach()),
+        float(comp.detach()),len(history),oracle[0],fallbacks,tuple(history))
 
 
 def compare_exact_and_surrogate(*,seeds=(2501,2502,2503),max_iterations=30):
