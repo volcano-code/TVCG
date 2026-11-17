@@ -282,18 +282,20 @@ def build_parameter_matched_variants(base_model:PcraftNativeMomentOperator,*,
     for mode in ("conditional_norm","cross_attention"):
         candidates=[]
         for hidden in range(8,257,8):
-            candidate=M69TaskConditionedM80(copy.deepcopy(base_model),hidden_dim=hidden,
+            candidate=M69TaskConditionedM80(base_model,hidden_dim=hidden,
                 freeze_backbone=freeze_backbone,conditioning_mode=mode)
             count=candidate.trainable_parameter_count()
-            candidates.append((abs(count-target),hidden,count,candidate))
-        _,hidden,count,best=min(candidates,key=lambda x:(x[0],x[1]))
+            candidates.append((abs(count-target),hidden,count))
+            del candidate
+        _,hidden,count=min(candidates,key=lambda x:(x[0],x[1]))
         relative=abs(count-target)/max(target,1)
         if relative>tolerance:
             raise ValueError(
                 f"{mode} cannot meet trainable parameter budget: target={target}, "
                 f"best={count}, relative_gap={relative:.4f}, tolerance={tolerance:.4f}"
             )
-        variants[mode]=best
+        variants[mode]=M69TaskConditionedM80(copy.deepcopy(base_model),hidden_dim=hidden,
+            freeze_backbone=freeze_backbone,conditioning_mode=mode)
     report={name:{"hidden_dim":int(model.task_encoder[1].out_features),
                   "trainable_parameters":model.trainable_parameter_count(),
                   "relative_gap_to_target":abs(model.trainable_parameter_count()-target)/max(target,1)}
