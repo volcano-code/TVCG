@@ -100,14 +100,15 @@ def classify_repeated_root_or_plane_event(q, bounds, *, grad_tol=1e-10, event_to
     # Polynomial convention uses doubled cross terms in QUERY_ORDER.
     A=np.array([[q[4],q[9],q[8]],[q[9],q[5],q[7]],[q[8],q[7],q[6]]])
     rank=int(np.linalg.matrix_rank(A,tol=grad_tol))
-    if np.linalg.norm(q[1:4])<=grad_tol and rank>0:
+    if rank>0:
         # A stationary zero is a singular quadric candidate. Exact test is
         # intentionally conservative: identify a zero-valued stationary point.
         try:
             stationary=np.linalg.solve(2*A,-q[1:4])
             value=q[0]+q[1:4]@stationary+stationary@A@stationary
+            gradient=q[1:4]+2*A@stationary
             inside=np.all(stationary>=b[:,0]-event_tol) and np.all(stationary<=b[:,1]+event_tol)
-            if inside and abs(float(value))<=event_tol:
+            if inside and np.linalg.norm(gradient)<=grad_tol and abs(float(value))<=event_tol:
                 return {"valid":False,"event":"singular_repeated_root","quadratic_rank":rank}
         except np.linalg.LinAlgError:
             pass
