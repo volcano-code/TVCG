@@ -10,7 +10,8 @@ from research.NeuralMoments.m69_task_conditioned_m80_v1 import (
 )
 from research.NeuralMoments.phase2_6_unified_operator_integration import (
  make_m80_m69_problem,m80_moment_function,evaluate_exact_m69_candidate,
- exact_m69_merit,propose_m80_m69_newton_step,make_exact_m69_merit_callback
+ exact_m69_merit,propose_m80_m69_newton_step,make_exact_m69_merit_callback,
+ accept_m80_proposal_with_exact_oracle
 )
 
 TASK={"schema":"m69.fixed-axis-task.v1","axis":[0.,0.,1.],"axis_origin":[0.,0.,0.],
@@ -160,6 +161,32 @@ class Phase26UnifiedOperatorIntegrationTests(unittest.TestCase):
     self.assertTrue(torch.isfinite(proposal.moments).all())
     self.assertTrue(torch.isfinite(proposal.direction.step).all())
     self.assertLessEqual(proposal.direction.primal_step_norm,.0500001)
+    exact_candidate=torch.as_tensor(
+      geometry["fixed_moments"]+(1.0-.01*geometry["original_moments"][0]/
+        (geometry["mass"]@geometry["moment_basis"])[0])*
+        (geometry["mass"]@geometry["moment_basis"]),dtype=torch.float64)
+    oracle_calls={"count":0}
+    def oracle(beta):
+      oracle_calls["count"]+=1
+      return {"moments":exact_candidate,"connected":True,"topology_valid":True,
+        "event_valid":True,"source":"independent-exact-moment-fixture"}
+    exact_merit=make_exact_m69_merit_callback(problem,
+      exact_material_oracle=oracle,
+      state_to_beta=lambda state:proposal.chart.decode(state["local"]),
+      connectivity_penalty=1e6,feasibility_penalty=1e4)
+    state={"local":torch.zeros(9,dtype=torch.float64)}
+    def decode(current,step):
+      local=current["local"]+step[:9]
+      return {"local":local}
+    accepted=accept_m80_proposal_with_exact_oracle(
+      state,proposal,decode=decode,exact_merit=exact_merit,
+      predicted_reduction=1.0,
+      exact_solver_fallback=lambda current:{"exact_fallback":True}
+    )
+    self.assertFalse(accepted.decision.accepted)
+    self.assertTrue(accepted.exact_fallback_used)
+    self.assertEqual(accepted.exact_evaluations,6)
+    self.assertEqual(oracle_calls["count"],6)
 
 
  def test_counted_exact_merit_callback_uses_independent_oracle(self):
