@@ -9,7 +9,7 @@
 **Backbone:** frozen, independently copied M80 convex-potential operator  
 **Optimizer:** Adam, learning rate 0.002  
 **Teacher:** fixed deterministic nonlinear task–geometry latent interaction  
-**GitHub Actions:** run 44111792099 (success)
+**GitHub Actions:** run 44112576299 (success)
 
 ## 1. Purpose and interpretation
 
@@ -66,7 +66,7 @@ The complete per-seed records and protocol are stored in:
 
 ## 6. CI verification
 
-GitHub Actions run 44111792099 completed successfully. It ran:
+GitHub Actions run 44112576299 completed successfully (final code revision). It ran:
 - the original task-conditioned M80 tests;
 - the three-architecture functional/parameter-budget tests;
 - a controlled-distillation smoke test;
@@ -82,3 +82,6 @@ No RTX 5090 long training was started. The run used GitHub-hosted CPU resources.
 The next meaningful research step is Phase 2.3: construct a shared differentiable physical potential and derive Moment/constraint/KKT differentials consistently. The architecture comparison can continue later with stronger analytic teacher families, but it should not delay the KKT formulation.
 
 Before any physical optimization claim, the exact M69 material/query semantics and independent oracle derivatives still need to be matched.
+
+
+Final CI verification: **16 tests passed in 3.48 seconds**, followed by the full three-seed experiment and result-artifact upload. The one-seed smoke-test standard-deviation edge case was corrected (sample standard deviation is reported as zero for a single seed); the final run emitted no NumPy degrees-of-freedom warning.
