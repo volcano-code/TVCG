@@ -8,6 +8,7 @@ on:
       - "research/NeuralMoments/m69_task_conditioned_m80_v1.py"
       - "research/NeuralMoments/models/pcraft_ufno/spin_pino/native_pcraft.py"
       - "tests/python/test_phase2_2_architecture_comparison.py"
+      - "tests/python/test_phase2_2_task_conditioned_m80.py"
       - ".github/workflows/phase2-2-architecture-comparison.yml"
   pull_request:
     branches:
