@@ -52,3 +52,8 @@ A separate Phase 2.2 integration workflow `44108845369` also passed its eight ta
 Keep all three variants as controlled candidates. FiLM remains the simplest baseline. Conditional normalization is almost parameter-identical and is a low-risk alternative. Cross-attention adds explicit interaction between the task query and geometry/moment context tokens at only 1.93% more adapter parameters in this configuration.
 
 The next fair experiment is a deterministic synthetic calibration/training comparison with fixed initialization, query set, optimizer, step budget and parameter budget, followed by KKT-consistency tests. Only that experiment can provide an initial learning-performance ranking; real-geometry claims still require later geometry-disjoint validation.
+
+
+## 6. Consolidated regression
+
+The consolidated workflow `44109775558` runs both the original eight-test Phase 2.2 adapter suite and the seven-test architecture comparison suite in one environment. It passed **15 tests** on commit `3233a6a305f7ee71ed216ad20b96586c7a630681`. A subsequent test-only cleanup removes a PyTorch scalar-conversion warning from the original suite; no model or numerical behavior was changed.
