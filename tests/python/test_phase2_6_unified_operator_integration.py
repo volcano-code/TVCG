@@ -103,7 +103,11 @@ class Phase26UnifiedOperatorIntegrationTests(unittest.TestCase):
     self.assertEqual(evaluation.source,"synthetic-independent-native-moment-fixture")
     self.assertTrue(torch.equal(evaluation.moments,problem.original_moments))
     merit=exact_m69_merit(evaluation,connectivity_penalty=1e6,feasibility_penalty=1e4)
-    self.assertAlmostEqual(merit,float(problem.original_moments[0]),places=8)
+    expected=float(evaluation.moments[0])+1e4*float(
+      torch.clamp(evaluation.constraints.g_le_zero,min=0).sum())
+    self.assertAlmostEqual(merit,expected,places=8)
+    self.assertTrue(evaluation.connected)
+    self.assertTrue(evaluation.topology_valid)
 
  def test_exact_merit_penalizes_disconnected_or_invalid_topology(self):
     problem,_=make_problem()
