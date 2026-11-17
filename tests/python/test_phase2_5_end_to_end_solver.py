@@ -46,5 +46,12 @@ class Phase25EndToEndTests(unittest.TestCase):
   for row in r["results"]:
    self.assertTrue(torch.isfinite(torch.tensor(row["objective"])))
    self.assertGreaterEqual(row["oracle_evaluations"],1)
+   self.assertTrue(row["converged"],row)
+   self.assertLessEqual(row["max_constraint_violation"],1e-8)
+ def test_closed_form_exact_fallback_is_feasible_and_kkt_stationary(self):
+  from research.NeuralMoments.phase2_5_end_to_end_solver import exact_synthetic_qp_solution
+  x=exact_synthetic_qp_solution()
+  self.assertLessEqual(float(x.sum()-.2),1e-10)
+  self.assertTrue(torch.allclose(x,torch.tensor([.4461538461538462,-.2461538461538462],dtype=x.dtype),atol=1e-10))
 
 if __name__=="__main__": unittest.main()
