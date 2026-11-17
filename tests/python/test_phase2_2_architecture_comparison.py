@@ -9,8 +9,31 @@ from research.NeuralMoments.m69_task_conditioned_m80_v1 import (
     M69TaskConditionedM80,TASK_FEATURE_DIM,encode_m69_task_features,
     build_parameter_matched_variants
 )
-from tests.python.test_phase2_2_task_conditioned_m80 import TASK,synthetic_geometry
 
+TASK={
+ "schema":"m69.fixed-axis-task.v1","axis":[0.,0.,1.],"axis_origin":[0.,0.,0.],
+ "contact":[0.,0.,0.],"density":1.,"native_resolution":512,
+ "shell_fraction":.03,"protect_radius_fraction":.04,"protect_height_fraction":0.,
+ "polar_retention":.9,"min_removal_fraction":.1,"max_centroid_rise":1e-7,
+ "com_tolerance":1e-4,"alignment_tolerance":1e-4,"principal_gap_min":-1e-8,
+ "require_connected":True,"mass_tolerance":1e-10,"inertia_tolerance":1e-10,
+ "moment_psd_tolerance":1e-9,"solver_tolerance":1e-9,"solver_polar_margin":1e-5,
+ "training_polar_margin":5e-4,"objective":"minimum_retained_mass",
+ "inertia_reference":"original_fixed_axis","material_policy":"single_density_removal_only",
+ "purpose":"research"
+}
+
+def synthetic_geometry():
+    xyz=np.array([[-.55,-.35,-.25],[-.25,.35,-.15],[.15,-.45,.25],[.55,.25,.35],
+      [-.45,.45,.45],[.35,.5,-.4],[.5,-.2,-.45],[-.1,-.1,.55]],dtype=np.float64)
+    extent=np.full((len(xyz),3),.1);mass=np.full(len(xyz),.01);x,y,z=xyz.T
+    basis=np.stack([np.ones_like(x),x,y,z,x*x,y*y,z*z,y*z,x*z,x*y],axis=-1)
+    fixed=np.zeros(10);design=mass@basis;grid=np.zeros((4,8,8,8),dtype=np.float32)
+    grid[0]=1.;grid[1]=1.
+    return {"xyz":xyz,"mass":mass,"cell_extent":extent,"moment_basis":basis,
+      "fixed_moments":fixed,"original_moments":fixed+design,"native_resolution":8,
+      "origin":np.array([-1.,-1.,-1.]),"h":.25,"pcraft_grid":grid,
+      "geometry_sha256":"phase2.2-synthetic-geometry"}
 
 def base_model():
     cfg=NativePCRAFTConfig(grid_size=8,pino_width=2,pino_modes=1,pino_layers=2,
