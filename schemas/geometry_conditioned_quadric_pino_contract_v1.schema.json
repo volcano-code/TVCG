@@ -129,7 +129,7 @@
       "type": "object",
       "required": [
         "single_material",
-        "density_kg_m3",
+        "density",
         "regions",
         "representation",
         "fixed_added_once"
@@ -137,10 +137,6 @@
       "properties": {
         "single_material": {
           "const": true
-        },
-        "density_kg_m3": {
-          "type": "number",
-          "exclusiveMinimum": 0
         },
         "regions": {
           "type": "object",
@@ -170,6 +166,27 @@
         },
         "fixed_added_once": {
           "const": true
+        },
+        "density": {
+          "type": "object",
+          "required": [
+            "value",
+            "unit"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "unit": {
+              "enum": [
+                "kg/m^3",
+                "registered_scalar",
+                "dimensionless"
+              ]
+            }
+          }
         }
       },
       "additionalProperties": true
