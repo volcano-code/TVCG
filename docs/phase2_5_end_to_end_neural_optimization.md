@@ -30,7 +30,7 @@ Regularization is restricted to the primal Hessian block. The step is trust-radi
 
 ## 3. Trust-region acceptance and exact fallback
 
-The model predicts reduction in a quadratic-penalty merit. The exact oracle computes actual reduction using the same physical objective and inequality functions:
+The model predicts reduction in an L1 exact-penalty merit. The exact oracle computes actual reduction using the same objective and inequality functions:
 [
 r=\frac{\Phi_{exact}(x)-\Phi_{exact}(x+\Delta x)}
 {\Phi_{model}(x)-\Phi_{model}(x+\Delta x)}.
