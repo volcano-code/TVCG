@@ -181,3 +181,29 @@ def accept_m80_proposal_with_exact_oracle(
     after=getattr(exact_merit,"evaluation_count",before)
     return M80ExactAcceptance(decision,max(0,after-before),fallback_result is not None,
                               fallback_result)
+
+
+def make_exact_m69_merit_callback(
+    problem:M80M69Problem,*,exact_material_oracle:Callable[[Tensor],Mapping[str,Any]],
+    state_to_beta:Callable[[Any],Tensor],connectivity_penalty:float=1e6,
+    feasibility_penalty:float=1e4,event_tolerance:float=1e-9
+)->Callable[[Any],float]:
+    """Create a counted exact-merit callback bound to an independent oracle.
+
+    state_to_beta must decode the caller's optimization state into physical
+    Quadric coefficients. The callback never reads M80 predicted moments.
+    """
+    if connectivity_penalty<=0 or feasibility_penalty<=0:
+        raise ValueError("exact merit penalties must be positive")
+    def evaluate(state):
+        beta=state_to_beta(state)
+        result=evaluate_exact_m69_candidate(
+            beta,exact_material_oracle=exact_material_oracle,
+            original_moments=problem.original_moments,task=problem.task,
+            length_scale=problem.length_scale,event_tolerance=event_tolerance
+        )
+        evaluate.evaluation_count+=1
+        return exact_m69_merit(result,connectivity_penalty=connectivity_penalty,
+                               feasibility_penalty=feasibility_penalty)
+    evaluate.evaluation_count=0
+    return evaluate
