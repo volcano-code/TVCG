@@ -1,6 +1,12 @@
 import unittest
 import numpy as np
 import torch
+from research.NeuralMoments.m69_task_conditioned_m80_v1 import (
+ M69TaskConditionedM80,encode_m69_task_features
+)
+from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import (
+ NativePCRAFTConfig,PcraftNativeMomentOperator
+)
 from research.NeuralMoments.phase2_3_differentiable_m69_kkt import (
     fixed_active_set_kkt,m69_constraint_slacks_torch,m69_kkt_from_moment_operator
 )
@@ -98,5 +104,42 @@ class Phase23DifferentiableKKTTests(unittest.TestCase):
   with self.assertRaisesRegex(ValueError,"M69 derivative invalid"):
    m69_kkt_from_moment_operator(x,moment_fn,ORIGINAL,TASK,length_scale=2.,
      active_mask=torch.zeros(10,dtype=torch.bool))
+
+ def test_kkt_composes_with_task_conditioned_m80_potential(self):
+  torch.manual_seed(2301)
+  cfg=NativePCRAFTConfig(grid_size=8,pino_width=2,pino_modes=1,pino_layers=2,
+   interval_width=8,interval_depth=1,chunk_intervals=8,min_native_resolution=8,
+   convex_potential_enabled=True,convex_potential_components=2)
+  model=M69TaskConditionedM80(PcraftNativeMomentOperator(cfg),freeze_backbone=True,
+    conditioning_mode="conditional_norm")
+  xyz=np.array([[-.55,-.35,-.25],[-.25,.35,-.15],[.15,-.45,.25],[.55,.25,.35],
+   [-.45,.45,.45],[.35,.5,-.4],[.5,-.2,-.45],[-.1,-.1,.55]],dtype=np.float64)
+  mass=np.full(8,.01);xv,yv,zv=xyz.T
+  basis=np.stack([np.ones_like(xv),xv,yv,zv,xv*xv,yv*yv,zv*zv,yv*zv,xv*zv,xv*yv],-1)
+  grid=np.zeros((4,8,8,8),dtype=np.float32);grid[0]=1.;grid[1]=1.
+  geometry={"xyz":xyz,"mass":mass,"cell_extent":np.full((8,3),.1),
+   "moment_basis":basis,"fixed_moments":np.zeros(10),"original_moments":mass@basis,
+   "native_resolution":8,"origin":np.array([-1.,-1.,-1.]),"h":.25,
+   "pcraft_grid":grid,"geometry_sha256":"phase23-m80-synthetic"}
+  cache=model.encode_geometry(geometry)
+  features=torch.tensor([0.,0.,1.,0.,0.,0.,0.,0.,0.,0.,0.,.03,.04,0.,.9,.1,
+   -7.,-4.,-4.,-1e-8,1.,-10.,-10.,-9.,-9.,-5.,-3.,1.,1.,1.,1.],dtype=torch.float32)
+  q=torch.tensor([.2,-1.,.05,.03,.1,.08,.04,.01,-.02,.03],dtype=torch.float64)
+  direction=torch.tensor([0.,.01,-.02,.03,.01,-.01,.02,.005,-.004,.003],dtype=torch.float64)
+  original=torch.as_tensor(geometry["original_moments"],dtype=torch.float64)
+  def moment_fn(v):
+   return model.predict(cache,q+v[0]*direction,features)
+  with torch.no_grad():
+   candidate=moment_fn(torch.zeros(1,dtype=torch.float64))
+  self.assertGreater(float(candidate[0]),0.)
+  result=m69_kkt_from_moment_operator(torch.tensor([.01],dtype=torch.float64),
+    moment_fn,original,TASK,length_scale=2.,active_mask=torch.zeros(10,dtype=torch.bool),
+    event_tolerance=1e-10)
+  self.assertTrue(torch.isfinite(result.residual).all())
+  self.assertTrue(torch.isfinite(result.jacobian).all())
+  loss=result.residual.square().mean()+1e-3*result.jacobian.square().mean()
+  loss.backward()
+  self.assertIsNotNone(model.task_encoder[-1].bias.grad)
+  self.assertTrue(torch.isfinite(model.task_encoder[-1].bias.grad).all())
 
 if __name__=="__main__": unittest.main()
