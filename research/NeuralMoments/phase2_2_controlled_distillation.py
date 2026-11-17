@@ -89,13 +89,14 @@ def run_controlled_distillation(seeds=(22021,22022,22023),steps=60,learning_rate
             with torch.no_grad(): valid_targets.append(base.predict(teacher_cache(caches[gi],feats[ti:ti+1],gi),q))
         train_targets=torch.stack(train_targets);valid_targets=torch.stack(valid_targets)
         for name,model in variants.items():
+            student_caches=[model.encode_geometry(g) for g in geoms]
             torch.manual_seed(int(seed)+{"film":1,"conditional_norm":2,"cross_attention":3}[name])
             opt=torch.optim.Adam([p for p in model.parameters() if p.requires_grad],lr=learning_rate)
             best=float("inf")
             for step in range(steps):
                 idx=step%len(train_pairs);ti,gi=train_pairs[idx]
                 opt.zero_grad(set_to_none=True)
-                pred=model.predict(caches[gi],q,feats[ti:ti+1])
+                pred=model.predict(student_caches[gi],q,feats[ti:ti+1])
                 loss=(pred-train_targets[idx]).square().mean()
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_([p for p in model.parameters() if p.requires_grad],1.)
@@ -103,7 +104,7 @@ def run_controlled_distillation(seeds=(22021,22022,22023),steps=60,learning_rate
                 if (step+1)%10==0 or step==steps-1:
                     model.eval()
                     with torch.no_grad():
-                        vp=torch.stack([model.predict(caches[gi],q,feats[ti:ti+1]) for ti,gi in valid_pairs])
+                        vp=torch.stack([model.predict(student_caches[gi],q,feats[ti:ti+1]) for ti,gi in valid_pairs])
                         score=float(torch.sqrt((vp-valid_targets).square().mean()))
                     best=min(best,score);model.train()
             model.eval()
@@ -112,7 +113,7 @@ def run_controlled_distillation(seeds=(22021,22022,22023),steps=60,learning_rate
                 final=float(torch.sqrt((vp-valid_targets).square().mean()))
             jac=[]
             for ti,gi in valid_pairs:
-                sc=model.condition_cache(caches[gi],feats[ti:ti+1])
+                sc=model.condition_cache(student_caches[gi],feats[ti:ti+1])
                 tc=teacher_cache(caches[gi],feats[ti:ti+1],gi)
                 _,sj=base.moments_and_jacobian(sc,q)
                 _,tj=base.moments_and_jacobian(tc,q)
