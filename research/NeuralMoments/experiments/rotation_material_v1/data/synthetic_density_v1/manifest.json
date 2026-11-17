@@ -1,0 +1,151 @@
+{
+  "schema": "spin.synthetic-variable-density.v1",
+  "purpose": "diagnostic_schema_and_labels_only",
+  "generator": "rotation_material_v1/corpus.py",
+  "generator_sha256": "aab9f2438f4988abcee1a9f9cf706f1b106163d282bc77777d1efb6b53cb60d5",
+  "origin": "deterministic synthetic Cartesian boxes, not GSO/Procedural populations or TRELLIS output",
+  "grid": [
+    8,
+    8,
+    8
+  ],
+  "material_policy": "bounded_variable_density_relaxation.v1",
+  "labels": "exact constant-cell cuboid integrals; full/empty and axis-aligned HARD retained halfspaces; fixed support added once",
+  "reference": "original_moments use unmodified base density; moments[0] uses current variable density",
+  "moment_order": [
+    "mass",
+    "x",
+    "y",
+    "z",
+    "xx",
+    "yy",
+    "zz",
+    "yz",
+    "xz",
+    "xy"
+  ],
+  "query_order": [
+    "1",
+    "x",
+    "y",
+    "z",
+    "xx",
+    "yy",
+    "zz",
+    "2yz",
+    "2xz",
+    "2xy"
+  ],
+  "model_evaluated_splits": [],
+  "held_out_model_evaluation": false,
+  "records": [
+    {
+      "id": "synthetic-density-00",
+      "file": "case_00.npz",
+      "sha256": "c09b539b47d13335eced25455232b3a96f31465b3ba4e21a30e94ff5b43c239c",
+      "split": "train",
+      "query_count": 5,
+      "density_min_editable": 0.34923504564397284,
+      "density_max_editable": 1.3544559962830924
+    },
+    {
+      "id": "synthetic-density-01",
+      "file": "case_01.npz",
+      "sha256": "60a122e3db055ea95416e724ed20126ae81e357102572ae16cda3a7d16b63817",
+      "split": "train",
+      "query_count": 5,
+      "density_min_editable": 0.3102866387268512,
+      "density_max_editable": 1.3946363768517915
+    },
+    {
+      "id": "synthetic-density-02",
+      "file": "case_02.npz",
+      "sha256": "12eb41adb91ea9ccf0cc0dad1273e3152e7252d3a86a2f2f95615d1af3e2ba68",
+      "split": "train",
+      "query_count": 5,
+      "density_min_editable": 0.2878252879522884,
+      "density_max_editable": 1.4339291356739547
+    },
+    {
+      "id": "synthetic-density-03",
+      "file": "case_03.npz",
+      "sha256": "cfa4651d135ee7197220309c409e8d17e03ec68ded7d962ab7495fc3586f09dc",
+      "split": "train",
+      "query_count": 5,
+      "density_min_editable": 0.278306769157446,
+      "density_max_editable": 1.4719774683508078
+    },
+    {
+      "id": "synthetic-density-04",
+      "file": "case_04.npz",
+      "sha256": "f44fed1da6770b44cacbdbd254d894490482184cc06ab4d0efcea224e82efffa",
+      "split": "train",
+      "query_count": 5,
+      "density_min_editable": 0.2768427494440656,
+      "density_max_editable": 1.4961273579813759
+    },
+    {
+      "id": "synthetic-density-05",
+      "file": "case_05.npz",
+      "sha256": "a6fdaa2860c8e26cf5721bc1dc1f12589694e0601ee5bf090d079676458691a9",
+      "split": "train",
+      "query_count": 5,
+      "density_min_editable": 0.2792840537512539,
+      "density_max_editable": 1.5014286532506844
+    },
+    {
+      "id": "synthetic-density-06",
+      "file": "case_06.npz",
+      "sha256": "0075fa85fdcd65dd3b0cc2c89cbfcaef816294e90c43ebc65a1bddc5f0c4a9b8",
+      "split": "train",
+      "query_count": 5,
+      "density_min_editable": 0.2841558020079277,
+      "density_max_editable": 1.4727462270175287
+    },
+    {
+      "id": "synthetic-density-07",
+      "file": "case_07.npz",
+      "sha256": "23d0809979c21382ecb071d126e8999bc25a914257afb019d26f4a9096a3a147",
+      "split": "train",
+      "query_count": 5,
+      "density_min_editable": 0.2918639590300513,
+      "density_max_editable": 1.3923058374621413
+    },
+    {
+      "id": "synthetic-density-08",
+      "file": "case_08.npz",
+      "sha256": "9bc28d3335a10b117160c01c1b51931c9189763e5cbef428864294d555efcea6",
+      "split": "validation",
+      "query_count": 5,
+      "density_min_editable": 0.2995910931550283,
+      "density_max_editable": 1.2526414415666354
+    },
+    {
+      "id": "synthetic-density-09",
+      "file": "case_09.npz",
+      "sha256": "9f05a51e3b165460e958acd9d07a8ec850ac286d3b722a9224347b0eb4e5ffd0",
+      "split": "validation",
+      "query_count": 5,
+      "density_min_editable": 0.30749574359431225,
+      "density_max_editable": 1.0776202845626799
+    },
+    {
+      "id": "synthetic-density-10",
+      "file": "case_10.npz",
+      "sha256": "9a56d2cca8f0465aa66ae4138cf9c7b60bad5029353d3f974a0f04c89a39b3fb",
+      "split": "held_out",
+      "query_count": 5,
+      "density_min_editable": 0.31559164910919196,
+      "density_max_editable": 1.0196978993635326
+    },
+    {
+      "id": "synthetic-density-11",
+      "file": "case_11.npz",
+      "sha256": "53487b1afc825590e3c503ebad980655897f0d95d77ea4606233a8ab9a0aa99f",
+      "split": "held_out",
+      "query_count": 5,
+      "density_min_editable": 0.32382148064185434,
+      "density_max_editable": 1.2548300531328753
+    }
+  ]
+}

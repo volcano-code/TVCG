@@ -58,3 +58,46 @@ __pycache__/
 # generated run trees.  Their hashes are recorded by the Spin-It checkpoint.
 /experiments/paper_sim_v1/results*/
 /experiments/paper_sim_v1/pybullet_results/
+
+# Python environments
+**/.venv/
+**/venv/
+**/__pycache__/
+*.py[cod]
+
+# Training outputs
+**/runs/
+**/checkpoints/
+**/wandb/
+**/lightning_logs/
+
+# Large model artifacts
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+*.engine
+
+# Large datasets
+*.npz
+*.npy
+*.h5
+*.hdf5
+*.zarr/
+*.ply
+*.stl
+*.obj
+*.glb
+*.gltf
+
+# Secrets
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+
+# Temporary files
+*.log
+.DS_Store

@@ -1,0 +1,4 @@
+ M research/NeuralMoments/models/pcraft_ufno/spin_pino/native_pcraft.py
+?? research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/
+?? research/NeuralMoments/models/pcraft_ufno/candidate_projects/upstream/
+?? runs/

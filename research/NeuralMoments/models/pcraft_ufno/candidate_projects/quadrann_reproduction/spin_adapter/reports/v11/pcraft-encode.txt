@@ -1,0 +1,127 @@
+    def encode(self,geometry: Mapping[str,object],chunk: int|None=None):
+        c=self.config; w=c.interval_width; chunk=c.chunk_intervals if chunk is None else chunk
+        if chunk<1: raise ValueError("chunk must be positive")
+        if "xyz" not in geometry: geometry=geometry_from_columns(geometry)
+        xyz_np=np.asarray(geometry["xyz"],dtype=np.float64)
+        mass_np=np.asarray(geometry["mass"],dtype=np.float64)
+        extent_np=np.asarray(geometry["cell_extent"],dtype=np.float64)
+        basis_np=np.asarray(geometry["moment_basis"],dtype=np.float64)
+        if xyz_np.ndim!=2 or xyz_np.shape[1]!=3 or len(xyz_np)==0: raise ValueError("invalid native interval xyz")
+        if mass_np.shape!=(len(xyz_np),) or extent_np.shape!=(len(xyz_np),3) or basis_np.shape!=(len(xyz_np),10):
+            raise ValueError("M72 interval arrays have inconsistent shapes")
+        if not np.isfinite(xyz_np).all() or not np.isfinite(mass_np).all() or not np.isfinite(extent_np).all() or not np.isfinite(basis_np).all() or (mass_np<=0).any():
+            raise ValueError("nonfinite or nonpositive native interval data")
+        side=int(np.asarray(geometry["native_resolution"]))
+        if side<c.min_native_resolution: raise ValueError("native geometry resolution below configured minimum")
+        p=next(self.parameters()); device=p.device
+        xyz=torch.as_tensor(xyz_np.copy(),dtype=torch.float64,device=device)
+        mass=torch.as_tensor(mass_np.copy(),dtype=torch.float64,device=device)
+        extent=torch.as_tensor(extent_np.copy(),dtype=torch.float64,device=device)
+        basis=torch.as_tensor(basis_np.copy(),dtype=torch.float64,device=device)
+        fixed=torch.as_tensor(np.asarray(geometry["fixed_moments"],dtype=np.float64).copy(),dtype=torch.float64,device=device)
+        design=mass@basis
+        original=torch.as_tensor(np.asarray(geometry["original_moments"],dtype=np.float64).copy(),dtype=torch.float64,device=device)
+        if fixed.shape!=(10,) or original.shape!=(10,) or not torch.isfinite(fixed).all() or not torch.isfinite(original).all():
+            raise ValueError("fixed/original moments must be finite [10]")
+        lo,hi=(xyz-extent/2).amin(0),(xyz+extent/2).amax(0)
+        length=(hi-lo).max().clamp_min(torch.finfo(torch.float64).eps)
+        coord=length**torch.tensor(POWERS,dtype=torch.float64,device=device)
+        scale=(fixed[0]+mass.sum())*coord
+        if not torch.allclose(fixed+design,original,rtol=1e-8,atol=float(scale.max())*1e-10):
+            raise ValueError("M72 original moments do not equal fixed + editable moments")
+        absolute=mass@_absolute_basis(xyz,extent)
+        if (absolute+1e-10*scale<design.abs()).any(): raise ValueError("absolute moment bound violated")
+        stats=torch.cat((original/scale,fixed/scale,design/scale,(lo+hi)/(2*length),(hi-lo)/length)).to(p.dtype)[None]
+        desc=torch.cat((basis/coord[None],extent/length),-1).to(p.dtype)
+        weights=(mass/mass.sum()).to(p.dtype)
+        if c.multiscale_enabled:
+            scale_grids=[]
+            for grid_size in c.multiscale_grids:
+                if grid_size==c.grid_size and geometry.get("pcraft_grid") is not None:
+                    grid_np=np.asarray(geometry["pcraft_grid"],dtype=np.float32)
+                else:
+                    grid_np=conservative_coarse_grid(geometry,grid_size)
+                if grid_np.shape!=(4,grid_size,grid_size,grid_size):
+                    raise ValueError(f"invalid conservative P-CRAFT grid at resolution {grid_size}")
+                scale_grids.append(torch.as_tensor(np.array(grid_np,dtype=np.float32,copy=True),
+                                                   device=device).unsqueeze(0))
+            scale_globals=[]; scale_maps=[]
+            for grid_tensor in scale_grids:
+                pooled,fmap=self.pino_encoder.forward_with_map(grid_tensor,preserve_resolution=True)
+                scale_globals.append(self.pino_global(pooled))
+                scale_maps.append(fmap)
+            global_stack=torch.stack(scale_globals,dim=1)
+            stats_expanded=stats[:,None,:].expand(-1,len(scale_globals),-1)
+            global_scores=self.pino_scale_score(torch.cat((global_stack,stats_expanded),dim=-1))
+            global_weights=torch.softmax(global_scores.float(),dim=1).to(global_stack.dtype)
+            pino_context=(global_stack*global_weights).sum(dim=1)
+            pino_map=tuple(scale_maps)
+            self.counters["multiscale_calls"]+=1
+            self.counters["multiscale_global_weights"]=[float(v) for v in global_weights[0,:,0].detach().cpu()]
+        else:
+            grid=geometry.get("pcraft_grid")
+            if grid is None: grid=conservative_coarse_grid(geometry,c.grid_size)
+            grid=torch.as_tensor(np.array(grid,dtype=np.float32,copy=True),device=device).unsqueeze(0)
+            if grid.shape!=(1,4,c.grid_size,c.grid_size,c.grid_size): raise ValueError("invalid P-CRAFT conservative grid")
+            pino_global,pino_map=self.pino_encoder.forward_with_map(grid)
+            pino_context=self.pino_global(pino_global)
+        context=(self.statistics_context(stats)+pino_context).squeeze(0)
+        origin=torch.as_tensor(np.asarray(geometry["origin"],dtype=np.float64),device=device)
+        span=side*float(geometry["h"])
+        normalized=2*(xyz-origin)/span-1
+        coords=torch.stack((normalized[:,2],normalized[:,1],normalized[:,0]),-1)
+        pino_dtype=pino_map[0].dtype if isinstance(pino_map,(tuple,list)) else pino_map.dtype
+        geom_hash=str(geometry.get("geometry_sha256",""))
+        if not geom_hash:
+            d=sha256()
+            for a in (xyz_np,mass_np,basis_np,extent_np):
+                d.update(np.asarray(a,dtype="<f8").tobytes())
+            if geometry.get("columns") is not None:
+                d.update(np.asarray(geometry["columns"],dtype="<i8").tobytes())
+            geom_hash=d.hexdigest()
+        latent=torch.zeros(w,dtype=p.dtype,device=device)
+        if c.gno_enabled or c.transolver_enabled:
+            # Encode every native interval once. The feature table is shared
+            # by local GNO messages and global physical-state slicing.
+            feature_chunks=[]
+            for start in range(0,len(desc),chunk):
+                stop=min(start+chunk,len(desc))
+                sample_grid=coords[start:stop].to(pino_dtype).reshape(1,-1,1,1,3)
+                args=(desc[start:stop],sample_grid,pino_map,context)
+                if c.checkpoint_intervals and self.training and torch.is_grad_enabled():
+                    h=checkpoint(self._interval_features,*args,use_reentrant=False)
+                else:
+                    h=self._interval_features(*args)
+                feature_chunks.append(h)
+            all_features=torch.cat(feature_chunks,dim=0)
+            if c.gno_enabled:
+                neighbor_graph=self._get_neighbor_graph(geom_hash,xyz_np,device,geometry.get("columns"))
+                extent_normalized=extent/length
+                updated_chunks=[]
+                for start in range(0,len(desc),chunk):
+                    stop=min(start+chunk,len(desc))
+                    idx=neighbor_graph[start:stop].long()
+                    center_xyz=normalized[start:stop]
+                    neighbor_xyz=normalized[idx]
+                    relative_xyz=neighbor_xyz-center_xyz[:,None,:]
+                    relative_extent=torch.log((extent_normalized[idx]/extent_normalized[start:stop,None,:]).clamp_min(1e-6))
+                    relative_mass=torch.log((mass[idx]/mass[start:stop,None]).clamp_min(1e-12)).unsqueeze(-1)
+                    edge_features=torch.cat((relative_xyz,relative_extent,relative_mass),dim=-1).to(p.dtype)
+                    args=(all_features[start:stop],all_features[idx],edge_features,weights[idx])
+                    if c.checkpoint_intervals and self.training and torch.is_grad_enabled():
+                        updated=checkpoint(self._gno_update_chunk,*args,use_reentrant=False)
+                    else:
+                        updated=self._gno_update_chunk(*args)
+                    updated_chunks.append(updated)
+                all_features=torch.cat(updated_chunks,dim=0)
+            if c.transolver_enabled:
+                all_features,tm=self.transolver(all_features,weights)
+                self.counters["transolver_calls"]+=1
+                for key,value in tm.items():
+                    self.counters[key]=value
+            latent=(all_features*weights[:,None].to(all_features.dtype)).sum(0)
+        else:
+            for start in range(0,len(desc),chunk):
+                stop=min(start+chunk,len(desc))
+                sample_grid=coords[start:stop].to(pino_dtype).reshape(1,-1,1,1,3)
+                args=(desc[start:stop],weights[start:stop],sample_grid,pino_map,context)

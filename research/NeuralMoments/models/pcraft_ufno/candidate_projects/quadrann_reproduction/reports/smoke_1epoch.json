@@ -1,0 +1,31 @@
+{
+  "schema": "quadrann.original-reproduction.v1",
+  "upstream_commit": "111dd611aaeac1fb98c76385706b003ea8ef94be",
+  "upstream_source_sha256": "f6f2a5a9b2ebab2b50c23e1d12fffbe53f9bb0ec159385a709643ef893ae377e",
+  "seed": 20,
+  "epochs": 1,
+  "num_points": 1024,
+  "gnn_layers": 3,
+  "knn": 16,
+  "hidden_dim": 128,
+  "final_hidden_dim": 256,
+  "eval_samples": 4,
+  "device": "cuda",
+  "elapsed_seconds": 0.29310160799650475,
+  "history": [
+    {
+      "epoch": 1,
+      "loss": 9.94235451798886e-05,
+      "p1": 0.9456048011779785,
+      "learning_rate": 0.0002
+    }
+  ],
+  "quadrann": {
+    "mean": 1.0902117490768433,
+    "std": 0.07825561926199942
+  },
+  "sobol_qmc": {
+    "mean": 0.9784888625144958,
+    "std": 0.08099452026157866
+  }
+}
