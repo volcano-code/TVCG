@@ -165,7 +165,9 @@ class Phase26UnifiedOperatorIntegrationTests(unittest.TestCase):
     problem,geometry=make_problem()
     calls={"count":0}
     exact_candidate=torch.as_tensor(
-      geometry["fixed_moments"]+.99*(geometry["mass"]@geometry["moment_basis"]),
+      geometry["fixed_moments"]+(1.0-.01*geometry["original_moments"][0]/
+        (geometry["mass"]@geometry["moment_basis"])[0])*
+        (geometry["mass"]@geometry["moment_basis"]),
       dtype=torch.float64)
     def oracle(beta):
       calls["count"]+=1
