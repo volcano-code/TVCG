@@ -67,5 +67,5 @@ jobs:
         run: |
           python -m pytest -q \
             tests/python/test_phase1_unified_contract.py \
-            tests/python/test_m69_task_spec_adapter.py \\
+            tests/python/test_m69_task_spec_adapter.py \
             tests/python/test_m69_fixed_axis_contract.py
