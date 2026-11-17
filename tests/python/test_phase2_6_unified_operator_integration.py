@@ -38,7 +38,8 @@ def make_geometry():
         a,b,c=x.T
         return np.stack((np.ones_like(a),a,b,c,a*a,b*b,c*c,b*c,a*c,a*b),axis=-1)
     fixed=(fixed_w@basis(fixed_xyz))
-    xyz=rng.uniform(-.6,.6,(16,3))
+    half_xyz=rng.uniform(-.6,.6,(8,3))
+    xyz=np.concatenate((half_xyz,-half_xyz),axis=0)
     mass=np.full(16,.01)
     editable=mass@basis(xyz)
     extent=np.full((16,3),.08)
