@@ -1,0 +1,46 @@
+name: Phase 2.2 Conditioning Architecture Comparison
+
+on:
+  push:
+    branches:
+      - research/tvcg-initial-import
+    paths:
+      - "research/NeuralMoments/m69_task_conditioned_m80_v1.py"
+      - "research/NeuralMoments/models/pcraft_ufno/spin_pino/native_pcraft.py"
+      - "tests/python/test_phase2_2_architecture_comparison.py"
+      - ".github/workflows/phase2-2-architecture-comparison.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "research/NeuralMoments/m69_task_conditioned_m80_v1.py"
+      - "research/NeuralMoments/models/pcraft_ufno/spin_pino/native_pcraft.py"
+      - "tests/python/test_phase2_2_architecture_comparison.py"
+      - ".github/workflows/phase2-2-architecture-comparison.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  conditioning-architecture-cpu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install CPU dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "numpy>=1.26,<3" "pytest>=8,<10"
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Compile task-conditioned operator
+        run: python -m py_compile research/NeuralMoments/m69_task_conditioned_m80_v1.py
+      - name: Compare FiLM, conditional normalization and cross-attention
+        env:
+          PYTHONPATH: .
+          OMP_NUM_THREADS: "1"
+          OPENBLAS_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+        run: python -m pytest -q tests/python/test_phase2_2_architecture_comparison.py
