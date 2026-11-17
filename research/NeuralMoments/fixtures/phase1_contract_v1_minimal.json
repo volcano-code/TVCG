@@ -5,7 +5,7 @@
     "geometry_id": "analytic-box-plane-cut-v1",
     "source_sha256": "analytic-fixture",
     "coordinate_space": "registered-task",
-    "length_unit": "m",
+    "length_unit": "dimensionless",
     "native_representation": "analytic_box"
   },
   "task": {
@@ -49,14 +49,17 @@
   },
   "material": {
     "single_material": true,
-    "density_kg_m3": 1000,
     "regions": {
       "fixed": "fixed-v1",
       "protected": "protected-v1",
       "editable": "editable-v1"
     },
     "representation": "pure_quadric",
-    "fixed_added_once": true
+    "fixed_added_once": true,
+    "density": {
+      "value": 1,
+      "unit": "registered_scalar"
+    }
   },
   "moments": {
     "order": [
