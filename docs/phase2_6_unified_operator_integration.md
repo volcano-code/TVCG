@@ -46,12 +46,14 @@ The current repository does not yet provide a complete production-grade M69 exac
 - `propose_m80_m69_newton_step`: composes M80, S9, M69 KKT and safeguarded Newton.
 - `evaluate_exact_m69_candidate`: calls an independent exact material oracle and computes exact M69 constraints.
 - `exact_m69_merit`: evaluates exact mass, physical constraint violation and topology validity.
+- `make_exact_m69_merit_callback`: wraps an independent oracle and counts every exact merit evaluation.
 
 ## 5. Tests
 
 CPU tests instantiate the real M80 model class with a small convex-potential configuration and test:
 - native geometry encoding and task-conditioned Moment forward;
 - finite Moment query Jacobian;
+- an actual M80 forward-to-S9-to-M69 KKT-to-safeguarded-Newton proposal on the smoke geometry;
 - refusal when the material-map contract is incomplete;
 - independent exact-oracle invocation and source provenance;
 - connectivity/topology penalty in exact merit.
@@ -64,3 +66,12 @@ CPU tests instantiate the real M80 model class with a small convex-potential con
 4. Exercise the complete M80 proposal -> exact oracle -> accept/reject/fallback loop on real candidates.
 5. Compare against Exact Newton and Spin-It Faster at matched accuracy, exact-query budget, resolution and hardware.
 6. Only after these gates, run 512^3 and RTX 5090 long experiments.
+
+
+## 7. Integration evidence
+
+The CPU integration test instantiates the real `PcraftNativeMomentOperator` with its convex-potential head and the real `M69TaskConditionedM80` Conditional Normalization adapter. It successfully builds a finite M69 KKT Jacobian in the nine-dimensional S9 chart and returns a trust-region-limited Newton proposal. The backbone remains frozen.
+
+The test's geometry is a small synthetic native-interval fixture with a near-axis anisotropic fixed-mass distribution. The exact oracle fixture independently returns the analytically accumulated original moments; it is intentionally not the learned model output. The exact merit includes the registered M69 constraint violation and independent topology/event flags. This test validates the API boundary and software wiring only.
+
+The production exact material oracle for arbitrary quadric-clipped 512^3 designs is still not implemented. The actual M80 instance is randomly initialized for smoke testing, not a trained checkpoint. Consequently no physical feasibility, accuracy, or acceleration claim is made.
