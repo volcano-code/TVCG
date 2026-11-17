@@ -132,7 +132,7 @@ def _power_integral(lo, hi, power):
 @dataclass(frozen=True)
 class PlaneCutBoxResult:
     moments: np.ndarray
-    derivative_da: np.ndarray
+    derivative_da: np.ndarray | None
     derivative_valid: bool
 
 
@@ -154,13 +154,13 @@ def plane_cut_box_moments(a, bounds, density=1.0):
     z0, z1 = b[2]
     cut = float(np.clip(a, x0, x1))
     moments = np.zeros(10, dtype=np.float64)
-    derivative = np.zeros(10, dtype=np.float64)
+    derivative = np.zeros(10, dtype=np.float64) if x0 < a < x1 else None
     for k, (i, j, kpow) in enumerate(EXPONENTS):
         ix = _power_integral(x0, cut, i) if cut > x0 else 0.0
         iy = _power_integral(y0, y1, j)
         iz = _power_integral(z0, z1, kpow)
         moments[k] = density * ix * iy * iz
-        if x0 < a < x1:
+        if derivative is not None:
             derivative[k] = density * (a ** i) * iy * iz
     return PlaneCutBoxResult(moments, derivative, bool(x0 < a < x1))
 
