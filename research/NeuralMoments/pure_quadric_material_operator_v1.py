@@ -104,7 +104,7 @@ def classify_repeated_root_or_plane_event(q, bounds, *, grad_tol=1e-10, event_to
         # A stationary zero is a singular quadric candidate. Exact test is
         # intentionally conservative: identify a zero-valued stationary point.
         try:
-            stationary=np.linalg.solve(2*A,-q[1:4])
+            stationary=np.linalg.lstsq(2*A,-q[1:4],rcond=grad_tol)[0]
             value=q[0]+q[1:4]@stationary+stationary@A@stationary
             gradient=q[1:4]+2*A@stationary
             inside=np.all(stationary>=b[:,0]-event_tol) and np.all(stationary<=b[:,1]+event_tol)
