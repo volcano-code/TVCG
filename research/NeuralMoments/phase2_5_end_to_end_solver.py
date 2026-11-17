@@ -106,8 +106,10 @@ def kkt_direction(objective_fn:Callable[[Tensor],Tensor],constraints_fn:Callable
 
 
 def qp_merit(objective:float,constraints:Tensor,penalty:float)->float:
+    # L1 exact penalty: unlike a squared penalty, it does not make a small
+    # feasibility violation artificially cheap near the boundary.
     violation=torch.clamp(constraints,min=0)
-    return float(objective+penalty*torch.dot(violation,violation))
+    return float(objective+penalty*violation.sum())
 
 
 def _one_step(x,model_objective,exact_objective,constraints_fn,active_state,*,
