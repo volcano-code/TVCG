@@ -233,8 +233,11 @@ def validate_contract_record(record):
     material = record["material"]
     if material.get("single_material") is not True:
         raise ValueError("Phase-1 strict track requires single_material=true")
-    if not np.isfinite(material.get("density_kg_m3", np.nan)) or material["density_kg_m3"] <= 0:
-        raise ValueError("density_kg_m3 must be finite and positive")
+    density = material.get("density")
+    if not isinstance(density, dict) or density.get("unit") not in ("kg/m^3", "registered_scalar", "dimensionless"):
+        raise ValueError("density must declare an explicit supported unit")
+    if not np.isfinite(density.get("value", np.nan)) or density["value"] <= 0:
+        raise ValueError("density value must be finite and positive")
     if record["moments"].get("order") != list(MOMENT_ORDER):
         raise ValueError("moment order mismatch")
     if record["objective"].get("primary_profile_selected") is not False:
