@@ -109,13 +109,13 @@ def run_controlled_distillation(seeds=(22021,22022,22023),steps=60,learning_rate
                     best=min(best,score);model.train()
             model.eval()
             with torch.no_grad():
-                vp=torch.stack([model.predict(caches[gi],q,feats[ti:ti+1]) for ti,gi in valid_pairs])
+                vp=torch.stack([model.predict(student_caches[gi],q,feats[ti:ti+1]) for ti,gi in valid_pairs])
                 final=float(torch.sqrt((vp-valid_targets).square().mean()))
             jac=[]
             for ti,gi in valid_pairs:
                 sc=model.condition_cache(student_caches[gi],feats[ti:ti+1])
                 tc=teacher_cache(caches[gi],feats[ti:ti+1],gi)
-                _,sj=base.moments_and_jacobian(sc,q)
+                _,sj=model.base_model.moments_and_jacobian(sc,q)
                 _,tj=base.moments_and_jacobian(tc,q)
                 jac.append((sj-tj).square().mean())
             jrmse=float(torch.sqrt(torch.stack(jac).mean()))
