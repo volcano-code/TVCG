@@ -89,7 +89,7 @@ class Phase22TaskConditionedOperatorTests(unittest.TestCase):
       minus=self.model.predict(self.cache,self.q-d,self.features)
       fd[:,k]=(plus-minus)/(2*eps)
     self.assertTrue(torch.allclose(j,fd,rtol=3e-3,atol=3e-5),
-      msg=f"max abs Jacobian error={float((j-fd).abs().max())}")
+      msg=f"max abs Jacobian error={float((j-fd).abs().max().detach())}")
 
  def test_material_jacobian_requires_explicit_identity_contract(self):
     identity=MaterialMapContract(True,True,True,True,True,True)
