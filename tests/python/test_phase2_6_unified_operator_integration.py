@@ -39,7 +39,7 @@ def make_geometry():
         return np.stack((np.ones_like(a),a,b,c,a*a,b*b,c*c,b*c,a*c,a*b),axis=-1)
     fixed=(fixed_w@basis(fixed_xyz))
     xyz=rng.uniform(-.6,.6,(16,3))
-    mass=np.full(16,.001)
+    mass=np.full(16,.01)
     editable=mass@basis(xyz)
     extent=np.full((16,3),.08)
     grid=np.zeros((4,8,8,8),dtype=np.float32)
@@ -96,7 +96,9 @@ class Phase26UnifiedOperatorIntegrationTests(unittest.TestCase):
     problem,geometry=make_problem()
     calls={"count":0}
     exact_candidate=torch.as_tensor(
-      geometry["fixed_moments"]+.99*(geometry["mass"]@geometry["moment_basis"]),
+      geometry["fixed_moments"]+(1.0-.01*geometry["original_moments"][0]/
+        (geometry["mass"]@geometry["moment_basis"])[0])*
+        (geometry["mass"]@geometry["moment_basis"]),
       dtype=torch.float64)
     def oracle(beta):
       calls["count"]+=1
