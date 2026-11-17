@@ -233,7 +233,13 @@ class M69TaskConditionedM80(nn.Module):
     def predict(self,cache:EncodedNativeGeometry,beta_query:Tensor|np.ndarray,
                 task_features:Tensor|np.ndarray):
         conditioned=self.condition_cache(cache,task_features)
-        return self.base_model.predict(conditioned,beta_query)
+        query=torch.as_tensor(beta_query,device=cache.latent.device,dtype=torch.float64)
+        # M80's convex-potential head returns moments as d(Psi)/dq. Training
+        # the task conditioner therefore needs the graph of that gradient
+        # (a mixed derivative wrt q and the conditioned latent).
+        if torch.is_grad_enabled() and any(p.requires_grad for p in self.task_encoder.parameters()) and not query.requires_grad:
+            query=query.detach().requires_grad_(True)
+        return self.base_model.predict(conditioned,query)
 
     def moments_and_query_jacobian(self,cache:EncodedNativeGeometry,beta_query:Tensor|np.ndarray,
                                    task_features:Tensor|np.ndarray,*,create_graph:bool=False):
