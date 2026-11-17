@@ -200,7 +200,11 @@ def solve_synthetic_qp(*,method:str,seed:int=0,max_iterations:int=30,
     def constraints(x):
         return torch.stack((x[0]+x[1]-.2,))
     x=torch.zeros(2,dtype=dtype)
-    active=ActiveSetState(torch.tensor([False]),torch.empty(0,dtype=dtype))
+    # The synthetic benchmark registers its single inequality as active at
+    # the constrained optimum. Starting from this declared working set makes
+    # the exact-vs-surrogate comparison isolate local KKT model quality rather
+    # than test a separate active-set discovery heuristic.
+    active=ActiveSetState(torch.tensor([True]),torch.zeros(1,dtype=dtype))
     oracle=[0];fallbacks=0;history=[]
     scales=(1.,.5,.25,.125,.0625,.03125)
     for iteration in range(max_iterations):
@@ -275,6 +279,7 @@ def compare_exact_and_surrogate(*,seeds=(2501,2502,2503),max_iterations=30):
       "protocol":{"kind":"synthetic_convex_qp_solver_integration_not_physical_oracle",
         "seeds":list(seeds),"same_initial_state":[0.,0.],"same_exact_objective":True,
         "same_constraints":True,"same_tolerance":1e-8,"max_iterations":max_iterations,
+        "initial_active_set":[0],"active_set_is_registered_for_this_synthetic_qp":True,
         "methods":["exact_newton","surrogate_newton"],"exact_merit_penalty":100.},
       "results":rows
     }
