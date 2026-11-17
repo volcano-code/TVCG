@@ -82,3 +82,10 @@ The production exact material oracle for arbitrary quadric-clipped 512^3 designs
 GitHub Actions run `44131166190` passed **7 tests in 1.29 seconds**, with no warnings. The final suite includes the real M80 native encoder/convex-potential forward path, query Jacobian, material-map admission refusal, independent exact-oracle provenance and counted merit callback, topology penalty, and the actual M80-to-S9-to-M69-KKT-to-safeguarded-Newton proposal on the synthetic smoke geometry.
 
 The exact-oracle fixture is deliberately independent of M80. Its merit includes the M69 minimum-removal and other physical constraint slacks; a finite exact merit is not itself a feasibility certificate. The tests check the penalty calculation and topology flags rather than asserting that every synthetic candidate is feasible.
+
+
+## 9. End-to-end exact acceptance/fallback smoke test
+
+The final seven-test suite also runs the actual M80/S9/M69 KKT proposal through `accept_m80_proposal_with_exact_oracle`. The independent exact callback is invoked once for the base state and once per backtracking trial. In the test fixture the exact merit is deliberately constant, so the neural proposal is rejected and the registered fallback callback is invoked. The test verifies the exact evaluation counter and fallback result. This validates the safety path, not successful physical design improvement.
+
+Final GitHub Actions run `44131474066` passed **7 tests in 1.31 seconds**, with no warnings. The tested code and test revision is `506992cf01b756042f955e3d28ac3d697b943fa6`.
