@@ -57,3 +57,9 @@ This phase does not yet establish:
 - implicit differentiation through the converged optimizer.
 
 The next integration gate is to replace the synthetic surrogate callback with the trained task-conditioned M80 moment potential and replace the QP exact merit with the independent M69 exact oracle, while retaining the same acceptance and fallback contract.
+
+
+## 6. Exact fallback in the registered 2D benchmark
+
+The two-dimensional benchmark has a closed-form KKT solution. If a surrogate proposal and its local exact-Newton correction are both rejected, the harness invokes this registered exact QP solver, verifies nonnegative multiplier and primal feasibility, and counts an exact evaluation. This terminal fallback is deliberately benchmark-specific; it is not a substitute for the M69 production oracle or a general-purpose exact optimizer.
+
