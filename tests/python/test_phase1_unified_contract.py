@@ -81,8 +81,8 @@ class Phase1MomentContractTests(unittest.TestCase):
         right = plane_cut_box_moments(1.0, ((-1, 1), (-1, 1), (-1, 1)))
         self.assertFalse(left.derivative_valid)
         self.assertFalse(right.derivative_valid)
-        self.assertTrue(np.array_equal(left.derivative_da, np.zeros(10)))
-        self.assertTrue(np.array_equal(right.derivative_da, np.zeros(10)))
+        self.assertIsNone(left.derivative_da)
+        self.assertIsNone(right.derivative_da)
 
     def test_active_set_kkt_sign_and_dimensions(self):
         # min (x-2)^2 subject to x-1 <= 0: x=1, lambda=2.
