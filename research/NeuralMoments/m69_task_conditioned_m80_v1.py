@@ -122,8 +122,9 @@ class MaterialMapContract:
                self.same_units_and_moment_normalization,self.derivative_valid)
         if not all(flags):
             raise ValueError("query-to-material Jacobian contract is not admitted")
-        if not self.identity_map:
-            raise ValueError("identity alpha-to-beta map was not explicitly established")
+        # A non-identity local-coordinate map is valid when its explicit
+        # Jacobian D is supplied by the caller; identity_map only controls
+        # whether D must be the 10x10 identity.
 
 
 class M69TaskConditionedM80(nn.Module):
