@@ -116,4 +116,32 @@ class Phase26UnifiedOperatorIntegrationTests(unittest.TestCase):
     merit=exact_m69_merit(evaluation,connectivity_penalty=1e6,feasibility_penalty=1e4)
     self.assertGreater(merit,float(problem.original_moments[0])+1e5)
 
+
+ def test_actual_m80_to_s9_m69_kkt_newton_proposal(self):
+    from research.NeuralMoments.phase2_6_unified_operator_integration import (
+      propose_m80_m69_newton_step
+    )
+    problem,geometry=make_problem()
+    with torch.no_grad():
+      predicted=m80_moment_function(problem)(problem.beta_anchor)
+    ratio=float(predicted[0]/problem.original_moments[0])
+    task=dict(problem.task)
+    active=torch.zeros(10,dtype=torch.bool)
+    if ratio<=1.0:
+      task["min_removal_fraction"]=max(0.0,1.0-ratio)
+      active[2]=True
+    else:
+      task["mass_tolerance"]=max(1e-10,ratio-1.0)
+      active[1]=True
+    problem=make_m80_m69_problem(problem.model,geometry,task,length_scale=2.,
+      beta_anchor=problem.beta_anchor,
+      material_map_contract=problem.material_map_contract)
+    proposal=propose_m80_m69_newton_step(problem,torch.zeros(9,dtype=torch.float64),
+      active,trust_radius=.05,event_tolerance=1e-12)
+    self.assertEqual(tuple(proposal.jacobian.shape),(10,10))
+    self.assertEqual(proposal.residual.shape,(10,))
+    self.assertTrue(torch.isfinite(proposal.moments).all())
+    self.assertTrue(torch.isfinite(proposal.direction.step).all())
+    self.assertLessEqual(proposal.direction.primal_step_norm,.0500001)
+
 if __name__=="__main__": unittest.main()
