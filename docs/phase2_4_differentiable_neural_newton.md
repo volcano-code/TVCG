@@ -51,3 +51,19 @@ These are solver-component tests on synthetic systems, not a real M69 material o
 ## 6. Next gate
 
 Wire the S9 chart directly to the M80 `beta_query -> Moment` map, compose Phase 2.3 M69 KKT with the local chart, and run a synthetic constrained optimization against an exact analytic teacher. Then compare exact Newton and neural-proposed Newton under identical initial states, stopping criteria, and exact evaluation budgets.
+
+
+## 7. Final CI and S9-to-M69 integration
+
+GitHub Actions run `44119984215` passed the Phase 2.4 CPU suite. The final suite covers:
+- deterministic orthonormal S9 tangent basis and local chart decode/encode;
+- symmetric saddle-point Newton solve with regularization applied only to the primal Hessian block;
+- primal trust-radius clipping;
+- refusal of nonsymmetric KKT Jacobians;
+- exact-merit backtracking and rejected-step fallback;
+- invocation of an exact fallback callback;
+- direct composition of the S9 chart with a synthetic Moment map and the Phase 2.3 M69 KKT residual/Jacobian.
+
+The S9-to-M69 test uses an explicitly synthetic differentiable response and validates chain-rule wiring only. It is not an M69 material optimum, trained M80 prediction, or physical speedup result.
+
+**Remaining:** active-set update policy, full M80-to-S9-to-M69 exact-oracle loop, trust-region ratio based on an independently evaluated exact residual, and implicit differentiation of a converged optimizer solution.
