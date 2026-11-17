@@ -83,3 +83,10 @@ Synthetic tests do not establish real-geometry physical feasibility, learned-ope
 3. Connectivity and binary topology are independent exact acceptance checks, not differentiable constraints.
 4. The KKT Jacobian is tested on smooth synthetic objectives and M69 constraint fixtures; no real M69 KKT labels exist yet.
 5. Phase 2.4 should add the S9 chart, fixed-active-set trust-region Newton step, exact residual acceptance and fallback to the exact solver.
+
+
+## 7. Final CI result
+
+GitHub Actions run `44116813811` passed **10 tests in 1.34 seconds**. In addition to analytic constraint/KKT fixtures, the suite instantiates the actual task-conditioned M80 convex-potential wrapper on a synthetic native-interval geometry, composes its moment output into the M69 KKT layer, differentiates the KKT residual/Jacobian, and verifies finite gradients reach the Conditional Normalization adapter. This is a synthetic graph-integration test only; it does not claim physical M69 accuracy or trained-checkpoint performance.
+
+A fixed-active-set correction was made during validation: an exactly active inequality is differentiable while the active set is held fixed. Only an inactive inequality near zero is rejected as an active-set switching event. Spectral multiplicity and zero-norm events remain derivative-invalid.
