@@ -40,6 +40,10 @@ class Phase23DifferentiableKKTTests(unittest.TestCase):
   self.assertTrue(torch.allclose(jac,fd,rtol=2e-4,atol=2e-6),
     msg=f"max_error={(jac-fd).abs().max().item()}")
 
+ def test_active_constraint_is_differentiable_on_fixed_active_set(self):
+  r=m69_constraint_slacks_torch(CANDIDATE,ORIGINAL,TASK,length_scale=2.)
+  self.assertTrue(r.derivative_valid,r.invalid_reasons)
+  self.assertTrue(r.active_set_event)
  def test_zero_com_alignment_is_reported_derivative_invalid(self):
   centered=CANDIDATE.clone();centered[1:4]=0.
   r=m69_constraint_slacks_torch(centered,ORIGINAL,TASK,length_scale=2.)
