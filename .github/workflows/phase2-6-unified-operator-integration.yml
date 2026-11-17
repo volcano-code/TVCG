@@ -1,0 +1,48 @@
+name: Phase 2.6 Unified Operator Integration
+
+on:
+  push:
+    branches:
+      - research/tvcg-initial-import
+    paths:
+      - "research/NeuralMoments/phase2_6_unified_operator_integration.py"
+      - "research/NeuralMoments/phase2_3_differentiable_m69_kkt.py"
+      - "research/NeuralMoments/phase2_4_neural_newton.py"
+      - "research/NeuralMoments/m69_task_conditioned_m80_v1.py"
+      - "research/NeuralMoments/models/pcraft_ufno/spin_pino/native_pcraft.py"
+      - "tests/python/test_phase2_6_unified_operator_integration.py"
+      - ".github/workflows/phase2-6-unified-operator-integration.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "research/NeuralMoments/phase2_6_unified_operator_integration.py"
+      - "tests/python/test_phase2_6_unified_operator_integration.py"
+      - ".github/workflows/phase2-6-unified-operator-integration.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  unified-operator-cpu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install CPU dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "numpy>=1.26,<3" "pytest>=8,<10"
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Compile unified integration
+        run: python -m py_compile research/NeuralMoments/phase2_6_unified_operator_integration.py
+      - name: Run actual M80 integration tests
+        env:
+          PYTHONPATH: .
+          OMP_NUM_THREADS: "1"
+          OPENBLAS_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+        run: python -m pytest -q tests/python/test_phase2_6_unified_operator_integration.py
