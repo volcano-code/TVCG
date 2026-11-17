@@ -302,3 +302,8 @@ The committed analytic fixture uses a box clipped by the plane `x<=a`. Its exact
 6. Local-correction basis, support and hardening policy (only needed after Pure Quadric baseline).
 
 Until these are resolved, implement the common math and tests, but do not freeze a benchmark objective or generate purported labels for unknown constraints.
+
+
+### 3.3 Density unit representation
+
+The machine contract stores density as a positive numeric value plus an explicit unit token. Use `kg/m^3` only when SI length and mass registration are established. Use `registered_scalar` for a source-coordinate track whose density is a frozen task scalar but whose physical length scale is unknown; use `dimensionless` only for an explicitly dimensionless formulation. Never populate an SI density field with an arbitrary placeholder. The analytic fixture uses `registered_scalar=1` and is marked not physically admitted.
