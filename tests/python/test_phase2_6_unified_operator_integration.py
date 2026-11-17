@@ -10,7 +10,7 @@ from research.NeuralMoments.m69_task_conditioned_m80_v1 import (
 )
 from research.NeuralMoments.phase2_6_unified_operator_integration import (
  make_m80_m69_problem,m80_moment_function,evaluate_exact_m69_candidate,
- exact_m69_merit,propose_m80_m69_newton_step
+ exact_m69_merit,propose_m80_m69_newton_step,make_exact_m69_merit_callback
 )
 
 TASK={"schema":"m69.fixed-axis-task.v1","axis":[0.,0.,1.],"axis_origin":[0.,0.,0.],
@@ -66,7 +66,7 @@ class Phase26UnifiedOperatorIntegrationTests(unittest.TestCase):
     moment=fn(problem.beta_anchor)
     self.assertEqual(tuple(moment.shape),(10,))
     self.assertTrue(torch.isfinite(moment).all())
-    self.assertGreater(float(moment[0]),0.)
+    self.assertGreater(float(moment[0].detach()),0.)
     self.assertFalse(problem.model.base_model.training)
     self.assertTrue(all(not p.requires_grad for p in problem.model.base_model.parameters()))
 
@@ -147,5 +147,21 @@ class Phase26UnifiedOperatorIntegrationTests(unittest.TestCase):
     self.assertTrue(torch.isfinite(proposal.moments).all())
     self.assertTrue(torch.isfinite(proposal.direction.step).all())
     self.assertLessEqual(proposal.direction.primal_step_norm,.0500001)
+
+
+ def test_counted_exact_merit_callback_uses_independent_oracle(self):
+    problem,_=make_problem()
+    calls={"count":0}
+    def oracle(beta):
+      calls["count"]+=1
+      return {"moments":problem.original_moments,"connected":True,
+        "topology_valid":True,"event_valid":True,"source":"independent-test-oracle"}
+    merit=make_exact_m69_merit_callback(problem,exact_material_oracle=oracle,
+      state_to_beta=lambda state:state["beta"],connectivity_penalty=1e6,
+      feasibility_penalty=1e4)
+    value=merit({"beta":problem.beta_anchor})
+    self.assertTrue(np.isfinite(value))
+    self.assertEqual(calls["count"],1)
+    self.assertEqual(merit.evaluation_count,1)
 
 if __name__=="__main__": unittest.main()
