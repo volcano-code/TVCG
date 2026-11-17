@@ -1,7 +1,8 @@
 import unittest
 import torch
 from research.NeuralMoments.phase2_5_end_to_end_solver import (
- ActiveSetState,update_active_set,kkt_direction,solve_synthetic_qp,compare_exact_and_surrogate
+ ActiveSetState,update_active_set,kkt_direction,solve_synthetic_qp,compare_exact_and_surrogate,
+ propose_m69_neural_newton_step
 )
 
 class Phase25EndToEndTests(unittest.TestCase):
@@ -54,4 +55,29 @@ class Phase25EndToEndTests(unittest.TestCase):
   self.assertLessEqual(float(x.sum()-.2),1e-10)
   self.assertTrue(torch.allclose(x,torch.tensor([.4461538461538462,-.2461538461538462],dtype=x.dtype),atol=1e-10))
 
-if __name__=="__main__": unittest.main()
+
+ def test_m69_s9_kkt_to_neural_newton_bridge(self):
+  task={"schema":"m69.fixed-axis-task.v1","axis":[0.,0.,1.],"axis_origin":[0.,0.,0.],
+   "contact":[0.,0.,0.],"density":1.,"shell_fraction":.03,"protect_radius_fraction":.04,
+   "protect_height_fraction":0.,"polar_retention":.9,"min_removal_fraction":.1,
+   "max_centroid_rise":1e-7,"com_tolerance":1e-4,"alignment_tolerance":1e-4,
+   "principal_gap_min":-1e-8,"require_connected":True,"mass_tolerance":1e-10,
+   "inertia_tolerance":1e-10,"moment_psd_tolerance":1e-9,"solver_tolerance":1e-9,
+   "solver_polar_margin":1e-5,"training_polar_margin":5e-4,
+   "objective":"minimum_retained_mass","material_policy":"single_density_removal_only",
+   "inertia_reference":"original_fixed_axis"}
+  original=torch.tensor([10.,0.,0.,0.,2.,2.,1.,0.,0.,0.],dtype=torch.float64)
+  candidate=torch.tensor([9.,.18,.09,.36,1.85,1.55,.92,.015,.02,.01],dtype=torch.float64)
+  beta=torch.tensor([.2,-.3,.1,.5,.2,.4,-.1,.3,.2,.1],dtype=torch.float64)
+  beta=beta/torch.linalg.vector_norm(beta)
+  response=torch.tensor([.01,.02,-.01,.015,.01,.012,.008,.002,-.003,.001],dtype=torch.float64)
+  def moment_fn(b): return candidate+response*(b-beta)
+  active=torch.zeros(10,dtype=torch.bool);active[2]=True
+  chart,system,direction=propose_m69_neural_newton_step(
+   torch.zeros(9,dtype=torch.float64),beta,moment_fn,original,task,
+   length_scale=2.,active_mask=active,trust_radius=.1,event_tolerance=1e-12)
+  self.assertEqual(tuple(chart.basis.shape),(10,9))
+  self.assertEqual(direction.step.numel(),10)
+  self.assertTrue(torch.isfinite(direction.step).all())
+  self.assertLessEqual(direction.primal_step_norm,.1000001)
+\nif __name__=="__main__": unittest.main()
