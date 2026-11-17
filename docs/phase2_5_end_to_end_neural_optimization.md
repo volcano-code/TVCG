@@ -63,3 +63,6 @@ The next integration gate is to replace the synthetic surrogate callback with th
 
 The two-dimensional benchmark has a closed-form KKT solution. If a surrogate proposal and its local exact-Newton correction are both rejected, the harness invokes this registered exact QP solver, verifies nonnegative multiplier and primal feasibility, and counts an exact evaluation. This terminal fallback is deliberately benchmark-specific; it is not a substitute for the M69 production oracle or a general-purpose exact optimizer.
 
+
+
+The benchmark's single linear inequality is registered as active at the constrained optimum, so both methods start with the same declared working set `[0]` and zero multiplier. This isolates local KKT model quality; it does not measure active-set discovery. The independent active-set update/release rule is tested separately.
