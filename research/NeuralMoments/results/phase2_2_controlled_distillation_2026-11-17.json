@@ -1,0 +1,169 @@
+{
+  "protocol": {
+    "kind": "synthetic_teacher_distillation_not_physical_oracle",
+    "seeds": [
+      22021,
+      22022,
+      22023
+    ],
+    "steps_per_variant": 60,
+    "learning_rate": 0.002,
+    "optimizer": "Adam",
+    "train_task_ids": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "heldout_task_ids": [
+      10,
+      11,
+      12,
+      13
+    ],
+    "synthetic_geometry_count": 2,
+    "query_count": 8,
+    "frozen_backbone": true,
+    "teacher": "fixed deterministic nonlinear task-geometry latent interaction",
+    "note": "This is a controlled architecture distillation diagnostic, not M69 labels, physical accuracy, or real-geometry generalization."
+  },
+  "parameter_budget": {
+    "target_trainable_parameters": 6222,
+    "tolerance": 0.2,
+    "variants": {
+      "film": {
+        "hidden_dim": 128,
+        "trainable_parameters": 6222,
+        "relative_gap_to_target": 0
+      },
+      "conditional_norm": {
+        "hidden_dim": 128,
+        "trainable_parameters": 6238,
+        "relative_gap_to_target": 0.0025715204114432656
+      },
+      "cross_attention": {
+        "hidden_dim": 136,
+        "trainable_parameters": 6342,
+        "relative_gap_to_target": 0.019286403085824494
+      }
+    }
+  },
+  "results": [
+    {
+      "seed": 22021,
+      "architecture": "film",
+      "best_validation_moment_rmse": 0.00000892807803969176,
+      "final_validation_moment_rmse": 0.00000892807803969176,
+      "validation_jacobian_rmse": 0.000009582799762977543,
+      "trainable_parameters": 6222,
+      "steps": 60
+    },
+    {
+      "seed": 22021,
+      "architecture": "conditional_norm",
+      "best_validation_moment_rmse": 0.000008793494185044324,
+      "final_validation_moment_rmse": 0.000008793494185044324,
+      "validation_jacobian_rmse": 0.000009426983551712086,
+      "trainable_parameters": 6238,
+      "steps": 60
+    },
+    {
+      "seed": 22021,
+      "architecture": "cross_attention",
+      "best_validation_moment_rmse": 0.000009336980797033256,
+      "final_validation_moment_rmse": 0.000009336980797033256,
+      "validation_jacobian_rmse": 0.000010058847483629156,
+      "trainable_parameters": 6342,
+      "steps": 60
+    },
+    {
+      "seed": 22022,
+      "architecture": "film",
+      "best_validation_moment_rmse": 0.000014735778787847621,
+      "final_validation_moment_rmse": 0.000014735778787847621,
+      "validation_jacobian_rmse": 0.000015392953165075803,
+      "trainable_parameters": 6222,
+      "steps": 60
+    },
+    {
+      "seed": 22022,
+      "architecture": "conditional_norm",
+      "best_validation_moment_rmse": 0.000014067456589573837,
+      "final_validation_moment_rmse": 0.000014067456589573837,
+      "validation_jacobian_rmse": 0.000014895452955851286,
+      "trainable_parameters": 6238,
+      "steps": 60
+    },
+    {
+      "seed": 22022,
+      "architecture": "cross_attention",
+      "best_validation_moment_rmse": 0.000016819570462365303,
+      "final_validation_moment_rmse": 0.000016819570462365303,
+      "validation_jacobian_rmse": 0.000017240508461078008,
+      "trainable_parameters": 6342,
+      "steps": 60
+    },
+    {
+      "seed": 22023,
+      "architecture": "film",
+      "best_validation_moment_rmse": 0.000011413933383669324,
+      "final_validation_moment_rmse": 0.000011413933383669324,
+      "validation_jacobian_rmse": 0.000011019703232311954,
+      "trainable_parameters": 6222,
+      "steps": 60
+    },
+    {
+      "seed": 22023,
+      "architecture": "conditional_norm",
+      "best_validation_moment_rmse": 0.000010962063677231248,
+      "final_validation_moment_rmse": 0.000010962063677231248,
+      "validation_jacobian_rmse": 0.000010665288913129642,
+      "trainable_parameters": 6238,
+      "steps": 60
+    },
+    {
+      "seed": 22023,
+      "architecture": "cross_attention",
+      "best_validation_moment_rmse": 0.000011902234786864276,
+      "final_validation_moment_rmse": 0.000011902234786864276,
+      "validation_jacobian_rmse": 0.000011390797097049464,
+      "trainable_parameters": 6342,
+      "steps": 60
+    }
+  ],
+  "summary": {
+    "film": {
+      "best_validation_moment_rmse_mean": 0.00001169259673706957,
+      "best_validation_moment_rmse_std": 0.000002913861174357615,
+      "final_validation_moment_rmse_mean": 0.00001169259673706957,
+      "final_validation_moment_rmse_std": 0.000002913861174357615,
+      "validation_jacobian_rmse_mean": 0.000011998485386788432,
+      "validation_jacobian_rmse_std": 0.000003026215709168748,
+      "trainable_parameters": 6222
+    },
+    "conditional_norm": {
+      "best_validation_moment_rmse_mean": 0.00001127433815061647,
+      "best_validation_moment_rmse_std": 0.0000026508123983306884,
+      "final_validation_moment_rmse_mean": 0.00001127433815061647,
+      "final_validation_moment_rmse_std": 0.0000026508123983306884,
+      "validation_jacobian_rmse_mean": 0.000011662575140231004,
+      "validation_jacobian_rmse_std": 0.000002867398519577665,
+      "trainable_parameters": 6238
+    },
+    "cross_attention": {
+      "best_validation_moment_rmse_mean": 0.000012686262015420945,
+      "best_validation_moment_rmse_std": 0.000003802408584867252,
+      "final_validation_moment_rmse_mean": 0.000012686262015420945,
+      "final_validation_moment_rmse_std": 0.000003802408584867252,
+      "validation_jacobian_rmse_mean": 0.000012896717680585541,
+      "validation_jacobian_rmse_std": 0.000003820328677180948,
+      "trainable_parameters": 6342
+    }
+  }
+}
