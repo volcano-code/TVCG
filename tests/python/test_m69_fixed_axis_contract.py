@@ -1,4 +1,6 @@
 import unittest
+import json
+from pathlib import Path
 import numpy as np
 from research.NeuralMoments.m69_fixed_axis_contract_v1 import TASK_HASH,evaluate_m69_moments,physical_metrics
 
@@ -16,6 +18,19 @@ ORIGINAL=np.array([10.,0.,0.,0.,2.,2.,1.,0.,0.,0.])
 CANDIDATE=np.array([9.,0.,0.,0.,1.8,1.8,.9,0.,0.,0.])
 
 class M69FixedAxisContractTests(unittest.TestCase):
+ def test_registered_task_fixture_contains_all_28_source_fields(self):
+  path=Path("research/NeuralMoments/fixtures/m69_fixed_axis_task_registration_v1.json")
+  record=json.loads(path.read_text())
+  payload=record["task"]["payload"]
+  expected={"alignment_tolerance","axis","axis_origin","com_tolerance","contact","density",
+   "inertia_reference","inertia_tolerance","mass_tolerance","material_policy","max_centroid_rise",
+   "min_removal_fraction","moment_psd_tolerance","name","native_resolution","objective",
+   "polar_retention","principal_gap_min","protect_height_fraction","protect_radius_fraction",
+   "purpose","require_connected","schema","shell_fraction","solver_polar_margin",
+   "solver_tolerance","training_polar_margin"}
+  self.assertEqual(set(payload),expected)
+  self.assertEqual(record["task"]["task_hash"],TASK_HASH)
+  self.assertEqual(payload["inertia_reference"],"original_fixed_axis")
  def test_all_ten_constraints_match_boundary_fixture(self):
   r=evaluate_m69_moments(CANDIDATE,ORIGINAL,TASK,length_scale=2.,connectivity=True)
   self.assertEqual(r.task_hash,TASK_HASH)
