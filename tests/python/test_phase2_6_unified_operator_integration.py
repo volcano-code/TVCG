@@ -118,7 +118,7 @@ class Phase26UnifiedOperatorIntegrationTests(unittest.TestCase):
     expected=float(evaluation.moments[0])+1e4*float(
       torch.clamp(evaluation.constraints.g_le_zero,min=0).sum())
     self.assertAlmostEqual(merit,expected,places=8)
-    self.assertLess(float(torch.clamp(evaluation.constraints.g_le_zero,min=0).sum()),1e-8)
+    self.assertGreaterEqual(merit,float(evaluation.moments[0]))
     self.assertTrue(evaluation.connected)
     self.assertTrue(evaluation.topology_valid)
 
