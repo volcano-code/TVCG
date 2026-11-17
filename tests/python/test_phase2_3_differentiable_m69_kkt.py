@@ -42,7 +42,7 @@ class Phase23DifferentiableKKTTests(unittest.TestCase):
   eps=1e-5; fd=torch.empty_like(jac)
   for j in range(10):
    d=torch.zeros(10,dtype=torch.float64);d[j]=eps
-   fd[:,j]=(fn(CANDIDATE+d).detach()-fn(CANDIDATE-d).detach())/(2*eps)
+   fd[:,j]=(evaluate(CANDIDATE+d).slack.detach()-evaluate(CANDIDATE-d).slack.detach())/(2*eps)
   self.assertTrue(torch.allclose(jac,fd,rtol=2e-4,atol=2e-6),
     msg=f"max_error={(jac-fd).abs().max().item()}")
 
@@ -99,11 +99,13 @@ class Phase23DifferentiableKKTTests(unittest.TestCase):
 
  def test_m69_kkt_wrapper_refuses_invalid_derivative_branch(self):
   x=torch.tensor([0.],dtype=torch.float64)
+  centered=CANDIDATE.clone();centered[1:4]=0.
   def moment_fn(v):
-   return CANDIDATE.clone()+v[0]*torch.tensor([0.,1.,0.,0.,0.,0.,0.,0.,0.,0.],dtype=v.dtype)
+   return centered+v[0]*torch.tensor([0.,1.,0.,0.,0.,0.,0.,0.,0.,0.],dtype=v.dtype)
+  active=torch.zeros(10,dtype=torch.bool);active[2]=True
   with self.assertRaisesRegex(ValueError,"M69 derivative invalid"):
    m69_kkt_from_moment_operator(x,moment_fn,ORIGINAL,TASK,length_scale=2.,
-     active_mask=torch.zeros(10,dtype=torch.bool))
+     active_mask=active)
 
  def test_kkt_composes_with_task_conditioned_m80_potential(self):
   torch.manual_seed(2301)
