@@ -43,4 +43,4 @@ jobs:
           OMP_NUM_THREADS: "1"
           OPENBLAS_NUM_THREADS: "1"
           MKL_NUM_THREADS: "1"
-        run: python -m pytest -q tests/python/test_phase2_2_architecture_comparison.py
+        run: python -m pytest -q -s tests/python/test_phase2_2_architecture_comparison.py
