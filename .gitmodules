@@ -1,3 +1,7 @@
 [submodule "libigl"]
 	path = libigl
 	url = https://github.com/libigl/libigl.git
+
+[submodule "QuadrANN"]
+	path = research/NeuralMoments/models/pcraft_ufno/candidate_projects/upstream/QuadrANN
+	url = https://github.com/kesmarag/QuadrANN.git
