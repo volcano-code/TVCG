@@ -75,3 +75,10 @@ The CPU integration test instantiates the real `PcraftNativeMomentOperator` with
 The test's geometry is a small synthetic native-interval fixture with a near-axis anisotropic fixed-mass distribution. The exact oracle fixture independently returns the analytically accumulated original moments; it is intentionally not the learned model output. The exact merit includes the registered M69 constraint violation and independent topology/event flags. This test validates the API boundary and software wiring only.
 
 The production exact material oracle for arbitrary quadric-clipped 512^3 designs is still not implemented. The actual M80 instance is randomly initialized for smoke testing, not a trained checkpoint. Consequently no physical feasibility, accuracy, or acceleration claim is made.
+
+
+## 8. Final CI verification
+
+GitHub Actions run `44131166190` passed **7 tests in 1.29 seconds**, with no warnings. The final suite includes the real M80 native encoder/convex-potential forward path, query Jacobian, material-map admission refusal, independent exact-oracle provenance and counted merit callback, topology penalty, and the actual M80-to-S9-to-M69-KKT-to-safeguarded-Newton proposal on the synthetic smoke geometry.
+
+The exact-oracle fixture is deliberately independent of M80. Its merit includes the M69 minimum-removal and other physical constraint slacks; a finite exact merit is not itself a feasibility certificate. The tests check the penalty calculation and topology flags rather than asserting that every synthetic candidate is feasible.
