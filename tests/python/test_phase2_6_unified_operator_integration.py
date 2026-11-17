@@ -25,8 +25,14 @@ TASK={"schema":"m69.fixed-axis-task.v1","axis":[0.,0.,1.],"axis_origin":[0.,0.,0
 
 def make_geometry():
     rng=np.random.default_rng(2601)
-    fixed_xyz=rng.uniform(-.55,.55,(40,3))
-    fixed_xyz[:,2]*=.75
+    raw=rng.normal(size=(40,3))
+    raw=raw-raw.mean(axis=0,keepdims=True)
+    sample_cov=(raw.T@raw)/len(raw)
+    target_cov=np.array([[.20,2e-6,4e-6],[2e-6,.15,6e-6],[4e-6,6e-6,.10]])
+    eigval,eigvec=np.linalg.eigh(sample_cov)
+    whiten=eigvec@np.diag(1./np.sqrt(eigval))@eigvec.T
+    fixed_xyz=raw@whiten@np.linalg.cholesky(target_cov).T
+    fixed_xyz+=np.array([1e-5,2e-5,.02])
     fixed_w=np.full(40,.125)
     def basis(x):
         a,b,c=x.T
@@ -106,6 +112,7 @@ class Phase26UnifiedOperatorIntegrationTests(unittest.TestCase):
     expected=float(evaluation.moments[0])+1e4*float(
       torch.clamp(evaluation.constraints.g_le_zero,min=0).sum())
     self.assertAlmostEqual(merit,expected,places=8)
+    self.assertLess(float(torch.clamp(evaluation.constraints.g_le_zero,min=0).sum()),1e-8)
     self.assertTrue(evaluation.connected)
     self.assertTrue(evaluation.topology_valid)
 
