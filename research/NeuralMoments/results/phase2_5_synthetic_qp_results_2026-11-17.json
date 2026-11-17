@@ -1,0 +1,147 @@
+{
+  "schema_version": "tvcg.phase2_5.synthetic_qp_results.v1",
+  "ci_run": "44127261155",
+  "evidence_scope": "synthetic convex QP solver integration only; not M69 physical optimization and not trained M80 performance",
+  "protocol": {
+    "seeds": [
+      2501,
+      2502,
+      2503
+    ],
+    "same_initial_state": [
+      0,
+      0
+    ],
+    "initial_active_set": [
+      0
+    ],
+    "active_set_is_registered_for_this_synthetic_qp": true,
+    "objective": "0.5*(x-target)^T H (x-target), H=[[2,0.2],[0.2,1]], target=[1,1]",
+    "constraint": "x0+x1-0.2 <= 0",
+    "optimizer": "fixed-active-set KKT Newton with trust radius and L1 exact penalty",
+    "trust_radius": 0.5,
+    "exact_merit_penalty": 100,
+    "acceptance_ratio_minimum": 0.05,
+    "same_exact_objective_and_constraints": true,
+    "same_tolerance": 1e-8,
+    "surrogate": "deterministic perturbed quadratic proposal objective; not trained neural network",
+    "exact_fallback": "local exact Newton correction; registered closed-form exact QP fallback if all local trials rejected",
+    "oracle_evaluation_count": "counts exact merit evaluations; does not count linear algebra or the closed-form algebraic solve as an oracle call"
+  },
+  "exact_solution": {
+    "x": [
+      0.4461538461538462,
+      -0.2461538461538462
+    ],
+    "objective": 1.2212307692307691,
+    "constraint_value": 0,
+    "multiplier": 1.3569230769230771
+  },
+  "results": [
+    {
+      "seed": 2501,
+      "method": "exact_newton",
+      "converged": true,
+      "x": [
+        0.44615384610392234,
+        -0.24615384610392232
+      ],
+      "objective": 1.2212307692307693,
+      "max_constraint_violation": 0,
+      "stationarity_norm": 9.553711084848e-11,
+      "complementarity_norm": 3.7662181071690664e-17,
+      "iterations": 2,
+      "oracle_evaluations": 4,
+      "fallback_count": 0
+    },
+    {
+      "seed": 2501,
+      "method": "surrogate_newton",
+      "converged": true,
+      "x": [
+        0.44615384575318046,
+        -0.24615384575318047
+      ],
+      "objective": 1.2212307692307693,
+      "max_constraint_violation": 0,
+      "stationarity_norm": 7.366150003520987e-10,
+      "complementarity_norm": 3.7662181071690664e-17,
+      "iterations": 2,
+      "oracle_evaluations": 10,
+      "fallback_count": 1
+    },
+    {
+      "seed": 2502,
+      "method": "exact_newton",
+      "converged": true,
+      "x": [
+        0.44615384610392234,
+        -0.24615384610392232
+      ],
+      "objective": 1.2212307692307693,
+      "max_constraint_violation": 0,
+      "stationarity_norm": 9.553711084848e-11,
+      "complementarity_norm": 3.7662181071690664e-17,
+      "iterations": 2,
+      "oracle_evaluations": 4,
+      "fallback_count": 0
+    },
+    {
+      "seed": 2502,
+      "method": "surrogate_newton",
+      "converged": true,
+      "x": [
+        0.4461538463484035,
+        -0.24615384634840348
+      ],
+      "objective": 1.2212307692307691,
+      "max_constraint_violation": 0,
+      "stationarity_norm": 3.5768920039186584e-10,
+      "complementarity_norm": 0,
+      "iterations": 3,
+      "oracle_evaluations": 12,
+      "fallback_count": 0
+    },
+    {
+      "seed": 2503,
+      "method": "exact_newton",
+      "converged": true,
+      "x": [
+        0.44615384610392234,
+        -0.24615384610392232
+      ],
+      "objective": 1.2212307692307693,
+      "max_constraint_violation": 0,
+      "stationarity_norm": 9.553711084848e-11,
+      "complementarity_norm": 3.766218106584046e-17,
+      "iterations": 2,
+      "oracle_evaluations": 4,
+      "fallback_count": 0
+    },
+    {
+      "seed": 2503,
+      "method": "surrogate_newton",
+      "converged": true,
+      "x": [
+        0.44615384617473236,
+        -0.24615384617473238
+      ],
+      "objective": 1.2212307692307693,
+      "max_constraint_violation": 0,
+      "stationarity_norm": 3.839880920655388e-11,
+      "complementarity_norm": 3.766218106584046e-17,
+      "iterations": 3,
+      "oracle_evaluations": 12,
+      "fallback_count": 1
+    }
+  ],
+  "summary": {
+    "all_six_runs_converged": true,
+    "exact_newton_mean_iterations": 2,
+    "surrogate_newton_mean_iterations": 2.6666666667,
+    "exact_newton_mean_oracle_evaluations": 4,
+    "surrogate_newton_mean_oracle_evaluations": 11.3333333333,
+    "surrogate_fallbacks_total": 2,
+    "interpretation": "The synthetic surrogate proposal requires more exact merit evaluations than exact Newton (11.33 vs 4.00 on average). This harness demonstrates safe integration/fallback, not acceleration. No physical or M80-trained inference claim is supported."
+  }
+}
