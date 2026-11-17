@@ -11,7 +11,7 @@ on:
       - "research/NeuralMoments/m69_task_spec_adapter_v1.py"
       - "tests/python/test_m69_task_spec_adapter.py"
       - "research/NeuralMoments/m69_fixed_axis_contract_v1.py"
-      - "tests/python/test_m69_fixed_axis_contract.p\
+      - "tests/python/test_m69_fixed_axis_contract.py"
       - "research/NeuralMoments/pure_quadric_material_operator_v1.py"
       - "tests/python/test_pure_quadric_material_operator.py"
       - "research/NeuralMoments/fixtures/m69_fixed_axis_task_registration_v1.json"
