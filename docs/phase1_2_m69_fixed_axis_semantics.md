@@ -32,6 +32,7 @@ The complete TaskSpec returned by the user's hash-pinned local extraction is sto
 | training_polar_margin | 5e-4 | Training-only polar margin |
 | objective | minimum_retained_mass | Minimize retained mass |
 | material_policy | single_density_removal_only | One material density; removal only |
+| inertia_reference | original_fixed_axis | Original fixed-axis polar inertia is the reference |
 | inertia_reference | original_fixed_axis | Original fixed-axis inertia is reference |
 
 The source comments specify that positional tolerances are fractions of frozen outer length L, and inertia errors are divided by original inertia about the prescribed fixed axis. No recentering or axis optimization occurs.
@@ -62,3 +63,8 @@ Continuous material relaxation is a proposal, not a final single-density binary 
 M69 query labels M(q) and dM/dq supervise quadric-query response. They are not material-design dM/dalpha. Derivatives are admitted only on smooth branches when the oracle marks them valid and directional finite-difference audits pass. Tangencies, topology/axis-selection switches and ambiguous boundaries remain invalid/unknown, never zero Jacobians.
 
 Freeze the query distribution before teacher calls; group splits by parent geometry; retain full/empty endpoint controls; bind seeds, geometry hashes, query hashes and audit hashes. SDF sign convention and exact mesh-boundary policy remain pending per selected mesh. Do not silently reuse the quadric polynomial sign as the SDF sign.
+
+
+## Registration completeness correction
+
+The machine-readable registration fixture includes all 28 fields emitted by the pinned TaskSpec, including `inertia_reference=original_fixed_axis`. Its source/task hashes are copied from the user's local extraction. The JSON record remains a task registration, not a per-geometry physical admission.
