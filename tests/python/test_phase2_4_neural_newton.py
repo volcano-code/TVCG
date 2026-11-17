@@ -28,7 +28,7 @@ class Phase24NeuralNewtonTests(unittest.TestCase):
   self.assertLess(d.kkt_symmetry_error,1e-12)
 
  def test_primal_trust_radius_limits_step(self):
-  F=torch.tensor([-10.,0.],dtype=torch.float64)
+  F=torch.tensor([0.,-10.],dtype=torch.float64)
   J=torch.tensor([[1.,1.],[1.,0.]],dtype=torch.float64)
   d=safeguarded_kkt_newton_direction(F,J,primal_dimension=1,trust_radius=.1,
       multiplier_radius=10.)
