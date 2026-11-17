@@ -142,7 +142,9 @@ def m69_constraint_slacks_torch(
         reasons.append("covariance_min_eigenvalue_multiplicity")
     if not torch.isfinite(slack).all(): reasons.append("nonfinite_constraint")
     active_event=bool(torch.any(torch.abs(slack.detach())<=active_tolerance))
-    if active_event: reasons.append("active_set_switch_or_boundary")
+    # A constraint exactly active is differentiable on a fixed active set.
+    # Only an INACTIVE near-zero constraint is an active-set switching event;
+    # that check is performed by fixed_active_set_kkt using the supplied mask.
     return M69TorchConstraintResult(slack=slack,g_le_zero=-slack,
         derivative_valid=len(reasons)==0,invalid_reasons=tuple(reasons),
         active_set_event=active_event,constraint_names=M69_CONSTRAINT_NAMES)
