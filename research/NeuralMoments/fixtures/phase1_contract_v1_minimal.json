@@ -1,0 +1,94 @@
+{
+  "schema_version": "tvcg.geometry-conditioned-quadric-pino.v1",
+  "status": "phase1_contract_fixture_not_physical_admission",
+  "geometry": {
+    "geometry_id": "analytic-box-plane-cut-v1",
+    "source_sha256": "analytic-fixture",
+    "coordinate_space": "registered-task",
+    "length_unit": "m",
+    "native_representation": "analytic_box"
+  },
+  "task": {
+    "mode": "spinning_top",
+    "target_frame": {
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "axes": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "spin_axis_target": [
+      0,
+      0,
+      1
+    ],
+    "contact_point_model": [
+      0,
+      0,
+      0
+    ],
+    "origin_contact_relation": "same_by_fixture_definition",
+    "task_spec_identity": "analytic-contract-only"
+  },
+  "material": {
+    "single_material": true,
+    "density_kg_m3": 1000,
+    "regions": {
+      "fixed": "fixed-v1",
+      "protected": "protected-v1",
+      "editable": "editable-v1"
+    },
+    "representation": "pure_quadric",
+    "fixed_added_once": true
+  },
+  "moments": {
+    "order": [
+      "mass",
+      "x",
+      "y",
+      "z",
+      "xx",
+      "yy",
+      "zz",
+      "yz",
+      "xz",
+      "xy"
+    ],
+    "kind": "density_weighted_raw_mass_moments"
+  },
+  "objective": {
+    "primary_profile_selected": false,
+    "available_profiles": [
+      "minimum_mass_under_frozen_task_constraints",
+      "spin_it_faster_moment_objective"
+    ],
+    "decision_note": "Do not infer main benchmark objective from this fixture."
+  },
+  "derivatives": {
+    "material_jacobian": "dM_dalpha",
+    "query_jacobian": "dM_dbeta_query",
+    "unknown_or_event_never_zero": true
+  },
+  "kkt": {
+    "lagrangian_sign": "f + lambda^T g + nu^T h",
+    "inequality_convention": "g<=0",
+    "active_set_fixed_for_smooth_newton": true
+  }
+}
