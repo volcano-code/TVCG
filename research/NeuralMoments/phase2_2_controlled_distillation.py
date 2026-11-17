@@ -127,7 +127,7 @@ def run_controlled_distillation(seeds=(22021,22022,22023),steps=60,learning_rate
         rows=[x for x in results if x["architecture"]==name];summary[name]={}
         for key in ("best_validation_moment_rmse","final_validation_moment_rmse","validation_jacobian_rmse"):
             vals=np.asarray([x[key] for x in rows]);summary[name][key+"_mean"]=float(vals.mean())
-            summary[name][key+"_std"]=float(vals.std(ddof=1))
+             summary[name][key+"_std"]=float(vals.std(ddof=1)) if len(vals)>1 else 0.0
         summary[name]["trainable_parameters"]=int(round(np.mean([x["trainable_parameters"] for x in rows])))
     return {"protocol":{"kind":"synthetic_teacher_distillation_not_physical_oracle",
       "seeds":list(map(int,seeds)),"steps_per_variant":int(steps),"learning_rate":learning_rate,
