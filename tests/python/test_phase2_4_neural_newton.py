@@ -104,4 +104,5 @@ class Phase24NeuralNewtonTests(unittest.TestCase):
   self.assertEqual(tuple(chart.basis.shape),(10,9))
   self.assertEqual(system.unknowns.numel(),9+int(active.sum()))
   self.assertTrue(torch.isfinite(system.jacobian).all())
-\nif __name__=="__main__": unittest.main()
+
+if __name__=="__main__": unittest.main()
