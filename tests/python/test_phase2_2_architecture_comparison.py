@@ -95,7 +95,7 @@ class Phase22ArchitectureComparisonTests(unittest.TestCase):
                 minus=model.predict(cache,self.q-d,self.features)
                 fd[:,k]=(plus-minus)/(2*eps)
             self.assertTrue(torch.allclose(jac,fd,rtol=3e-3,atol=3e-5),
-                msg=f"{name}: max_abs={float((jac-fd).abs().max())}")
+                msg=f"{name}: max_abs={float((jac-fd).abs().max().detach())}")
 
     def test_convex_potential_jacobians_are_symmetric_psd(self):
         for name,model in self.variants.items():
@@ -113,6 +113,7 @@ class Phase22ArchitectureComparisonTests(unittest.TestCase):
         self.assertEqual(len(counts),3)
         self.assertLessEqual(max(counts)-min(counts),.20*self.budget["target_trainable_parameters"])
         self.assertTrue(all(report[name]["relative_gap_to_target"]<=.20 for name in report))
+        print("PARAMETER_BUDGET_REPORT",self.budget)
 
     def test_gradients_reach_conditioning_output_layers(self):
         for name,model in self.variants.items():
