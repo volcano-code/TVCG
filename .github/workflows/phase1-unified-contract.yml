@@ -37,7 +37,7 @@ jobs:
       - name: Install isolated CPU test dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install "numpy>=1.26,<3" "pytest>=8,<10"
+          python -m pip install "numpy>=1.26,<3" "pytest>=8,<10" "jsonschema>=4,<5"
       - name: Compile Phase 1 contract module
         run: python -m py_compile research/NeuralMoments/optimization_contract_v1.py
       - name: Validate versioned schema and fixture JSON
@@ -47,9 +47,12 @@ jobs:
           from pathlib import Path
           schema = json.loads(Path("schemas/geometry_conditioned_quadric_pino_contract_v1.schema.json").read_text())
           fixture = json.loads(Path("research/NeuralMoments/fixtures/phase1_contract_v1_minimal.json").read_text())
+          from jsonschema import Draft202012Validator
+          Draft202012Validator.check_schema(schema)
+          Draft202012Validator(schema).validate(fixture)
           assert schema["properties"]["schema_version"]["const"] == fixture["schema_version"]
           assert fixture["status"] == "phase1_contract_fixture_not_physical_admission"
-          print("schema and fixture JSON parse; version/status bindings agree")
+          print("JSON Schema is valid and fixture validates; version/status bindings agree")
           PY
       - name: Run analytic moment, frame, derivative and KKT tests
         env:
