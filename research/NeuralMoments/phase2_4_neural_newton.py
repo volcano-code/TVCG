@@ -12,6 +12,7 @@ from typing import Callable, Any
 import math
 import torch
 from torch import Tensor
+from research.NeuralMoments.phase2_3_differentiable_m69_kkt import KKTSystem, m69_kkt_from_moment_operator
 
 
 @dataclass(frozen=True)
@@ -200,3 +201,29 @@ def safeguarded_newton_iteration(
         return NewtonIterationResult(state,False,False,decision,None)
     fallback=exact_fallback(state)
     return NewtonIterationResult(fallback,False,True,decision,fallback)
+
+
+def build_s9_m69_kkt_system(
+    local:Tensor,beta_anchor:Tensor,beta_to_moments:Callable[[Tensor],Tensor],
+    original_moments:Tensor,task:dict,*,length_scale:float,
+    active_mask, event_tolerance:float=1e-8
+)->tuple[S9Chart,KKTSystem]:
+    """Compose the S9 material chart, Moment operator and M69 KKT system.
+
+    beta_to_moments receives normalized ten-dimensional query coefficients.
+    Its derivative is propagated through chart.decode and into the KKT
+    residual/Jacobian. The caller must separately certify the Phase 2.1
+    query-to-material contract before interpreting this as a physical design
+    Jacobian.
+    """
+    chart=make_s9_chart(beta_anchor)
+    if local.shape!=(9,):
+        raise ValueError("S9 local material coordinate must have shape [9]")
+    def moment_fn(xi):
+        beta=chart.decode(xi)
+        return beta_to_moments(beta)
+    system=m69_kkt_from_moment_operator(
+        local,moment_fn,original_moments,task,length_scale=length_scale,
+        active_mask=active_mask,event_tolerance=event_tolerance
+    )
+    return chart,system
