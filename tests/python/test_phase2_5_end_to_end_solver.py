@@ -80,4 +80,5 @@ class Phase25EndToEndTests(unittest.TestCase):
   self.assertEqual(direction.step.numel(),10)
   self.assertTrue(torch.isfinite(direction.step).all())
   self.assertLessEqual(direction.primal_step_norm,.1000001)
-\nif __name__=="__main__": unittest.main()
+
+if __name__=="__main__": unittest.main()
