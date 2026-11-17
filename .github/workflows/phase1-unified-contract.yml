@@ -8,6 +8,8 @@ on:
       - "research/NeuralMoments/optimization_contract_v1.py"
       - "research/NeuralMoments/fixtures/phase1_contract_v1_minimal.json"
       - "tests/python/test_phase1_unified_contract.py"
+      - "research/NeuralMoments/m69_task_spec_adapter_v1.py"
+      - "tests/python/test_m69_task_spec_adapter.py"
       - "schemas/geometry_conditioned_quadric_pino_contract_v1.schema.json"
       - ".github/workflows/phase1-unified-contract.yml"
       - ".gitmodules"
@@ -60,4 +62,7 @@ jobs:
           OMP_NUM_THREADS: "1"
           OPENBLAS_NUM_THREADS: "1"
           MKL_NUM_THREADS: "1"
-        run: python -m pytest -q tests/python/test_phase1_unified_contract.py
+        run: |
+          python -m pytest -q \
+            tests/python/test_phase1_unified_contract.py \
+            tests/python/test_m69_task_spec_adapter.py
