@@ -233,7 +233,7 @@ def derivative_supervision_mask(labels, indices, *, min_event_margin=0.0,
 
 def loss_for_batch(model,cache,labels,indices,jacobian_weight,device,*,
                    min_event_margin=0.0,require_fd_audit=False,
-                   max_jacobian_error_bound=None):
+                   max_jacobian_error_bound=None,event_weight=0.05):
     q=torch.tensor(np.array(labels["queries"][indices],copy=True),device=device,dtype=torch.float64)
     target=torch.tensor(np.array(labels["moments"][indices],copy=True),device=device,dtype=torch.float64)
     pred,jac=model.moments_and_jacobian(cache,q,create_graph=True)
@@ -246,7 +246,15 @@ def loss_for_batch(model,cache,labels,indices,jacobian_weight,device,*,
         jt=torch.tensor(np.array(labels["jacobian"][indices][valid],copy=True),device=device,dtype=torch.float64)
         scale=cache.moment_scales[:,None]*cache.coordinate_scales[None,:]
         derivative=((jac[mask]-jt)/scale).square().mean()
-    return moment+jacobian_weight*derivative,moment,derivative
+    event_loss=moment*0
+    if model.config.event_validity_head_enabled:
+        if event_weight<0 or not math.isfinite(float(event_weight)):
+            raise ValueError("event_weight must be finite and nonnegative")
+        event_logits=model.predict_event_validity(cache,q)
+        event_target=torch.as_tensor(labels["derivative_valid"][indices].astype(np.float64),
+                                     device=device,dtype=event_logits.dtype)
+        event_loss=torch.nn.functional.binary_cross_entropy_with_logits(event_logits,event_target)
+    return moment+jacobian_weight*derivative+event_weight*event_loss,moment,derivative,event_loss
 
 
 def atomic_save(path,payload):
@@ -347,7 +355,7 @@ def preflight(args):
     sync(args.device); start=perf_counter()
     with autocast(args.device,args.amp):
         cache=model.encode(geometry,args.chunk)
-        loss,ml,jl=loss_for_batch(model,cache,labels,indices,args.jacobian_weight,args.device,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound)
+        loss,ml,jl,el=loss_for_batch(model,cache,labels,indices,args.jacobian_weight,args.device,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound,event_weight=args.event_weight)
     if not torch.isfinite(loss): raise FloatingPointError("nonfinite preflight loss")
     opt.zero_grad(set_to_none=True); loss.backward()
     grad=torch.nn.utils.clip_grad_norm_(model.parameters(),args.gradient_clip,error_if_nonfinite=True)
@@ -427,7 +435,7 @@ def train(args):
     contract=dict(schema=TRAIN_SCHEMA,config=asdict(cfg),manifest_sha256=corpus.manifest_sha,
         audit_sha256=corpus.audit_sha,corpus_fingerprint=corpus.doc["fingerprint"],source=source_fingerprints(),
         runtime=runtime_info(args.device,args.amp),seed=args.seed,batch_queries=args.batch_queries,
-        chunk=args.chunk,lr=args.learning_rate,weight_decay=args.weight_decay,jacobian_weight=args.jacobian_weight,gradient_clip=args.gradient_clip,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound,min_queries=args.min_queries_per_record)
+        chunk=args.chunk,lr=args.learning_rate,weight_decay=args.weight_decay,jacobian_weight=args.jacobian_weight,event_weight=args.event_weight,gradient_clip=args.gradient_clip,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound,min_queries=args.min_queries_per_record)
     out=Path(args.out); out.mkdir(parents=True,exist_ok=True)
     step=0; best_step=0; best_score=float("inf"); best_state=None; history=[]
     if args.resume:
@@ -466,7 +474,7 @@ def train(args):
         loss.backward(); torch.nn.utils.clip_grad_norm_(model.parameters(),args.gradient_clip,error_if_nonfinite=True)
         opt.step(); step+=1
         history.append(dict(step=step,id=row["id"],group=row["group_id"],loss=float(loss.detach()),
-                            moment=float(ml.detach()),jacobian=float(jl.detach())))
+                            moment=float(ml.detach()),jacobian=float(jl.detach()),event=float(el.detach())))
         if step%args.val_every==0:
             val=validate(model,corpus,args.device,args.amp,args.chunk,args.val_max_records,args.val_max_queries,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound)
             score=val["moment_scaled_mse"]+args.jacobian_weight*(val["jacobian_scaled_mse"] or 0.)
@@ -512,6 +520,7 @@ def main():
         q.add_argument("--min-native-resolution",type=int,default=512); q.add_argument("--batch-queries",type=int,default=16)
         q.add_argument("--learning-rate",type=float,default=3e-4); q.add_argument("--weight-decay",type=float,default=1e-4)
         q.add_argument("--jacobian-weight",type=float,default=.05); q.add_argument("--gradient-clip",type=float,default=1.)
+        q.add_argument("--event-weight",type=float,default=.05,help="BCE weight for optional event-validity head")
         q.add_argument("--min-event-margin",type=float,default=0.0,help="exclude Jacobian labels with event_margin <= threshold when available")
         q.add_argument("--require-fd-audit",action="store_true",help="only supervise Jacobians with finite_difference_audit=true")
         q.add_argument("--max-jacobian-error-bound",type=float,default=None,help="exclude Jacobian labels whose certified error bound exceeds this value")
