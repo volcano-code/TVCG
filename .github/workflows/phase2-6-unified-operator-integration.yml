@@ -21,6 +21,10 @@ on:
       - main
     paths:
       - "research/NeuralMoments/phase2_6_unified_operator_integration.py"
+      - "research/NeuralMoments/phase2_6_local_correction.py"
+      - "research/NeuralMoments/m80_checkpoint_contract_v1.py"
+      - "tests/python/test_phase2_6_local_correction.py"
+      - "tests/python/test_m80_checkpoint_contract_v1.py"
       - "tests/python/test_phase2_6_unified_operator_integration.py"
       - ".github/workflows/phase2-6-unified-operator-integration.yml"
 
