@@ -28,7 +28,8 @@ def test_checkpoint_payload_roundtrip(tmp_path):
     payload=build_checkpoint_payload(model,config=config(),
         training_run_id="m80-test-run",training_commit="abc123",
         model_class=f"{TinyM80.__module__}.{TinyM80.__qualname__}")
-    validate_checkpoint_payload(payload)
+    validate_checkpoint_payload(payload,
+        expected_model_class=f"{TinyM80.__module__}.{TinyM80.__qualname__}")
     path=tmp_path/"m80.pt"
     torch.save(payload,path)
     target=TinyM80()
