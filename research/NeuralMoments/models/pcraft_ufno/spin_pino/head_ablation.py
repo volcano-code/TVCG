@@ -31,7 +31,11 @@ def build_plan(manifest,audit,output,seeds=SEEDS,min_queries=256,min_train_group
                val_every=20,save_every=25,val_max_records=8,val_max_queries=256):
     seeds=tuple(int(s) for s in seeds)
     if len(seeds)<3 or len(set(seeds))!=len(seeds) or min(seeds)<0: raise ValueError("need >=3 unique nonnegative seeds")
-    if min_queries<1 or max_steps<1 or max_seconds<=0: raise ValueError("invalid data/training budget")
+    if (min_queries<1 or max_steps<1 or max_seconds<=0 or batch_queries<1 or chunk<1
+            or min_native_resolution<64 or threads<1 or cache_mib<0
+            or val_every<1 or save_every<1 or val_max_records<1 or val_max_queries<1
+            or gradient_clip<=0 or learning_rate<=0 or weight_decay<0 or jacobian_weight<0):
+        raise ValueError("invalid data/training budget or runtime configuration")
     if device.startswith("cuda") and amp not in ("bf16","none"): raise ValueError("unsupported CUDA AMP")
     trunk=assert_matched_backbones()
     corpus=M72Corpus(manifest,audit,grid_size=64,min_queries=min_queries)
@@ -40,10 +44,21 @@ def build_plan(manifest,audit,output,seeds=SEEDS,min_queries=256,min_train_group
     bad=[f"{s}={groups[s]} < {mins[s]}" for s in groups if groups[s]<mins[s]]
     coverage=corpus.verify_query_coverage(min_queries)
     if bad: raise ValueError("source-group admission failed: "+", ".join(bad))
+    geometry_resolutions=[]; interval_counts=[]
+    for row in corpus.rows:
+        geometry,_=corpus.get(row)
+        resolution=int(geometry["native_resolution"])
+        if resolution<min_native_resolution:
+            raise ValueError(f"{row['id']}: native resolution {resolution} < required {min_native_resolution}")
+        geometry_resolutions.append(resolution)
+        interval_counts.append(int(len(geometry["xyz"])))
+    geometry_audit={"records":len(geometry_resolutions),"min_native_resolution":min(geometry_resolutions),
+        "max_native_resolution":max(geometry_resolutions),"min_intervals":min(interval_counts),
+        "max_intervals":max(interval_counts),"geometry_sha256_verified":True}
     p={"schema":SCHEMA,"dataset":corpus.summary(),"split_source_groups":groups,
        "minimum_source_groups":mins,"query_coverage":{"records":len(coverage),"min":min(coverage.values()),
        "max":max(coverage.values()),"required":min_queries},"heads":list(HEADS),
-       "matched_configs":trunk,"source_fingerprints":source_fingerprints(),"seeds":list(seeds),
+       "matched_configs":trunk,"source_fingerprints":source_fingerprints(),"geometry_audit":geometry_audit,"seeds":list(seeds),
        "training":{"optimizer":"AdamW","max_steps":max_steps,"max_seconds":max_seconds,
        "device":device,"amp":amp,"batch_queries":batch_queries,"learning_rate":learning_rate,
        "weight_decay":weight_decay,"jacobian_weight":jacobian_weight,"gradient_clip":gradient_clip,
@@ -92,7 +107,7 @@ def run_plan(plan_path,manifest,audit,output,min_queries=256,min_native_resoluti
              "--max-steps",str(t["max_steps"]),"--max-seconds",str(t["max_seconds"]),
              "--min-queries-per-record",str(min_queries),"--min-train-groups",str(min_train_groups),
              "--min-val-groups",str(min_val_groups),"--min-test-groups",str(min_test_groups)]
-            env=os.environ.copy(); env.setdefault("OMP_NUM_THREADS",str(threads)); env.setdefault("MKL_NUM_THREADS",str(threads))
+            env=os.environ.copy(); env.setdefault("OMP_NUM_THREADS",str(t["threads"])); env.setdefault("MKL_NUM_THREADS",str(t["threads"]))
             subprocess.run(cmd,check=True,env=env)
             if not report.is_file(): raise RuntimeError(f"missing training report {report}")
             runs.append({"preset":preset,"seed":seed,"report":str(report),"status":"completed"})
