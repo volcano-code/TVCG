@@ -137,3 +137,51 @@ def test_m72_optional_event_and_derivative_audit_fields_are_loaded_and_validated
     assert labels["derivative_valid_reason"][2]=="event"
     assert labels["finite_difference_audit"].dtype==bool
     assert labels["jacobian_error_bound"][1]==pytest.approx(2e-6)
+
+
+def test_event_aware_derivative_supervision_mask():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_train import derivative_supervision_mask
+    labels={
+      "derivative_valid":np.asarray([True,True,True,False,True]),
+      "event_margin":np.asarray([.2,.01,0.0,.4,.3]),
+      "finite_difference_audit":np.asarray([True,False,True,True,True]),
+      "jacobian_error_bound":np.asarray([1e-6,1e-6,1e-6,1e-6,1e-2]),
+    }
+    idx=np.arange(5)
+    base=derivative_supervision_mask(labels,idx)
+    assert base.tolist()==[True,True,False,False,True]
+    gated=derivative_supervision_mask(labels,idx,min_event_margin=.05,
+        require_fd_audit=True,max_jacobian_error_bound=1e-4)
+    assert gated.tolist()==[True,False,False,False,False]
+
+
+def test_event_aware_derivative_mask_fails_closed_when_requested_labels_missing():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_train import derivative_supervision_mask
+    labels={"derivative_valid":np.asarray([True,True])}
+    with pytest.raises(ValueError,match="event_margin labels are absent"):
+        derivative_supervision_mask(labels,np.arange(2),min_event_margin=.1)
+    with pytest.raises(ValueError,match="finite-difference audit required"):
+        derivative_supervision_mask(labels,np.arange(2),require_fd_audit=True)
+    with pytest.raises(ValueError,match="error-bound gate requested"):
+        derivative_supervision_mask(labels,np.arange(2),max_jacobian_error_bound=1e-4)
+
+
+def test_event_margin_and_fd_audit_are_applied_to_jacobian_training_loss(tmp_path):
+    import torch
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_train import loss_for_batch
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import PcraftNativeMomentOperator,make_config
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.tests.test_native_pcraft import small_geometry
+    model=PcraftNativeMomentOperator(make_config("smoke")).train()
+    geometry=small_geometry()
+    cache=model.encode(geometry,chunk=16)
+    q=np.asarray([[0.,1.,0,0,0,0,0,0,0,0],
+                  [0.,0,1.,0,0,0,0,0,0,0]],dtype=np.float64)
+    labels={"queries":q,"moments":np.zeros((2,10)),"jacobian":np.zeros((2,10,10)),
+      "derivative_valid":np.asarray([True,True]),"event_margin":np.asarray([.2,0.]),
+      "finite_difference_audit":np.asarray([True,True])}
+    _,_,derivative=loss_for_batch(model,cache,labels,np.arange(2),.05,"cpu",
+      min_event_margin=.01,require_fd_audit=True)
+    # Only the first, event-regular query contributes to the Jacobian loss.
+    pred,jac=model.moments_and_jacobian(cache,torch.tensor(q,dtype=torch.float64),create_graph=True)
+    expected=(jac[0]/(cache.moment_scales[:,None]*cache.coordinate_scales[None,:])).square().mean()
+    assert torch.allclose(derivative,expected)
