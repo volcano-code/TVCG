@@ -8,6 +8,8 @@ from research.NeuralMoments.models.pcraft_ufno.spin_pino.equivariance import (
     transform_native_coefficients,
     transform_raw_moments,
     transform_native_jacobian,
+    moment_rotation_matrix,
+    coefficient_rotation_matrix,
     augment_with_random_so3,
 )
 
