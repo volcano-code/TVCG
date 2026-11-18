@@ -21,3 +21,8 @@ Tests use one analytic tetrahedron with its principal inertia frame and negative
 ## Remaining evidence gap
 
 No real case is physically admitted yet. The independent tetrahedralization must be shown to represent the exact same retained material region as the native final material boundary, including cavities and fixed shell. The real case must then pass native/independent moment comparison and this physical constraint verifier. No Hybrid speedup claim follows from this CI.
+
+
+## Provenance hardening
+
+The independent moment record is additionally bound to the TaskSpec hash and the SHA-256 of the independent integrator source. The physical verifier requires both, checks the record TaskSpec hash against the supplied task frame, and records the explicit tolerance source reference. This prevents an otherwise matching geometry/moment record from being silently reused under a different task or verifier implementation.
