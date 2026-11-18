@@ -7,6 +7,7 @@ runner and accepted by the native result gate.
 """
 from __future__ import annotations
 import argparse, hashlib, json, math
+from r3_native_independent_moment_compare_v1 import compare_records
 from pathlib import Path
 from typing import Any
 
@@ -34,7 +35,7 @@ def _signature(bundle):
     ledger=bundle["ledger"];native=bundle["native_result"]
     _require(ledger,("case_id","geometry_hash","task_hash","evaluator_identity",
       "solver_source_commit","initialization_record_hash","equation_profile","moment_metadata",
-      "physical_admission","result_acceptance"),"native ledger")
+      "physical_admission","result_acceptance","run_receipt"),"native ledger")
     _require(native,("status","event_hash","trace_hash","input_hash","output_hash",
       "function_evaluations","restart_count","restart_function_evaluations",
       "quadric_coefficients","final_total_raw_moments","final_geometry_hash",
@@ -52,6 +53,7 @@ def _signature(bundle):
       "initialization_record_hash":ledger["initialization_record_hash"],
       "equation_profile":ledger["equation_profile"],"moment_metadata":ledger["moment_metadata"],
       "physical_admission":ledger["physical_admission"],
+      "run_receipt":ledger["run_receipt"],
       "event_hash":native["event_hash"],"trace_hash":native["trace_hash"],
       "input_hash":native["input_hash"],"output_hash":native["output_hash"],
       "status":native["status"],"function_evaluations":native["function_evaluations"],
@@ -71,6 +73,9 @@ def audit_double_replay(paths:dict[str,str])->dict[str,Any]:
     _require(paths,required,"input paths")
     loaded={k:_read(v) for k,v in paths.items()}
     a=_signature(loaded["replay_a"]);b=_signature(loaded["replay_b"])
+    receipt_a=a["run_receipt"];receipt_b=b["run_receipt"]
+    if not receipt_a.get("run_id") or not receipt_b.get("run_id") or receipt_a["run_id"]==receipt_b["run_id"]:
+        raise ValueError("Replay A/B must have distinct nonempty execution run_id receipts")
     invariant=("case_id","geometry_hash","task_hash","evaluator_identity",
       "solver_source_commit","initialization_record_hash","equation_profile","moment_metadata",
       "physical_admission","input_hash")
@@ -106,6 +111,9 @@ def audit_double_replay(paths:dict[str,str])->dict[str,Any]:
             raise ValueError(f"geometry equivalence {label} not reviewed")
         if indep["backend_identity"] in ("native","native_solver",""):
             raise ValueError("independent backend identity is not independent")
+        comparison=compare_records(loaded[f"replay_{label}"],indep)
+        if comparison["moment_match"] is not True:
+            raise ValueError(f"native/independent moment comparison {label} failed")
     # The two independent records must agree as well, but must be separately generated and traceable.
     ia,ib=loaded["independent_a"],loaded["independent_b"]
     independent_match=ia["raw_moments"]==ib["raw_moments"]
@@ -116,6 +124,7 @@ def audit_double_replay(paths:dict[str,str])->dict[str,Any]:
       "native_replay_scientific_match":not replay_mismatches,
       "native_replay_mismatches":replay_mismatches,
       "independent_records_moment_match":independent_match,
+      "distinct_native_execution_ids":True,
       "independent_backend_same_version":independent_backend_match,
       "all_physical_checks_pass":True,"all_geometry_checks_pass":True,
       "double_replay_pass":not replay_mismatches and independent_match and independent_backend_match,
