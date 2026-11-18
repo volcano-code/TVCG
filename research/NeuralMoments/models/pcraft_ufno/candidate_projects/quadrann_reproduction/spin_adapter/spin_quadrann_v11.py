@@ -29,14 +29,29 @@ class SpinQuadrANNV11(nn.Module):
         quadrature_order=2,
         chunk_intervals=512,
         chunk_nodes=65536,
+        pcraft_width=None,
     ):
         super().__init__()
+        self.external_pcraft_width = None if pcraft_width is None else int(pcraft_width)
+        if self.external_pcraft_width is not None:
+            if self.external_pcraft_width < 1:
+                raise ValueError("pcraft_width must be positive")
+            self.pcraft = None
+            self.pcraft_width = self.external_pcraft_width
+        else:
+            self.pcraft = PcraftFeatureAdapter(
+                preset=preset, min_native_resolution=512,
+                chunk_intervals=chunk_intervals,
+            )
+            self.pcraft_width = self.pcraft.operator.config.interval_width
 
-        self.pcraft = PcraftFeatureAdapter(
-            preset=preset,
-            min_native_resolution=512,
-            chunk_intervals=chunk_intervals,
-        )
+        self.hidden_dim = int(hidden_dim)
+        self.final_hidden_dim = int(final_hidden_dim)
+        self.num_layers = int(num_layers)
+        self.neighbors = int(neighbors)
+        self.chunk_intervals = int(chunk_intervals)
+        self.quadrature_order = int(quadrature_order)
+        self.chunk_nodes = int(chunk_nodes)
 
         self.gnn = SpinQuadrANN3D(
             hidden_dim=hidden_dim,
@@ -52,7 +67,7 @@ class SpinQuadrANNV11(nn.Module):
         fusion_dim = (
             2 * hidden_dim * num_layers
             + 4 * hidden_dim
-            + 2 * self.pcraft.operator.config.interval_width
+            + 2 * self.pcraft_width
         )
 
         self.fusion = nn.Sequential(
@@ -143,6 +158,8 @@ class SpinQuadrANNV11(nn.Module):
             geometry = geometry_from_columns(geometry)
 
         # Branch A: multi-scale P-CRAFT.
+        if self.pcraft is None:
+            raise RuntimeError("this SQNO instance requires externally supplied P-CRAFT features")
         pcraft = self.pcraft(geometry)
 
         # Branch B: native RLE topology-aware QuadrANN.

@@ -38,8 +38,11 @@ class SQNOGeometryCache:
 class SpinQuadrANNV12(SpinQuadrANNV11):
     """Geometry encoder plus batched query evaluator."""
 
-    def __init__(self, *args, query_chunk=16, share_pcraft_encoder=False, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args, query_chunk=16, share_pcraft_encoder=False,
+                 pcraft_width=None, **kwargs):
+        super().__init__(*args, pcraft_width=pcraft_width, **kwargs)
+        self.external_pcraft_required = pcraft_width is not None
+        self.query_chunk = int(query_chunk)
 
         self.batched_moment_operator = BatchedSpinMomentOperator(
             temperature=self.moment_operator.temperature,
@@ -48,7 +51,9 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
         )
 
         self.share_pcraft_encoder=bool(share_pcraft_encoder)
-        if self.share_pcraft_encoder:
+        if self.external_pcraft_required:
+            self.share_pcraft_encoder = True
+        elif self.share_pcraft_encoder:
             self.pcraft.requires_grad_(False)
         self.geometry_encode_calls = 0
         self.query_evaluation_calls = 0
@@ -64,6 +69,10 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
             )
             geometry = geometry_from_columns(geometry)
 
+        parameter = next(self.parameters())
+        device = parameter.device
+        dtype = parameter.dtype
+
         # P-CRAFT may be supplied by the shared UG-PINO encoder. In that
         # mode this SQNO branch performs only its topology/GNN and query work.
         if pcraft_features is None:
@@ -76,7 +85,7 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
             missing=[key for key in required if key not in pcraft]
             if missing:
                 raise ValueError("shared P-CRAFT feature contract missing: "+", ".join(missing))
-            expected_width=self.pcraft.operator.config.interval_width
+            expected_width=self.pcraft_width
             if pcraft["local_features"].ndim!=2 or pcraft["local_features"].shape != (len(geometry["xyz"]),expected_width):
                 raise ValueError(
                     "shared P-CRAFT local feature shape mismatch; construct SQNO with a preset "
@@ -90,12 +99,18 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
                 raise ValueError("shared P-CRAFT global scale weights must be rank 1 or 2")
             supplied_id=str(pcraft.get("geometry_id",""))
             geometry_id=str(geometry.get("geometry_sha256",""))
-            if supplied_id and geometry_id and supplied_id != geometry_id:
-                raise ValueError("shared P-CRAFT geometry identity mismatch")
-
-        parameter = next(self.parameters())
-        device = parameter.device
-        dtype = parameter.dtype
+            if not supplied_id or not geometry_id or supplied_id != geometry_id:
+                raise ValueError("shared P-CRAFT geometry identity missing or mismatched")
+            for key in ("local_features","global_context","global_scale_weights","interval_mass"):
+                if pcraft[key].device != device:
+                    raise ValueError(f"shared P-CRAFT {key} device mismatch")
+                if not torch.isfinite(pcraft[key]).all():
+                    raise FloatingPointError(f"shared P-CRAFT {key} contains nonfinite values")
+            if (pcraft["interval_mass"] <= 0).any():
+                raise ValueError("shared P-CRAFT interval masses must be positive")
+            geometry_mass=torch.as_tensor(geometry["mass"].sum(),device=device,dtype=torch.float64)
+            if not torch.allclose(pcraft["interval_mass"].sum().to(torch.float64),geometry_mass,rtol=1e-6,atol=1e-9):
+                raise ValueError("shared P-CRAFT interval mass does not match native geometry")
 
         xyz = torch.as_tensor(
             np.asarray(geometry["xyz"]).copy(),
@@ -162,8 +177,8 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
 
         local_component_context = component_context[inverse]
 
-        p_local = pcraft["local_features"].to(dtype)
-        p_global = pcraft["global_context"].to(dtype)
+        p_local = pcraft["local_features"].to(dtype=dtype)
+        p_global = pcraft["global_context"].to(dtype=dtype)
         p_global_expanded = p_global.unsqueeze(0).expand(
             len(xyz), -1
         )

@@ -1,0 +1,131 @@
+from __future__ import annotations
+import numpy as np
+import pytest
+import torch
+from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import NativePCRAFTConfig,PcraftNativeMomentOperator
+from research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.spin_quadrann_v12 import SpinQuadrANNV12
+from research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.unified_m80_sqno import UnifiedM80SQNO
+
+def make_geometry():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import geometry_from_columns
+    columns=np.array([[1,1,1,5],[1,2,2,7],[2,1,0,6],[3,3,1,8],[4,3,0,7]],dtype=np.int32)
+    return geometry_from_columns({"columns":columns,"origin":np.array([-1.,-2.,.5]),
+        "h":np.array(.25),"side":np.array(512,dtype=np.int32),"density":np.array(1.7)})
+
+def make_unified():
+    torch.manual_seed(830411)
+    cfg=NativePCRAFTConfig(grid_size=8,pino_width=2,pino_modes=1,pino_layers=2,
+        interval_width=8,interval_depth=1,chunk_intervals=16,min_native_resolution=1,
+        convex_potential_enabled=True,convex_potential_components=2)
+    shared=PcraftNativeMomentOperator(cfg)
+    sqno=SpinQuadrANNV12(pcraft_width=8,hidden_dim=4,final_hidden_dim=16,
+        num_layers=2,neighbors=4,temperature=.04,quadrature_order=2,
+        chunk_intervals=2,chunk_nodes=64,query_chunk=2)
+    return UnifiedM80SQNO(shared,sqno)
+
+def queries():
+    torch.manual_seed(830412)
+    q=torch.randn(4,10,dtype=torch.float64)
+    return q/q.norm(dim=-1,keepdim=True)
+
+def test_external_pcraft_mode_has_no_duplicate_adapter_and_keeps_shared_encoder_trainable():
+    geometry=make_geometry()
+    cfg=NativePCRAFTConfig(grid_size=8,pino_width=2,pino_modes=1,pino_layers=2,
+        interval_width=8,interval_depth=1,chunk_intervals=16,min_native_resolution=1)
+    encoder=PcraftNativeMomentOperator(cfg).train()
+    cache=encoder.encode(geometry,retain_interval_features=True)
+    payload=encoder.export_shared_geometry_features(cache)
+    sqno=SpinQuadrANNV12(pcraft_width=8,hidden_dim=4,final_hidden_dim=16,
+        num_layers=2,neighbors=4,temperature=.04,quadrature_order=2,
+        chunk_intervals=2,chunk_nodes=64,query_chunk=2).train()
+    assert sqno.pcraft is None
+    assert not any(name.startswith("pcraft.") for name,_ in sqno.named_parameters())
+    sqcache=sqno.encode_geometry(geometry,pcraft_features=payload)
+    out=sqno.evaluate_queries(sqcache,queries()[:2],with_jacobian=True)
+    (out["moments"].square().mean()+out["jacobian_q"].square().mean()).backward()
+    grads=[p.grad for p in encoder.parameters() if p.grad is not None]
+    assert grads and all(torch.isfinite(g).all() for g in grads)
+    assert encoder.counters["encode_calls"]==1
+
+def test_external_pcraft_requires_features_and_matching_geometry_identity():
+    geometry=make_geometry()
+    sqno=SpinQuadrANNV12(pcraft_width=8,hidden_dim=4,final_hidden_dim=16,
+        num_layers=2,neighbors=4,temperature=.04,quadrature_order=2,
+        chunk_intervals=2,chunk_nodes=64,query_chunk=2)
+    with pytest.raises(ValueError,match="requires externally encoded"):
+        sqno.encode_geometry(geometry)
+    bad={"local_features":torch.zeros(len(geometry["xyz"]),8),"global_context":torch.zeros(8),
+         "global_scale_weights":torch.ones(1),"interval_mass":torch.as_tensor(geometry["mass"]),
+         "geometry_id":"wrong"}
+    with pytest.raises(ValueError,match="identity"):
+        sqno.encode_geometry(geometry,pcraft_features=bad)
+
+def test_external_pcraft_width_must_be_positive():
+    with pytest.raises(ValueError,match="positive"):
+        SpinQuadrANNV12(pcraft_width=0,hidden_dim=4,final_hidden_dim=16,num_layers=2,neighbors=4)
+
+def test_shared_feature_export_uses_physical_not_normalized_interval_mass():
+    model=make_unified()
+    geometry=make_geometry()
+    cache=model.shared_encoder.encode(geometry,retain_interval_features=True)
+    payload=model.shared_encoder.export_shared_geometry_features(cache)
+    assert torch.allclose(payload["interval_mass"].sum(),
+        torch.as_tensor(geometry["mass"].sum(),dtype=payload["interval_mass"].dtype),
+        rtol=1e-7,atol=1e-9)
+
+def test_unified_query_many_outputs_and_shared_encoder_called_once():
+    model=make_unified().eval()
+    with torch.no_grad():
+        cache=model.encode_geometry(make_geometry())
+        out=model.evaluate_queries(cache,queries())
+    assert model.shared_encoder.counters["encode_calls"]==1
+    assert model.geometry_encode_calls==1
+    assert out["moments"].shape==(4,10)
+    assert out["jacobian_q"].shape==(4,10,10)
+    assert torch.isfinite(out["moments"]).all() and torch.isfinite(out["jacobian_q"]).all()
+    assert torch.allclose(out["moments"],out["fusion_weight"]*out["m80_moments"]+
+        (1-out["fusion_weight"])*out["sqno_moments"],rtol=1e-9,atol=1e-10)
+    assert torch.allclose(out["jacobian_q"],out["fusion_weight"]*out["m80_jacobian_q"]+
+        (1-out["fusion_weight"])*out["sqno_jacobian_q"],rtol=1e-9,atol=1e-10)
+
+def test_unified_joint_backward_reaches_both_branches_and_fusion():
+    model=make_unified().train()
+    cache=model.encode_geometry(make_geometry())
+    out=model.evaluate_queries(cache,queries(),create_graph=True)
+    (out["moments"].square().mean()+.1*out["jacobian_q"].square().mean()).backward()
+    for params in (model.shared_encoder.parameters(),model.sqno.parameters()):
+        grads=[p.grad for p in params if p.grad is not None]
+        assert grads and all(torch.isfinite(g).all() for g in grads)
+    assert model.fusion_logit.grad is not None and torch.isfinite(model.fusion_logit.grad)
+
+def test_unified_optimizer_has_no_duplicate_parameters():
+    model=make_unified()
+    opt=model.build_optimizer(learning_rate=1e-4)
+    actual=[id(p) for group in opt.param_groups for p in group["params"]]
+    assert len(actual)==len(set(actual))
+    assert set(actual)=={id(p) for p in model.parameters() if p.requires_grad}
+    assert not any(name.startswith("sqno.pcraft.") for name,_ in model.named_parameters())
+
+def test_unified_checkpoint_roundtrip_and_data_contract(tmp_path):
+    model=make_unified().eval()
+    optimizer=model.build_optimizer()
+    q=queries(); geometry=make_geometry()
+    with torch.no_grad(): before=model.evaluate_queries(model.encode_geometry(geometry),q)
+    path=tmp_path/"unified.pt"
+    model.save_checkpoint(path,optimizer=optimizer,data_fingerprint="synthetic-fixture-v1")
+    restored=make_unified().eval()
+    restored_opt=restored.build_optimizer()
+    payload=restored.load_checkpoint(path,optimizer=restored_opt,expected_data_fingerprint="synthetic-fixture-v1")
+    with torch.no_grad(): after=restored.evaluate_queries(restored.encode_geometry(geometry),q)
+    assert payload["schema"]=="tvcg.unified-m80-sqno.v1"
+    assert torch.allclose(before["moments"],after["moments"],rtol=1e-8,atol=1e-9)
+    assert torch.allclose(before["jacobian_q"],after["jacobian_q"],rtol=1e-8,atol=1e-9)
+    with pytest.raises(ValueError,match="data fingerprint"):
+        restored.load_checkpoint(path,expected_data_fingerprint="wrong-data")
+
+def test_unified_cache_rejects_stale_parameter_versions():
+    model=make_unified()
+    cache=model.encode_geometry(make_geometry())
+    with torch.no_grad(): next(model.parameters()).add_(1e-4)
+    with pytest.raises(ValueError,match="stale"):
+        model.evaluate_queries(cache,queries())

@@ -915,7 +915,9 @@ class PcraftNativeMomentOperator(nn.Module):
             "local_features":cache.interval_features,
             "global_context":cache.global_context,
             "global_scale_weights":cache.global_scale_weights,
-            "interval_mass":cache.interval_mass,
+            # SQNO consumes physical interval masses; the native cache
+            # stores normalized pooling weights.
+            "interval_mass":cache.interval_mass * cache.design_moments[0],
             "descriptor":cache.descriptor,
             "normalized_xyz":cache.normalized_xyz,
             "geometry_id":cache.geometry_sha256,

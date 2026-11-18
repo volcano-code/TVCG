@@ -1,141 +1,70 @@
-# Phase 2.8.4 — Unified M80 + SQNO Architecture Audit
+# Phase 2.8.4 — Unified M80 + SQNO
 
-## Status
+## Scope
 
-Architecture audit and interface planning only. No training is required for
-this work, and no GPU performance or accuracy claim is made here. The selected
-Moment Head remains provisional until the Phase 2.8.3 matched multi-seed
-experiment and independent exact-solver replay are complete.
+Phase 2.8.4 creates a single trainable P-CRAFT geometry encoder shared by the
+native M80 Moment branch and SQNO v1.2 Query-many branch. This is a
+data-independent architecture/software integration. It makes no large-scale
+training, real-corpus generalization, or final Moment Head selection claim.
 
-## Existing implementation verified in this branch
+## 2.8.4.1 — Shared encoder ownership
 
-### M80 / native P-CRAFT path
+SQNO v1.2 supports explicit `pcraft_width` external-encoder mode. In this
+mode it registers no `PcraftFeatureAdapter` and requires externally supplied
+P-CRAFT features. Omitting `pcraft_width` preserves the legacy constructor
+and checkpoint layout. The old `share_pcraft_encoder=True` mode remains
+backward compatible.
 
-`spin_pino/native_pcraft.py` already provides:
+The shared-feature contract checks feature count/width, global-context width,
+scale-weight rank, geometry identity, device, finite values, positive physical
+interval masses and agreement with the native geometry mass total.
 
-- `PcraftNativeMomentOperator.encode(..., retain_interval_features=True)`;
-- a differentiable encoded geometry cache containing native interval features,
-  global context, interval mass, descriptors, normalized coordinates and
-  multi-scale weights;
-- `export_shared_geometry_features(cache)`, which validates cache ownership,
-  parameter versions and feature count before exporting the shared payload;
-- native Moment prediction and Moment/Jacobian evaluation from the same cache.
+**Mass convention:** the native M80 geometry cache stores normalized interval
+pooling weights. SQNO quadrature consumes physical interval masses. The shared
+feature exporter restores physical masses by multiplying normalized weights
+by the editable design mass. Normalized pooling weights are never passed as
+physical quadrature weights.
 
-The exporter returns `local_features`, `global_context`,
-`global_scale_weights`, `interval_mass`, `descriptor`,
-`normalized_xyz`, `geometry_id` and `n_intervals`.
+## 2.8.4.2 — Query-many
 
-### SQNO path
+SQNO keeps the established `[Q,10]` coefficient input, `[Q,10]` Moment
+output and `[Q,10,10]` query Jacobian. Geometry is encoded once and reused
+across queries. The unified wrapper exposes the same batched output contract
+for both branches and their fused prediction.
 
-`spin_quadrann_v12.py` already provides:
+## 2.8.4.3 — Unified wrapper
 
-- one-time `encode_geometry(..., pcraft_features=...)`;
-- a geometry cache reused by `evaluate_queries(cache, coefficients)`;
-- batched Moment and Jacobian evaluation;
-- mass conservation and fixed-moment restoration checks;
-- an explicit external P-CRAFT feature input contract.
+`UnifiedM80SQNO` owns one `PcraftNativeMomentOperator` and one external-
+feature SQNO branch. The shared geometry is encoded once and exported to SQNO.
+The wrapper returns branch-specific Moments/Jacobians and a fused result.
 
-Its current external feature contract is shape-checked and binds a supplied
-geometry identity when available.
+The initial fusion is a trainable global scalar convex combination:
+`M = alpha*M80 + (1-alpha)*SQNO`, with the same linear combination applied
+to the query Jacobian. This is an auditable baseline. Query-conditioned
+fusion and attention remain Phase 2.8.5 work.
 
-## Identified integration gap
+## 2.8.4.4 — Optimizer and checkpoint
 
-The current SQNO v1.2 constructor always constructs its own
-`PcraftFeatureAdapter`. With `share_pcraft_encoder=True`, that internal
-adapter is frozen, while an external feature payload can be supplied to
-`encode_geometry`. This works as an experimental interface, but a production
-unified model should not retain a second dormant P-CRAFT parameter tree merely
-to obtain the interval width. That creates redundant checkpoint state and
-makes optimizer ownership less explicit.
+- Expose deduplicated trainable parameters and build one AdamW optimizer.
+- Verify unique parameter identities and no duplicate P-CRAFT parameter tree.
+- Save architecture schema/config, source fingerprints, optional data
+  fingerprint, model state, optimizer/scheduler state and RNG states.
+- Reject architecture, source or requested data-fingerprint mismatches.
+- Legacy standalone M80/SQNO checkpoints are not silently reinterpreted as
+  unified checkpoints. Load them through their legacy loaders and perform an
+  explicit migration.
 
-The next implementation should add a width-only external-encoder mode to SQNO:
+## Data-independent tests
 
-- accept `pcraft_width` when no local P-CRAFT adapter is owned;
-- require external `pcraft_features` in that mode;
-- preserve the existing constructor behavior and checkpoint layout when the
-  new argument is omitted;
-- do not freeze the externally owned shared encoder as a side effect.
+Synthetic fixtures cover shared encoder ownership, physical mass preservation,
+feature/geometry identity, joint gradients, Query-many output shapes, optimizer
+uniqueness, stale-cache rejection and checkpoint round-trip. These do not
+substitute for formal M69/M72 data validation.
 
-The unified wrapper should own exactly one
-`PcraftNativeMomentOperator`. It should encode once with
-`retain_interval_features=True`, export the feature payload, and pass it to
-SQNO. The wrapper should retain both branch outputs and Jacobians, then expose
-a unified output contract. The first integration must use a simple, auditable
-fusion parameterization; query-conditioned attention belongs to Phase 2.8.5.
+## Remaining gates
 
-## Phase 2.8.4 implementation sequence
-
-### 2.8.4.1 — Shared encoder ownership
-
-- Add SQNO external-width mode without a duplicate P-CRAFT adapter.
-- Validate interval width, feature count, geometry identity, dtype and device.
-- Keep old SQNO constructors and checkpoints backward compatible.
-- Test that one geometry encode serves both branches and gradients reach the
-  single shared encoder.
-
-### 2.8.4.2 — Query-many SQNO contract
-
-- Preserve the existing `[Q,10]` coefficient input and `[Q,10]` Moment
-  output contract.
-- Validate query chunking and query-order invariance.
-- Compare batched queries with concatenated single-query calls.
-- Keep fixed moments added exactly once.
-- Verify the Jacobian chain rule and finite-difference agreement.
-
-### 2.8.4.3 — Unified wrapper
-
-- Own the shared M80/P-CRAFT encoder and SQNO query branch.
-- Encode geometry once and cache both branch-specific derived states.
-- Return M80 Moments/Jacobian, SQNO Moments/Jacobian and fused
-  Moments/Jacobian in one named result.
-- Check that fusion preserves output shape, finite values, mass consistency,
-  complement/scale invariants where both branches guarantee them.
-- Keep the final Moment Head selectable; do not freeze an unvalidated winner.
-
-### 2.8.4.4 — Optimizer and checkpoint
-
-- Expose one deduplicated parameter iterator.
-- Assert that shared encoder parameters occur once in optimizer groups.
-- Save architecture schema, both branch configs, fusion config, model state,
-  optimizer state, scheduler state, random states and source/data fingerprints.
-- Reject incompatible or stale checkpoint contracts before loading weights.
-- Retain an explicit migration path for legacy standalone M80 and SQNO
-  checkpoints; never silently reinterpret them as a unified checkpoint.
-
-### 2.8.4.5 — Mathematical and software release tests
-
-- shared encoder called exactly once per geometry;
-- SQNO query-many reuses the cache;
-- shared encoder receives gradients from both branches in joint-training mode;
-- optimizer has no duplicated parameter identities;
-- checkpoint round-trip preserves branch and fused outputs;
-- finite-difference Jacobian agreement;
-- SO(3) and normalization contracts remain intact;
-- legacy checkpoint loading remains unchanged.
-
-## Data-independent work allowed now
-
-The following can proceed while the formal corpus is being repaired:
-
-- API and module design;
-- shared encoder ownership refactor;
-- synthetic unit fixtures for shapes, cache lifetime, gradients and checkpoint
-  round trips;
-- optimizer parameter de-duplication;
-- CLI and checkpoint contract tests;
-- CPU CI and static checks.
-
-The following must wait for the approved data/audit receipt:
-
-- long training;
-- model selection;
-- OOD claims on real geometry families;
-- final Head Freeze;
-- performance claims at 512^3.
-
-## Acceptance boundary
-
-Phase 2.8.4 software integration is complete only when the shared encoder,
-SQNO query-many path, unified wrapper, optimizer and checkpoint all pass the
-tests above. It does not imply that the selected Moment Head has been
-scientifically frozen or that large-scale training has succeeded.
+Formal-corpus and GPU evidence is still required for joint-training stability,
+loss balancing, matched multi-seed Moment Head selection, real-geometry OOD,
+256^3/512^3 memory and throughput, and independent exact-solver correction.
+The global scalar fusion is an integration baseline, not the final advanced
+fusion mechanism.
