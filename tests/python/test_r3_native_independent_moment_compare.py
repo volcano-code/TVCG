@@ -8,7 +8,7 @@ def pair():
     native={"ledger":{"moment_metadata":meta},"native_result":{"final_total_raw_moments":raw}}
     independent={"case_id":"case-1","source_geometry_hash":"geom-1","coordinate_frame":"world",
       "length_unit":"m","meters_per_unit":1.0,"density":1000.0,
-      "moment_order":MOMENT_ORDER,"backend_identity":"independent_tetra_exact_v1","raw_moments":raw}
+      "moment_order":MOMENT_ORDER,"backend_identity":"independent_tetra_exact_v1","raw_moments":raw.copy()}
     return native,independent
 
 class R3NativeIndependentMomentCompareTests(unittest.TestCase):
