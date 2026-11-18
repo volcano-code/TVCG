@@ -12,6 +12,7 @@ from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import (
     EncodedNativeGeometry, PcraftNativeMomentOperator,
 )
 from .spin_quadrann_v12 import SpinQuadrANNV12, SQNOGeometryCache
+from .geometry_physics_attention import GeometryPhysicsCrossAttention
 
 SCHEMA="tvcg.unified-m80-sqno.v1"
 SEMANTICS="one-shared-pcraft-encoder-m80-and-sqno-query-many"
@@ -35,6 +36,7 @@ def _source_fingerprints():
       "spin_quadrann_v12.py":here/"spin_quadrann_v12.py",
       "batched_moment_operator.py":here/"batched_moment_operator.py",
       "unified_m80_sqno.py":here/"unified_m80_sqno.py",
+      "geometry_physics_attention.py":here/"geometry_physics_attention.py",
     }
     out={}
     for name,path in files.items():
@@ -49,7 +51,9 @@ class UnifiedM80SQNO(nn.Module):
     baseline. Query-conditioned fusion is reserved for Phase 2.8.5.
     """
     def __init__(self,shared_encoder:PcraftNativeMomentOperator,sqno:SpinQuadrANNV12,
-                 *,fusion_initial_weight=.5,architecture_metadata:Mapping[str,Any]|None=None):
+                 *,fusion_initial_weight=.5,architecture_metadata:Mapping[str,Any]|None=None,
+                 cross_attention_enabled:bool=False,cross_attention_heads:int=2,
+                 cross_attention_chunk:int=1024,cross_attention_output_scale:float=.05):
         super().__init__()
         if not isinstance(shared_encoder,PcraftNativeMomentOperator):
             raise TypeError("shared_encoder must be PcraftNativeMomentOperator")
@@ -63,6 +67,17 @@ class UnifiedM80SQNO(nn.Module):
         self.shared_encoder=shared_encoder
         self.sqno=sqno
         self.fusion_initial_weight=float(fusion_initial_weight)
+        self.cross_attention_enabled=bool(cross_attention_enabled)
+        self.cross_attention_heads=int(cross_attention_heads)
+        self.cross_attention_chunk=int(cross_attention_chunk)
+        self.cross_attention_output_scale=float(cross_attention_output_scale)
+        if self.cross_attention_enabled:
+            self.geometry_physics_attention=GeometryPhysicsCrossAttention(
+                width,heads=self.cross_attention_heads,
+                chunk_intervals=self.cross_attention_chunk,
+                output_scale=self.cross_attention_output_scale)
+        else:
+            self.geometry_physics_attention=None
         logit=np.log(fusion_initial_weight/(1-fusion_initial_weight))
         self.fusion_logit=nn.Parameter(torch.tensor(float(logit),dtype=torch.float64))
         self.architecture_metadata=dict(architecture_metadata or {})
@@ -125,13 +140,32 @@ class UnifiedM80SQNO(nn.Module):
             # that temporary graph or parameter gradients in inference mode.
             m80,j80,ms,js=(value.detach() for value in (m80,j80,ms,js))
         alpha=self.fusion_weight.to(device=m80.device,dtype=m80.dtype)
+        fused_moments=alpha*m80+(1-alpha)*ms
+        fused_jacobian=alpha*j80+(1-alpha)*js
+        attention_diagnostics={}
+        if self.geometry_physics_attention is not None:
+            # The query-conditioned correction is differentiated with respect
+            # to the raw input coefficients and added to the branch Jacobian.
+            with torch.enable_grad():
+                q_attention=qb if qb.requires_grad else qb.detach().requires_grad_(True)
+                correction,attention_diagnostics=self.geometry_physics_attention(
+                    q_attention,cache.shared_cache.interval_features,
+                    cache.shared_cache.interval_mass)
+                correction_jacobian=torch.stack([
+                    torch.autograd.grad(correction[:,out_index].sum(),q_attention,
+                        create_graph=create_graph,retain_graph=True)[0]
+                    for out_index in range(10)
+                ],dim=1)
+            fused_moments=fused_moments+correction.to(dtype=fused_moments.dtype)
+            fused_jacobian=fused_jacobian+correction_jacobian.to(dtype=fused_jacobian.dtype)
+            if cache.inference_only:
+                fused_moments=fused_moments.detach()
+                fused_jacobian=fused_jacobian.detach()
+                attention_diagnostics={k:v.detach() for k,v in attention_diagnostics.items()}
         result={
-          "moments":alpha*m80+(1-alpha)*ms,
-          # Canonical derivative is with respect to the raw coefficient
-          # tensor passed to evaluate_queries. Keep jacobian_q as a
-          # compatibility alias for earlier Phase 2.8.4 callers.
-          "jacobian_coefficients":alpha*j80+(1-alpha)*js,
-          "jacobian_q":alpha*j80+(1-alpha)*js,
+          "moments":fused_moments,
+          "jacobian_coefficients":fused_jacobian,
+          "jacobian_q":fused_jacobian,
           "m80_moments":m80,"m80_jacobian_coefficients":j80,
           "m80_jacobian_q":j80,
           "sqno_moments":ms,"sqno_jacobian_coefficients":js,
@@ -139,6 +173,7 @@ class UnifiedM80SQNO(nn.Module):
           "fusion_weight":alpha,"geometry_id":cache.geometry_id,
           "native_intervals":torch.as_tensor(cache.native_intervals,device=m80.device),
           "mass_error":sq["total_mass_error"],
+          **attention_diagnostics,
         }
         self.query_evaluation_calls+=1
         if single:
@@ -298,6 +333,9 @@ class UnifiedM80SQNO(nn.Module):
             "chunk_intervals":s.chunk_intervals,"chunk_nodes":s.chunk_nodes,
             "query_chunk":s.query_chunk,"temperature":s.moment_operator.temperature},
           "fusion":{"kind":"global_scalar_convex","initial_weight":self.fusion_initial_weight},
+          "geometry_physics_attention":{"enabled":self.cross_attention_enabled,
+            "heads":self.cross_attention_heads,"chunk_intervals":self.cross_attention_chunk,
+            "output_scale":self.cross_attention_output_scale},
           "metadata":self.architecture_metadata,
         }
 
@@ -322,10 +360,25 @@ class UnifiedM80SQNO(nn.Module):
         payload=torch.load(path,map_location=map_location,weights_only=False)
         if payload.get("schema")!=SCHEMA or payload.get("semantics")!=SEMANTICS:
             raise ValueError("incompatible unified checkpoint schema")
-        if payload.get("architecture")!=self.architecture_contract():
-            raise ValueError("unified checkpoint architecture contract mismatch")
-        if payload.get("source_fingerprints")!=_source_fingerprints():
-            raise ValueError("unified checkpoint source fingerprint mismatch")
+        saved_architecture=payload.get("architecture",{})
+        current_architecture=self.architecture_contract()
+        legacy_global=(not self.cross_attention_enabled
+            and "geometry_physics_attention" not in saved_architecture)
+        if saved_architecture!=current_architecture:
+            saved_compare=dict(saved_architecture)
+            current_compare=dict(current_architecture)
+            current_compare.pop("geometry_physics_attention",None)
+            if not legacy_global or saved_compare!=current_compare:
+                raise ValueError("unified checkpoint architecture contract mismatch")
+        saved_sources=payload.get("source_fingerprints",{})
+        current_sources=_source_fingerprints()
+        if saved_sources!=current_sources:
+            legacy_keys=set(current_sources)-{"geometry_physics_attention.py"}
+            source_ok=(legacy_global and set(saved_sources)==legacy_keys
+                and all(saved_sources.get(key)==current_sources.get(key)
+                        for key in legacy_keys if key!="unified_m80_sqno.py"))
+            if not source_ok:
+                raise ValueError("unified checkpoint source fingerprint mismatch")
         if expected_data_fingerprint is not None and payload.get("data_fingerprint")!=expected_data_fingerprint:
             raise ValueError("unified checkpoint data fingerprint mismatch")
         self.load_state_dict(payload["model"],strict=True)

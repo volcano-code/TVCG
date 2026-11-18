@@ -103,24 +103,49 @@ per-row derivative validity and restricted-basis metadata. Never replace
 NaN/NULL derivative entries with zero. For restricted rows compare
 `J_pred @ restricted_basis` against the restricted target.
 
-### Independent benchmark validation
+### Formal training candidates: additional TRELLIS collection
 
-Prepare original Spin-It / Spin-It Faster benchmark geometries including the
-heart spinning top and noodles gyro as a separate geometry-level validation
-source, not as additional Mini7 training objects. Verify exact source mesh,
-source provenance, coordinate normalization, material/fixed-region semantics,
-positive-side convention and label-generation oracle before admission.
+Beyond Mini7, an additional collection of 100 TRELLIS-generated models is
+currently being processed. These are formal-training candidates, not
+automatically accepted training records. After geometry, provenance, topology,
+quality and cross-source leakage audits, assign them to train, validation or
+locked test at geometry/source-family level. Do not place near-duplicates or
+objects from the same prompt/source family across splits. Final split counts
+must come from the audited manifest, not a target quota.
 
-Generate labels independently from model predictions using the same frozen
-Faster teacher contract. Include ten moments and derivative labels only where
-independently validated. If the exact source mesh or reproducible teacher
-contract is unavailable, mark blocked; do not substitute a newly generated
-lookalike or claim equivalence.
+Mini7 remains the seven-object pilot set. Its 483 query rows are not 483
+independent geometry samples.
 
-Heart and noodles are a small benchmark validation set, not a sufficient final
-OOD test set. Maintain a separate locked test set of additional
-source-independent geometries. Split at geometry/source-family level, never
-at query-row level.
+### Independent validation: both papers plus TRELLIS
+
+The intended validation collection is broader than two objects. It includes
+eligible original benchmark geometries from both Spin-It (2014) and Spin-It
+Faster (2024), together with additional TRELLIS-generated artifacts reserved
+for validation. Heart spinning top and noodles gyro are important named
+benchmark candidates, not the entire validation set.
+
+For each paper benchmark, verify the exact original mesh, provenance,
+coordinate normalization, design/material/fixed-region semantics and label
+oracle before admission. Do not replace an unavailable original mesh with a
+newly generated lookalike. If exact source geometry or reproducible teacher
+evidence is unavailable, mark that benchmark BLOCKED.
+
+Generate labels independently from model predictions using the frozen Faster
+teacher contract. Include ten moments and derivative labels only where
+independently validated. Clearly distinguish the project's local libigl/CGAL
+teacher from the authors' official implementation unless independent
+value-level equivalence has been established.
+
+### Locked test and split governance
+
+Maintain a separate locked test set of additional source-independent
+geometries. Validation geometries may be used for model selection; locked test
+geometries may not be used for tuning or architecture decisions.
+
+All splits are geometry/source-family-level, never query-row-level. Publish
+the split rationale, source family, prompt provenance, exact mesh hashes,
+canonical geometry hashes and near-duplicate report. Quarantine unresolved
+provenance or ambiguous topology rather than silently assigning it to a split.
 
 ## Release gate
 
@@ -130,3 +155,29 @@ Jacobians pass central finite differences; global-fusion baseline remains
 checkpoint-compatible; every mechanism has a disable/ablation path; CPU CI
 passes; and data contracts are documented. No real-data accuracy, OOD or
 speed claim before corresponding data/GPU evidence exists.
+
+
+## Phase 2.8.5.1 — Geometry–Physics Cross Attention implementation
+
+The first implementation is in
+`spin_adapter/geometry_physics_attention.py` and is opt-in through
+`UnifiedM80SQNO(cross_attention_enabled=True)`. It attends normalized
+quadric query tokens over cached shared P-CRAFT interval features, with
+normalized physical interval mass as a log-prior. Online log-sum-exp processes
+bounded interval chunks; attention diagnostics include entropy and effective
+support.
+
+The attention correction is added to the fused Moment prediction. Its
+Jacobian with respect to the raw ten-dimensional input coefficient vector is
+computed by autograd and added to the M80/SQNO raw-input Jacobian blend. This
+is required because the correction depends on the query. The final output
+projection is zero-initialized so the new branch begins as an exact residual
+identity; the existing global scalar fusion remains the default when attention
+is disabled.
+
+The opt-in synthetic tests cover query ordering, interval permutation,
+chunked finite gradients, raw-input Jacobian finite differences, positive
+quadric scale invariance, disabled-path behavior and legacy global-fusion
+checkpoint migration. Passing these tests is a software gate only; real-data
+accuracy and GPU throughput remain unmeasured until the formal dataset is
+approved.

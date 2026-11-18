@@ -12,7 +12,7 @@ def make_geometry():
     return geometry_from_columns({"columns":columns,"origin":np.array([-1.,-2.,.5]),
         "h":np.array(.25),"side":np.array(512,dtype=np.int32),"density":np.array(1.7)})
 
-def make_unified():
+def make_unified(*,cross_attention_enabled=False,cross_attention_heads=2,cross_attention_chunk=1024):
     torch.manual_seed(830411)
     cfg=NativePCRAFTConfig(grid_size=8,pino_width=2,pino_modes=1,pino_layers=2,
         interval_width=8,interval_depth=1,chunk_intervals=16,min_native_resolution=1,
@@ -21,7 +21,8 @@ def make_unified():
     sqno=SpinQuadrANNV12(pcraft_width=8,hidden_dim=4,final_hidden_dim=16,
         num_layers=2,neighbors=4,temperature=.04,quadrature_order=2,
         chunk_intervals=2,chunk_nodes=64,query_chunk=2)
-    return UnifiedM80SQNO(shared,sqno)
+    return UnifiedM80SQNO(shared,sqno,cross_attention_enabled=cross_attention_enabled,
+        cross_attention_heads=cross_attention_heads,cross_attention_chunk=cross_attention_chunk)
 
 def queries():
     torch.manual_seed(830412)
@@ -261,3 +262,99 @@ def test_unified_architecture_contract_rejects_different_fusion_initialization(t
     )
     with pytest.raises(ValueError,match="architecture contract"):
         other.load_checkpoint(path)
+
+
+def test_geometry_physics_attention_is_query_order_and_interval_permutation_invariant():
+    model=make_unified(cross_attention_enabled=True,cross_attention_chunk=2).eval()
+    torch.nn.init.normal_(model.geometry_physics_attention.output[-1].weight,std=5e-3)
+    torch.nn.init.normal_(model.geometry_physics_attention.output[-1].bias,std=1e-3)
+    torch.manual_seed(830497)
+    with torch.no_grad():
+        cache=model.encode_geometry(make_geometry(),inference=True)
+        first=model.evaluate_queries(cache,queries())
+        qperm=torch.tensor([2,0,3,1])
+        reordered=model.evaluate_queries(cache,queries()[qperm])
+        n=len(cache.shared_cache.interval_features)
+        perm=torch.randperm(n)
+        cache.shared_cache.interval_features=cache.shared_cache.interval_features[perm]
+        cache.shared_cache.interval_mass=cache.shared_cache.interval_mass[perm]
+        interval_reordered=model.evaluate_queries(cache,queries())
+    assert torch.allclose(first["moments"][qperm],reordered["moments"],rtol=1e-6,atol=1e-8)
+    assert torch.allclose(first["moments"],interval_reordered["moments"],rtol=1e-6,atol=1e-8)
+    assert torch.allclose(first["attention_entropy"],interval_reordered["attention_entropy"],rtol=1e-6,atol=1e-7)
+    assert torch.isfinite(first["attention_effective_support"]).all()
+    assert (first["attention_effective_support"]>=1).all()
+
+
+def test_geometry_physics_attention_gradients_and_chunked_execution_are_finite():
+    model=make_unified(cross_attention_enabled=True,cross_attention_chunk=2).train()
+    torch.nn.init.normal_(model.geometry_physics_attention.output[-1].weight,std=5e-3)
+    cache=model.encode_geometry(make_geometry())
+    out=model.evaluate_queries(cache,queries(),create_graph=True)
+    loss=out["moments"].square().mean()+.05*out["jacobian_coefficients"].square().mean()
+    loss.backward()
+    params=[p.grad for p in model.geometry_physics_attention.parameters() if p.grad is not None]
+    assert params and all(torch.isfinite(g).all() for g in params)
+    assert torch.isfinite(out["attention_entropy"]).all()
+    assert torch.isfinite(out["attention_effective_support"]).all()
+
+
+def test_geometry_physics_attention_raw_coefficient_jacobian_matches_finite_difference():
+    model=make_unified(cross_attention_enabled=True,cross_attention_chunk=2).eval()
+    torch.manual_seed(830499)
+    torch.nn.init.normal_(model.geometry_physics_attention.output[-1].weight,std=2e-2)
+    torch.nn.init.normal_(model.geometry_physics_attention.output[-1].bias,std=1e-3)
+    q=queries()[:1]
+    with torch.no_grad():
+        cache=model.encode_geometry(make_geometry(),inference=True)
+        base=model.evaluate_queries(cache,q)
+        eps=1e-4
+        for column in (0,4,8):
+            delta=torch.zeros_like(q); delta[0,column]=eps
+            plus=model.evaluate_queries(cache,q+delta)
+            minus=model.evaluate_queries(cache,q-delta)
+            fd=(plus["moments"]-minus["moments"])/(2*eps)
+            predicted=base["jacobian_coefficients"][:,:,column]
+            assert torch.allclose(predicted,fd,rtol=1e-2,atol=2e-6), (
+                f"attention Jacobian mismatch column={column}, "
+                f"max_abs={(predicted-fd).abs().max().item()}"
+            )
+
+
+def test_geometry_physics_attention_preserves_positive_quadric_scale_invariance():
+    model=make_unified(cross_attention_enabled=True,cross_attention_chunk=2).eval()
+    torch.manual_seed(830498)
+    torch.nn.init.normal_(model.geometry_physics_attention.output[-1].weight,std=5e-3)
+    q=queries()[:2]
+    with torch.no_grad():
+        cache=model.encode_geometry(make_geometry(),inference=True)
+        a=model.evaluate_queries(cache,q)
+        b=model.evaluate_queries(cache,7.3*q)
+    assert torch.allclose(a["moments"],b["moments"],rtol=2e-6,atol=2e-8)
+    assert torch.allclose(a["jacobian_coefficients"]/7.3,b["jacobian_coefficients"],rtol=3e-5,atol=3e-7)
+
+
+def test_geometry_physics_attention_disabled_path_is_legacy_global_fusion():
+    model=make_unified(cross_attention_enabled=False).eval()
+    assert model.geometry_physics_attention is None
+    assert model.architecture_contract()["geometry_physics_attention"]["enabled"] is False
+    with torch.no_grad():
+        cache=model.encode_geometry(make_geometry(),inference=True)
+        out=model.evaluate_queries(cache,queries())
+    assert "attention_entropy" not in out
+    assert torch.isfinite(out["moments"]).all()
+
+
+def test_legacy_global_fusion_checkpoint_migrates_without_attention(tmp_path):
+    model=make_unified().eval()
+    path=tmp_path/"legacy-global.pt"
+    model.save_checkpoint(path,data_fingerprint="legacy-fixture")
+    payload=torch.load(path,map_location="cpu",weights_only=False)
+    payload["architecture"].pop("geometry_physics_attention")
+    payload["source_fingerprints"].pop("geometry_physics_attention.py",None)
+    payload["source_fingerprints"]["unified_m80_sqno.py"]="pre-2.8.5-wrapper"
+    legacy_path=tmp_path/"legacy-global-v0.pt"
+    torch.save(payload,legacy_path)
+    restored=make_unified().eval()
+    loaded=restored.load_checkpoint(legacy_path,expected_data_fingerprint="legacy-fixture")
+    assert loaded["architecture"].get("geometry_physics_attention") is None
