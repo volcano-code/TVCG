@@ -22,7 +22,7 @@ class R3NativeBuildPreflightTests(unittest.TestCase):
     def test_cmake_cache_options_parsed(self):
         with tempfile.TemporaryDirectory() as tmp:
             p=Path(tmp)/"CMakeCache.txt"
-            p.write_text("# cache\\nMAKE_IT_STAND_BUILD_PYTHON:BOOL=ON\\nMAKE_IT_STAND_BUILD_SPIN_IT_FASTER:BOOL=ON\\nCMAKE_BUILD_TYPE:STRING=Release\\n")
+            p.write_text("# cache\n" + "MAKE_IT_STAND_BUILD_PYTHON:BOOL=ON\n" + "MAKE_IT_STAND_BUILD_SPIN_IT_FASTER:BOOL=ON\n" + "CMAKE_BUILD_TYPE:STRING=Release\n")
             r=parse_cmake_cache(p)
             self.assertEqual(r["MAKE_IT_STAND_BUILD_PYTHON"],"ON")
             self.assertEqual(r["CMAKE_BUILD_TYPE"],"Release")
