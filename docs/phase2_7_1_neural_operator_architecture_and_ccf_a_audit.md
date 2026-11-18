@@ -24,7 +24,7 @@ A “trainable today” engineering milestone is achievable as a reproducible pi
 - `spin_pino/STATUS.json` explicitly says trained_on_spin_labels=false, Cherchi labels admitted=0, Newton derivative admitted=false, real Spin end-to-end validated=false.
 
 ### 1.2 M80 production-oriented operator path
-- `models/pcraft_ufno/native_pcraft.py`, `native_train.py`, `M80_ARCHITECTURE_CONTRACT.md`, `M80_EXPERIMENT_PROTOCOL.md`, `M80_RELEASE_GATE.md`, `M80_STATUS.json`.
+- `models/pcraft_ufno/spin_pino/native_pcraft.py`, `spin_pino/native_train.py`, `M80_ARCHITECTURE_CONTRACT.md`, `M80_EXPERIMENT_PROTOCOL.md`, `M80_RELEASE_GATE.md`, `M80_STATUS.json`.
 - M80.1 single-scale P-CRAFT + native M72 RLE intervals is the permanent control.
 - M80.2 GNO and M80.3 Transolver are optional branches.
 - M80.4 shared-weight multi-resolution P-CRAFT context pyramid (32/64/128) is opt-in.
@@ -111,6 +111,8 @@ These become publishable only if the full method has a clearly novel technical m
 No acceptance guarantee is possible. A CCF-A target is reasonable as a research ambition, but submission readiness is currently not established.
 
 ## 4. Same-day deliverable: trainable unified baseline
+
+The repository already contains a reproducible M80.1/M80 operator training entry point at `models/pcraft_ufno/spin_pino/native_train.py`. It has `preflight` and `train` subcommands, audited M72 corpus loading, source-group sampling, Moment/Jacobian supervision with derivative-valid masking, validation tail summaries, best/last checkpoints, strict resume contract and optional one-time test evaluation. This is an existing trainable baseline, not yet the final unified UG-PINO. The same-day target is to validate and expose this as the unified training path, not create a duplicate trainer.
 
 The same-day target should be a reproducible training-capable baseline, not a perfect model:
 - Reuse M80.1 P-CRAFT as the stable encoder/operator baseline.
