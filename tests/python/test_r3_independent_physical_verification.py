@@ -17,11 +17,11 @@ def record_for_tetra():
       "density":2.0,"geometric_volume_m3":1/6,"density_source":"test analytical density",
       "tetrahedra_sha256":"tetra-sha","backend_sha256":"backend-sha","backend_identity":"independent_tetra_exact_v1",
       "moment_order":MOMENT_ORDER,"raw_moments":raw.tolist()}, {
-        "origin":com.tolist(),"x_axis":R[:,0].tolist(),"y_axis":R[:,1].tolist(),
+        "task_hash":"task-1","origin":com.tolist(),"x_axis":R[:,0].tolist(),"y_axis":R[:,1].tolist(),
         "axis":R[:,2].tolist(),"coordinate_frame":"world","length_unit":"m",
         "meters_per_unit":1.0,"density":2.0,"geometry_hash":"geom-1"}
 
-TOL={"Lx_abs":1e-12,"Ly_abs":1e-12,"Icxz_abs":1e-12,"Icyz_abs":1e-12,"mass_relative":1e-12}
+TOL={"source_reference":"test-only explicit tolerance fixture","Lx_abs":1e-12,"Ly_abs":1e-12,"Icxz_abs":1e-12,"Icyz_abs":1e-12,"mass_relative":1e-12}
 
 class R3IndependentPhysicalVerificationTests(unittest.TestCase):
     def test_principal_frame_analytic_tetra_passes(self):
