@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse, hashlib, json, math, os, statistics, subprocess, sys
 from pathlib import Path
 from .native_pcraft import make_config
-from .native_train import M72Corpus
+from .native_train import M72Corpus, source_fingerprints
 
 SCHEMA="phase2.8.3.head-ablation.v1"
 HEADS=("xl_ms_gno_transolver_bounded_odd","xl_ms_gno_transolver_convex","xl_ms_gno_transolver_convex_atan")
@@ -41,7 +41,7 @@ def build_plan(manifest,audit,output,seeds=SEEDS,min_queries=256,min_train_group
     p={"schema":SCHEMA,"dataset":corpus.summary(),"split_source_groups":groups,
        "minimum_source_groups":mins,"query_coverage":{"records":len(coverage),"min":min(coverage.values()),
        "max":max(coverage.values()),"required":min_queries},"heads":list(HEADS),
-       "matched_configs":trunk,"seeds":list(seeds),
+       "matched_configs":trunk,"source_fingerprints":source_fingerprints(),"seeds":list(seeds),
        "training":{"optimizer":"AdamW","max_steps":max_steps,"max_seconds":max_seconds,
        "device":device,"amp":amp,"batch_queries":batch_queries,"learning_rate":learning_rate,
        "weight_decay":weight_decay,"jacobian_weight":jacobian_weight,
@@ -58,6 +58,8 @@ def run_plan(plan_path,manifest,audit,output,min_queries=256,min_native_resoluti
         raise ValueError("plan fingerprint/schema mismatch")
     corpus=M72Corpus(manifest,audit,grid_size=64,min_queries=min_queries)
     if corpus.doc["fingerprint"]!=p["dataset"]["fingerprint"]: raise ValueError("corpus differs from admitted plan")
+    if source_fingerprints()!=p["source_fingerprints"]:
+        raise ValueError("source code changed after plan admission; create a new plan")
     out=Path(output); out.mkdir(parents=True,exist_ok=True); runs=[]
     t=p["training"]
     for seed in p["seeds"]:
@@ -97,6 +99,7 @@ def aggregate(plan_path,index_path,output):
     p=json.loads(Path(plan_path).read_text()); ix=json.loads(Path(index_path).read_text())
     if ix.get("plan_fingerprint")!=p.get("fingerprint"): raise ValueError("run index/plan mismatch")
     expected={(h,s) for h in p["heads"] for s in p["seeds"]}; seen=set(); data={h:[] for h in p["heads"]}
+    common_contract_fingerprint=None
     for item in ix["runs"]:
         key=(item["preset"],int(item["seed"]))
         if key not in expected or key in seen: raise ValueError(f"unexpected/duplicate run {key}")
@@ -105,6 +108,14 @@ def aggregate(plan_path,index_path,output):
         c=r.get("contract",{})
         if c.get("corpus_fingerprint")!=p["dataset"]["fingerprint"] or c.get("seed")!=key[1]:
             raise ValueError(f"{key}: corpus/seed mismatch")
+        normalized=dict(c); normalized.pop("seed",None)
+        cfg=dict(normalized.get("config",{}))
+        for field in HEAD_FIELDS: cfg.pop(field,None)
+        normalized["config"]=cfg
+        contract_fp=_hash(normalized)
+        if common_contract_fingerprint is None: common_contract_fingerprint=contract_fp
+        elif contract_fp!=common_contract_fingerprint:
+            raise ValueError("head/seed runs do not share an identical training/runtime/source contract")
         v=r.get("best_checkpoint_validation") or {}; amp=v.get("convex_amplitude") or {}
         data[key[0]].append({"seed":key[1],"steps_completed":r.get("steps_completed"),
           "stop_reason":r.get("stop_reason"),"moment_scaled_mse":v.get("moment_scaled_mse"),
@@ -123,7 +134,8 @@ def aggregate(plan_path,index_path,output):
     for h,rows in data.items():
         summaries[h]={m:_stats([x[m] for x in rows]) for m in metrics}; summaries[h]["runs"]=rows
     result={"schema":SCHEMA+".aggregate","plan_fingerprint":p["fingerprint"],
-      "dataset_fingerprint":p["dataset"]["fingerprint"],"seeds":p["seeds"],"heads":summaries,
+      "dataset_fingerprint":p["dataset"]["fingerprint"],"source_fingerprints":p["source_fingerprints"],
+      "training_contract_fingerprint":common_contract_fingerprint,"seeds":p["seeds"],"heads":summaries,
       "freeze_decision":{"status":"pending","test_split_used_for_selection":False,
        "reason":"requires expert review of matched validation tails, gradient stability, checkpoint parity and exact-solver replay"},
       "limitations":["validation metrics do not prove exact-solver feasibility",

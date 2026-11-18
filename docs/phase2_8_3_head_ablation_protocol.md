@@ -10,7 +10,7 @@ GNO + Transolver trunk:
 - `xl_ms_gno_transolver_convex` (legacy sigmoid amplitude)
 - `xl_ms_gno_transolver_convex_atan`
 
-The runner checks that only head-specific config fields differ, and requires
+The runner fingerprints the relevant source files at plan creation and rejects a run if the source changes afterward. The aggregate verifies that all nine runs share the same normalized source/runtime/training contract, differing only in seed and the declared head fields. The runner checks that only head-specific config fields differ, and requires
 the same frozen formal M69/M72 manifest, matching audit receipt, split,
 source-group isolation, seed list, optimizer, budgets and loss weights. It
 does not claim a winning head or fabricate GPU results.
@@ -27,7 +27,7 @@ protocol amendment before candidate runs.
 
 The native trainer reports per-object Moment/Jacobian scaled errors, query
 p95/p99 distributions, convex gate fraction/logit/bound/effective amplitude,
-and Jacobian symmetry/eigenvalue diagnostics. The new aggregate reporter
+and Jacobian symmetry/eigenvalue diagnostics. The trainer now also persists the pre-clipping global gradient norm at each step, includes its p50/p95/p99/max distribution in the report, and fails closed on non-finite gradients. Resume checkpoints retain the gradient history. The new aggregate reporter
 compares these metrics across the same seeds. Convex-head Jacobian symmetry
 and PSD are properties of that parameterization, not a claim about the exact
 physical moment Jacobian.

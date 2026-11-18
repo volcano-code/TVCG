@@ -23,7 +23,7 @@ def test_stats_finite_and_missing():
     with pytest.raises(FloatingPointError): _stats([float("nan")])
 
 def test_aggregate_requires_full_seed_head_matrix_and_never_freezes(tmp_path):
-    seeds=[11,13,17]; plan={"fingerprint":"p","dataset":{"fingerprint":"d"},"seeds":seeds,"heads":list(HEADS)}
+    seeds=[11,13,17]; plan={"fingerprint":"p","dataset":{"fingerprint":"d"},"source_fingerprints":{},"seeds":seeds,"heads":list(HEADS)}
     pp=tmp_path/"plan.json"; pp.write_text(json.dumps(plan)); rows=[]
     for h in HEADS:
         for s in seeds:
@@ -42,6 +42,6 @@ def test_aggregate_requires_full_seed_head_matrix_and_never_freezes(tmp_path):
     assert result["heads"][HEADS[0]]["moment_scaled_mse"]["n"]==3
 
 def test_aggregate_rejects_missing_run(tmp_path):
-    pp=tmp_path/"p.json"; pp.write_text(json.dumps({"fingerprint":"p","dataset":{"fingerprint":"d"},"seeds":[1,2,3],"heads":list(HEADS)}))
+    pp=tmp_path/"p.json"; pp.write_text(json.dumps({"fingerprint":"p","dataset":{"fingerprint":"d"},"source_fingerprints":{},"seeds":[1,2,3],"heads":list(HEADS)}))
     ip=tmp_path/"i.json"; ip.write_text(json.dumps({"plan_fingerprint":"p","runs":[]}))
     with pytest.raises(ValueError,match="missing"): aggregate(pp,ip,tmp_path/"o.json")
