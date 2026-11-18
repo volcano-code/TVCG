@@ -70,12 +70,12 @@ def build_request(manifest_path):
         value=float(moment_metadata[key])
         if not math.isfinite(value) or value<=0: raise ValueError(f"moment_metadata.{key} must be positive finite")
     fields=dict(m["request_fields"])
-    if float(fields.get("material_density",0)) != float(moment_metadata["density"]):
-        raise ValueError("request material_density differs from moment_metadata density")
     required_fields=("fixed_shell_moments","target_origin","target_axes","mode","material_density",
       "original_units_per_normalized_unit","minimum_wall_thickness","spinning_top_objective","settings")
     missing_fields=[k for k in required_fields if k not in fields]
     if missing_fields: raise ValueError("request_fields missing: "+", ".join(missing_fields))
+    if float(fields.get("material_density",0)) != float(moment_metadata["density"]):
+        raise ValueError("request material_density differs from moment_metadata density")
     if fields["mode"]!="SPINNING_TOP": raise ValueError("R3 request must use SPINNING_TOP")
     if fields["spinning_top_objective"] not in ("INERTIA_AND_LOWERING","LOWER_CENTER_OF_MASS"):
         raise ValueError("unsupported spinning_top_objective")
