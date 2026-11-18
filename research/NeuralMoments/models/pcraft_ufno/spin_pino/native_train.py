@@ -290,6 +290,7 @@ def validate(model,corpus,device,amp,chunk,max_records=8,max_queries=256,split="
         ml=normalized_moment.square().mean()
         moment_query_rmse=torch.sqrt(normalized_moment.square().mean(dim=-1))
         all_moment_query_rmse.extend(moment_query_rmse.detach().cpu().tolist())
+        base_valid=np.asarray(labels["derivative_valid"][:n],dtype=bool)
         valid=derivative_supervision_mask(labels,np.arange(n),min_event_margin=min_event_margin,require_fd_audit=require_fd_audit,max_jacobian_error_bound=max_jacobian_error_bound)
         jl=None; jac_query_rmse=None; symmetry_query=None; min_eigen_query=None
         if valid.any():
@@ -309,7 +310,7 @@ def validate(model,corpus,device,amp,chunk,max_records=8,max_queries=256,split="
             all_jacobian_min_eigenvalue.extend(min_eigen_query.detach().cpu().tolist())
         scores.append(float(ml.detach()))
         rows.append(dict(id=row["id"],group_id=row["group_id"],queries=n,
-            derivative_valid=int(valid.sum()),moment_scaled_mse=float(ml.detach()),
+            derivative_valid=int(valid.sum()),derivative_valid_before_event_gate=int(base_valid.sum()),derivative_masked_count=int(base_valid.sum()-valid.sum()),moment_scaled_mse=float(ml.detach()),
             jacobian_scaled_mse=None if jl is None else float(jl.detach()),
             moment_query_rmse=_distribution_summary(moment_query_rmse.detach().cpu().numpy()),
             jacobian_query_rmse=None if jac_query_rmse is None else
@@ -319,7 +320,7 @@ def validate(model,corpus,device,amp,chunk,max_records=8,max_queries=256,split="
             jacobian_min_eigenvalue=None if min_eigen_query is None else
                 _distribution_summary(min_eigen_query.detach().cpu().numpy())))
     model.train()
-    return dict(split=split,moment_scaled_mse=float(np.mean(scores)) if scores else None,
+    return dict(split=split,derivative_gate=dict(min_event_margin=float(min_event_margin),require_fd_audit=bool(require_fd_audit),max_jacobian_error_bound=max_jacobian_error_bound),moment_scaled_mse=float(np.mean(scores)) if scores else None,
         jacobian_scaled_mse=float(np.mean(jac_scores)) if jac_scores else None,
         moment_query_rmse=_distribution_summary(all_moment_query_rmse),
         jacobian_query_rmse=_distribution_summary(all_jacobian_query_rmse),
@@ -489,7 +490,7 @@ def train(args):
         best_step=best_step,best_validation_score=best_score,initial_validation=initial,
         final_last_validation=final_last,best_checkpoint_validation=best_validation,
         one_time_test_evaluation=test_evaluation,
-        parameter_count=sum(p.numel() for p in model.parameters()),config=asdict(cfg),contract=contract,
+        parameter_count=sum(p.numel() for p in model.parameters()),config=asdict(cfg),contract=contract,derivative_supervision_policy=dict(min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound),
         data=corpus.summary(),query_coverage_min=int(min(query_coverage.values())),query_coverage_max=int(max(query_coverage.values())),
         counters=dict(model.counters,gno_graph_cache_bytes=model._neighbor_cache_bytes),
         limitations=["query-response validation is not design acceptance",
