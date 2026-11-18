@@ -1,6 +1,7 @@
 """Unified M80 + SQNO with one shared P-CRAFT encoder (Phase 2.8.4)."""
 from __future__ import annotations
 from dataclasses import asdict, dataclass
+from contextlib import nullcontext
 import hashlib, os, random, tempfile
 from pathlib import Path
 from typing import Any, Mapping
@@ -23,6 +24,7 @@ class UnifiedGeometryCache:
     owner: int
     versions: tuple[int,...]
     native_intervals: int
+    inference_only: bool = False
 
 def _source_fingerprints():
     here=Path(__file__).resolve().parent
@@ -73,21 +75,33 @@ class UnifiedM80SQNO(nn.Module):
     def _versions(self):
         return tuple(p._version for p in self.parameters())
 
-    def encode_geometry(self,geometry:Mapping[str,Any],*,chunk:int|None=None):
+    def encode_geometry(self,geometry:Mapping[str,Any],*,chunk:int|None=None,inference:bool=False):
+        """Encode one geometry.
+
+        Training caches retain the full autograd graph. Inference caches are
+        encoded under no_grad, consume less memory, and are rejected by train()
+        or create_graph=True evaluation.
+        """
+        if inference and self.training:
+            raise ValueError("inference=True requires model.eval()")
         if "xyz" not in geometry:
             from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import geometry_from_columns
             geometry=geometry_from_columns(geometry)
-        shared=self.shared_encoder.encode(geometry,chunk,retain_interval_features=True)
-        payload=self.shared_encoder.export_shared_geometry_features(shared)
-        sqno_cache=self.sqno.encode_geometry(geometry,pcraft_features=payload)
+        context=torch.no_grad() if inference else nullcontext()
+        with context:
+            shared=self.shared_encoder.encode(geometry,chunk,retain_interval_features=True)
+            payload=self.shared_encoder.export_shared_geometry_features(shared)
+            sqno_cache=self.sqno.encode_geometry(geometry,pcraft_features=payload)
         self.geometry_encode_calls+=1
         return UnifiedGeometryCache(shared.geometry_sha256,shared,sqno_cache,id(self),
-                                     self._versions(),shared.native_intervals)
+                                     self._versions(),shared.native_intervals,bool(inference))
 
     def evaluate_queries(self,cache:UnifiedGeometryCache,coefficients:Tensor,*,
                          create_graph=False,with_jacobian=True):
         if cache.owner!=id(self) or cache.versions!=self._versions():
             raise ValueError("foreign or stale unified geometry cache")
+        if cache.inference_only and (self.training or create_graph):
+            raise ValueError("inference-only geometry cache cannot be used for training or higher-order gradients")
         if not with_jacobian: raise ValueError("unified contract currently requires Moment Jacobians")
         q=torch.as_tensor(coefficients,device=cache.shared_cache.latent.device,dtype=torch.float64)
         single=q.ndim==1
@@ -114,6 +128,132 @@ class UnifiedM80SQNO(nn.Module):
             for key in ("moments","jacobian_q","m80_moments","m80_jacobian_q","sqno_moments","sqno_jacobian_q"):
                 result[key]=result[key][0]
         return result
+
+    @staticmethod
+    def _masked_mean_square(error:Tensor,mask:Tensor|None,*,name:str)->Tensor:
+        values=error.square()
+        if mask is None:
+            return values.mean()
+        mask=torch.as_tensor(mask,device=values.device,dtype=torch.bool)
+        if mask.ndim!=1 or mask.shape[0]!=values.shape[0]:
+            raise ValueError(f"{name} mask must have shape [Q]")
+        if not mask.any():
+            raise ValueError(f"{name} mask contains no valid queries")
+        return values[mask].mean()
+
+    def joint_training_loss(
+        self,
+        cache:UnifiedGeometryCache,
+        coefficients:Tensor,
+        target_moments:Tensor,
+        target_jacobian:Tensor,
+        *,
+        moment_scale:Tensor|float=1.0,
+        jacobian_scale:Tensor|float=1.0,
+        valid_mask:Tensor|None=None,
+        jacobian_valid_mask:Tensor|None=None,
+        jacobian_weight:float=0.1,
+        branch_aux_weight:float=0.25,
+    )->dict[str,Tensor]:
+        """Compute a shared, mask-aware M80/SQNO/fused supervision objective.
+
+        Scales are explicit physical normalization factors; no dataset-specific
+        normalization is inferred. All three outputs use the same valid-query
+        masks and targets. Jacobian supervision uses create_graph=True so the
+        loss differentiates through the M80 autograd Jacobian as well as SQNO's
+        analytic quadrature Jacobian.
+        """
+        if jacobian_weight<0 or branch_aux_weight<0:
+            raise ValueError("loss weights must be nonnegative")
+        q=torch.as_tensor(coefficients,device=cache.shared_cache.latent.device,dtype=torch.float64)
+        qn=1 if q.ndim==1 else q.shape[0]
+        target_m=torch.as_tensor(target_moments,device=q.device,dtype=torch.float64)
+        target_j=torch.as_tensor(target_jacobian,device=q.device,dtype=torch.float64)
+        if target_m.shape!=(qn,10) and not (q.ndim==1 and target_m.shape==(10,)):
+            raise ValueError("target_moments must be [Q,10] or [10] for a single query")
+        if target_j.shape!=(qn,10,10) and not (q.ndim==1 and target_j.shape==(10,10)):
+            raise ValueError("target_jacobian must be [Q,10,10] or [10,10] for a single query")
+        if q.ndim==1:
+            target_m=target_m.unsqueeze(0)
+            target_j=target_j.unsqueeze(0)
+        if not torch.isfinite(target_m).all() or not torch.isfinite(target_j).all():
+            raise ValueError("training targets must be finite")
+        ms=torch.as_tensor(moment_scale,device=q.device,dtype=torch.float64)
+        js=torch.as_tensor(jacobian_scale,device=q.device,dtype=torch.float64)
+        if (not torch.isfinite(ms).all() or (ms<=0).any()
+                or not torch.isfinite(js).all() or (js<=0).any()):
+            raise ValueError("moment/jacobian scales must be finite and positive")
+        try:
+            target_m_norm=target_m/ms
+            target_j_norm=target_j/js
+        except RuntimeError as exc:
+            raise ValueError("normalization scales are not broadcastable to target shapes") from exc
+        result=self.evaluate_queries(cache,q,create_graph=True,with_jacobian=True)
+        def norm_m(key):
+            value=result[key]
+            if value.ndim==1: value=value.unsqueeze(0)
+            return value/ms
+        def norm_j(key):
+            value=result[key]
+            if value.ndim==2: value=value.unsqueeze(0)
+            return value/js
+        mask=valid_mask
+        jmask=jacobian_valid_mask if jacobian_valid_mask is not None else valid_mask
+        fm=self._masked_mean_square(norm_m("moments")-target_m_norm,mask,name="moment")
+        fj=self._masked_mean_square(norm_j("jacobian_q")-target_j_norm,jmask,name="jacobian")
+        m80m=self._masked_mean_square(norm_m("m80_moments")-target_m_norm,mask,name="M80 moment")
+        sqnom=self._masked_mean_square(norm_m("sqno_moments")-target_m_norm,mask,name="SQNO moment")
+        m80j=self._masked_mean_square(norm_j("m80_jacobian_q")-target_j_norm,jmask,name="M80 Jacobian")
+        sqnoj=self._masked_mean_square(norm_j("sqno_jacobian_q")-target_j_norm,jmask,name="SQNO Jacobian")
+        branch=(m80m+sqnom+jacobian_weight*(m80j+sqnoj))*0.5
+        total=fm+jacobian_weight*fj+branch_aux_weight*branch
+        return {
+            "loss":total,
+            "moment_loss":fm.detach(),
+            "jacobian_loss":fj.detach(),
+            "m80_moment_loss":m80m.detach(),
+            "sqno_moment_loss":sqnom.detach(),
+            "m80_jacobian_loss":m80j.detach(),
+            "sqno_jacobian_loss":sqnoj.detach(),
+            "branch_aux_loss":branch.detach(),
+            "fusion_weight":result["fusion_weight"].detach(),
+            "valid_queries":torch.as_tensor(qn if mask is None else torch.as_tensor(mask).sum().item(),device=q.device),
+        }
+
+    def train_step(
+        self,optimizer,cache:UnifiedGeometryCache,coefficients:Tensor,
+        target_moments:Tensor,target_jacobian:Tensor,*,
+        moment_scale:Tensor|float=1.0,jacobian_scale:Tensor|float=1.0,
+        valid_mask:Tensor|None=None,jacobian_valid_mask:Tensor|None=None,
+        jacobian_weight:float=0.1,branch_aux_weight:float=0.25,
+        gradient_clip:float=1.0,
+    )->dict[str,float]:
+        """One explicit joint update; caller must re-encode after optimizer.step."""
+        if not self.training:
+            raise RuntimeError("train_step requires model.train()")
+        if cache.inference_only:
+            raise ValueError("train_step cannot consume an inference-only cache")
+        if gradient_clip<=0:
+            raise ValueError("gradient_clip must be positive")
+        optimizer.zero_grad(set_to_none=True)
+        losses=self.joint_training_loss(
+            cache,coefficients,target_moments,target_jacobian,
+            moment_scale=moment_scale,jacobian_scale=jacobian_scale,
+            valid_mask=valid_mask,jacobian_valid_mask=jacobian_valid_mask,
+            jacobian_weight=jacobian_weight,branch_aux_weight=branch_aux_weight,
+        )
+        losses["loss"].backward()
+        parameters=[p for p in self.parameters() if p.requires_grad]
+        grad_norm=torch.nn.utils.clip_grad_norm_(parameters,gradient_clip,error_if_nonfinite=True)
+        if not torch.isfinite(grad_norm):
+            optimizer.zero_grad(set_to_none=True)
+            raise FloatingPointError("nonfinite unified gradient norm")
+        optimizer.step()
+        out={key:float(value.detach()) for key,value in losses.items() if key!="loss"}
+        out["loss"]=float(losses["loss"].detach())
+        out["gradient_norm"]=float(grad_norm.detach())
+        out["cache_invalidated"]=1.0
+        return out
 
     def unique_trainable_parameters(self):
         seen=set()

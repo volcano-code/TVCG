@@ -129,3 +129,64 @@ def test_unified_cache_rejects_stale_parameter_versions():
     with torch.no_grad(): next(model.parameters()).add_(1e-4)
     with pytest.raises(ValueError,match="stale"):
         model.evaluate_queries(cache,queries())
+
+
+def test_inference_cache_is_graph_free_reusable_and_rejected_for_training():
+    model=make_unified().eval()
+    geometry=make_geometry()
+    with torch.no_grad():
+        cache=model.encode_geometry(geometry,inference=True)
+        assert cache.inference_only
+        assert not cache.shared_cache.latent.requires_grad
+        first=model.evaluate_queries(cache,queries())
+        second=model.evaluate_queries(cache,queries().flip(0))
+    assert torch.allclose(first["moments"],second["moments"].flip(0),rtol=1e-8,atol=1e-9)
+    model.train()
+    with pytest.raises(ValueError,match="inference-only"):
+        model.evaluate_queries(cache,queries())
+
+
+def test_joint_training_loss_reports_fused_and_branch_terms_with_masks():
+    model=make_unified().train()
+    cache=model.encode_geometry(make_geometry())
+    q=queries()
+    target_m=torch.zeros(4,10,dtype=torch.float64)
+    target_j=torch.zeros(4,10,10,dtype=torch.float64)
+    mask=torch.tensor([True,True,False,True])
+    result=model.joint_training_loss(cache,q,target_m,target_j,
+        moment_scale=torch.ones(10),jacobian_scale=torch.ones(10,10),
+        valid_mask=mask,jacobian_valid_mask=mask,
+        jacobian_weight=.2,branch_aux_weight=.3)
+    required={"loss","moment_loss","jacobian_loss","m80_moment_loss",
+        "sqno_moment_loss","m80_jacobian_loss","sqno_jacobian_loss","branch_aux_loss"}
+    assert required.issubset(result)
+    assert all(torch.isfinite(value).all() for value in result.values())
+    result["loss"].backward()
+    assert model.fusion_logit.grad is not None
+
+
+def test_joint_training_loss_rejects_empty_or_invalid_masks_and_scales():
+    model=make_unified().train()
+    cache=model.encode_geometry(make_geometry())
+    q=queries()
+    with pytest.raises(ValueError,match="no valid queries"):
+        model.joint_training_loss(cache,q,torch.zeros(4,10),torch.zeros(4,10,10),
+            valid_mask=torch.zeros(4,dtype=torch.bool))
+    with pytest.raises(ValueError,match="positive"):
+        model.joint_training_loss(cache,q,torch.zeros(4,10),torch.zeros(4,10,10),
+            moment_scale=0.0)
+
+
+def test_train_step_updates_parameters_and_invalidates_preupdate_cache():
+    model=make_unified().train()
+    optimizer=model.build_optimizer(learning_rate=1e-5)
+    cache=model.encode_geometry(make_geometry())
+    before=model.fusion_logit.detach().clone()
+    metrics=model.train_step(optimizer,cache,queries(),
+        torch.zeros(4,10,dtype=torch.float64),torch.zeros(4,10,10,dtype=torch.float64),
+        gradient_clip=1.0)
+    assert metrics["loss"]>=0 and metrics["gradient_norm"]>=0
+    assert metrics["cache_invalidated"]==1.0
+    assert not torch.equal(before,model.fusion_logit.detach())
+    with pytest.raises(ValueError,match="stale"):
+        model.evaluate_queries(cache,queries())
