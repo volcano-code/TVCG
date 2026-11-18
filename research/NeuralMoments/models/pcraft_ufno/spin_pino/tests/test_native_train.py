@@ -171,7 +171,7 @@ def test_event_margin_and_fd_audit_are_applied_to_jacobian_training_loss(tmp_pat
     from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_train import loss_for_batch
     from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import PcraftNativeMomentOperator,make_config
     from research.NeuralMoments.models.pcraft_ufno.spin_pino.tests.test_native_pcraft import small_geometry
-    model=PcraftNativeMomentOperator(make_config("smoke")).train()
+    model=PcraftNativeMomentOperator(make_config("smoke",min_native_resolution=1)).train()
     geometry=small_geometry()
     cache=model.encode(geometry,chunk=16)
     q=np.asarray([[0.,1.,0,0,0,0,0,0,0,0],
