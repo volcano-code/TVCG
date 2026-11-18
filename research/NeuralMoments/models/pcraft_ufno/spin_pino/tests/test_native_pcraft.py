@@ -646,3 +646,73 @@ def test_convex_head_psd_is_parameterization_property_not_global_head_contract()
     # The bounded-odd head has no imposed Hessian/PSD contract; only require
     # a finite, independently differentiable Jacobian.
     assert torch.isfinite(jb).all()
+
+
+def test_convex_amplitude_sigmoid_and_atan_modes_are_bounded_and_have_same_state_contract():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import ConvexMomentPotentialHead
+    torch.manual_seed(223)
+    sigmoid=ConvexMomentPotentialHead(width=16,components=3,amplitude_mode="sigmoid")
+    atan=ConvexMomentPotentialHead(width=16,components=3,amplitude_mode="atan")
+    atan.load_state_dict(sigmoid.state_dict(),strict=True)
+    assert set(sigmoid.state_dict())==set(atan.state_dict())
+    with torch.no_grad():
+        sigmoid.total_gate.weight.zero_()
+        atan.total_gate.weight.zero_()
+        sigmoid.total_gate.bias.fill_(5.)
+        atan.total_gate.bias.fill_(5.)
+    latent=torch.randn(1,16,dtype=torch.float64)
+    logit_s,fraction_s=sigmoid.amplitude_parameters(latent)
+    logit_a,fraction_a=atan.amplitude_parameters(latent)
+    assert float(logit_s)==pytest.approx(5.)
+    assert float(logit_a)==pytest.approx(5.)
+    assert 0. < float(fraction_s) < 1.
+    assert 0. < float(fraction_a) < 1.
+    assert float(fraction_a)<float(fraction_s)
+    ds=torch.autograd.grad(fraction_s,sigmoid.total_gate.bias,retain_graph=True)[0]
+    da=torch.autograd.grad(fraction_a,atan.total_gate.bias)[0]
+    assert float(da.abs().max())>float(ds.abs().max())
+
+
+def test_convex_atan_potential_preserves_moment_invariants_and_jacobian_structure():
+    from dataclasses import replace
+    torch.manual_seed(227)
+    base=small_model()
+    cfg=replace(base.config,convex_potential_enabled=True,convex_potential_components=3,
+                convex_amplitude_mode="atan")
+    model=PcraftNativeMomentOperator(cfg).train()
+    cache=model.encode(small_geometry(),chunk=16)
+    q=torch.tensor([.04,-.07,.03,.06,.02,-.01,.015,.004,-.006,.003],dtype=torch.float64)
+    moments,jac=model.moments_and_jacobian(cache,q,create_graph=True)
+    diagnostics=model.convex_amplitude_diagnostics(cache)
+    assert diagnostics["mode"]=="atan"
+    assert 0.<diagnostics["fraction"]<1.
+    assert diagnostics["amplitude_bound"]>=0.
+    assert diagnostics["effective_amplitude"]>=0.
+    assert torch.allclose(moments,model.predict(cache,4.2*q),rtol=1e-8,atol=1e-9)
+    assert torch.allclose(moments+model.predict(cache,-q),
+        2*cache.fixed_moments+cache.design_moments,rtol=1e-8,atol=1e-9)
+    assert torch.allclose(jac,jac.T,rtol=1e-6,atol=1e-7)
+    assert float(torch.linalg.eigvalsh(.5*(jac+jac.T)).min())>=-1e-6
+    (moments.square().mean()+jac.square().mean()).backward()
+    assert all(p.grad is None or torch.isfinite(p.grad).all() for p in model.parameters())
+
+
+def test_convex_amplitude_mode_is_opt_in_and_old_checkpoint_config_defaults_to_sigmoid(tmp_path):
+    from dataclasses import asdict,replace
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import (
+        SCHEMA,SEMANTICS,load_model,make_config
+    )
+    base=make_config("xl_ms_gno_transolver_convex")
+    atan=make_config("xl_ms_gno_transolver_convex_atan")
+    bounded=make_config("xl_ms_gno_transolver_bounded_odd")
+    assert base.convex_amplitude_mode=="sigmoid"
+    assert atan.convex_potential_enabled and atan.convex_amplitude_mode=="atan"
+    assert not bounded.convex_potential_enabled
+    legacy=replace(make_config("smoke",min_native_resolution=1),convex_potential_enabled=True)
+    model=PcraftNativeMomentOperator(legacy)
+    config=asdict(legacy)
+    config.pop("convex_amplitude_mode")
+    path=tmp_path/"legacy-convex-no-amplitude-mode.pt"
+    torch.save(dict(schema=SCHEMA,semantics=SEMANTICS,config=config,model=model.state_dict()),path)
+    restored,_=load_model(path,"cpu")
+    assert restored.config.convex_amplitude_mode=="sigmoid"
