@@ -102,7 +102,7 @@ A second opt-in preset is now available:
 
 `xl_ms_gno_transolver_convex_event`
 
-It adds a derivative-validity classifier over the shared geometry latent, global statistics and normalized query. The label is the teacher-provided `derivative_valid` flag. It is trained jointly with Moment/Jacobian using BCE-with-logits and `--event-weight`. This predicts derivative validity; it does not replace the exact event ledger, does not certify smoothness, and must be calibrated before use as a solver admission gate.
+It adds a derivative-validity classifier over the shared geometry latent, global statistics and normalized query. The label is the explicit teacher-provided `event_valid` flag. It is trained jointly with Moment/Jacobian using BCE-with-logits and `--event-weight`. This predicts derivative validity; it does not replace the exact event ledger, does not certify smoothness, and must be calibrated before use as a solver admission gate.
 
 The original `xl_ms_gno_transolver_convex` preset is unchanged and remains compatible with the current local pilot. The event-aware preset is a separate candidate that should be GPU-preflighted and compared at matched data/seeds.
 
