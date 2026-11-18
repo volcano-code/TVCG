@@ -36,11 +36,10 @@ def integrate_tetrahedra(tetrahedra, *, density, meters_per_unit, orientation_to
         raise ValueError("inconsistent tetrahedron orientation: negative signed volume")
     volumes=signed
     sums=x.sum(axis=1)
-    first=np.einsum("t,ti->i",volumes,sums/4.0)
-    second=np.einsum("t,ti,tj->ij",volumes,sums,sums)/20.0
-    # Exact simplex identity: integral x_i*x_j = V/20 * (sum_v x_v_i * sum_v x_v_j + sum_v x_v_i*x_v_j).
-    vertex_products=np.einsum("tvi,tvj->tij",x,x).sum(axis=1)
-    second += np.einsum("t,tij->ij",volumes,vertex_products)/20.0
+    first=np.sum(volumes[:,None]*sums/4.0,axis=0)
+    # Exact simplex identity: integral x_i*x_j = V/20 * ((sum_v x_v_i)(sum_v x_v_j) + sum_v x_v_i*x_v_j).
+    vertex_products=np.matmul(np.transpose(x,(0,2,1)),x)
+    second=np.sum(volumes[:,None,None]*(sums[:,:,None]*sums[:,None,:]+vertex_products)/20.0,axis=0)
     raw=np.array([volumes.sum(),*first,*np.diag(second),second[1,2],second[0,2],second[0,1]],dtype=np.float64)
     raw*=rho
     if not np.isfinite(raw).all() or raw[0]<=0: raise ValueError("integrated raw moments are invalid")
