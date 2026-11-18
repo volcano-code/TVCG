@@ -2,7 +2,8 @@ import pytest
 import torch
 from research.NeuralMoments.phase2_6_local_correction import (
  LocalCorrectionField,MaterialMasks,quadric_query,integrate_retained_moments,
- evaluate_hybrid_ablation,validate_local_correction_contract
+ evaluate_hybrid_ablation,validate_local_correction_contract,
+ hybrid_moments_and_jacobians,local_correction_regularization
 )
 
 def fixture():
@@ -83,3 +84,36 @@ def test_local_correction_contract_fails_closed():
        "same_frame":True,"same_moment_order":True,"fixed_mask_immutable":True,
        "protected_mask_immutable":True,"editable_mask_explicit":True,
        "bounded_correction":True,"exact_binary_topology_check":False})
+
+
+def test_joint_beta_local_jacobians_match_finite_difference():
+    points,masks,centers,beta,weights=fixture()
+    field=LocalCorrectionField(centers,support_radius=1.2)
+    psi=torch.tensor([.15,-.12],dtype=points.dtype)
+    moments,jbeta,jpsi=hybrid_moments_and_jacobians(
+      field,beta,psi,points,weights,masks)
+    assert moments.shape==(10,)
+    assert jbeta.shape==(10,10)
+    assert jpsi.shape==(10,2)
+    theta=torch.cat((beta,psi))
+    eps=1e-6
+    for k in (0,1,10,11):
+      d=torch.zeros_like(theta);d[k]=eps
+      plus=hybrid_moments_and_jacobians(
+        field,theta[:10]+d[:10],theta[10:]+d[10:],points,weights,masks)[0]
+      minus=hybrid_moments_and_jacobians(
+        field,theta[:10]-d[:10],theta[10:]-d[10:],points,weights,masks)[0]
+      fd=(plus-minus)/(2*eps)
+      analytic=(jbeta[:,k] if k<10 else jpsi[:,k-10])
+      assert torch.allclose(analytic,fd,rtol=3e-4,atol=3e-6)
+
+def test_local_correction_regularization_is_finite_and_differentiable():
+    points,masks,centers,beta,weights=fixture()
+    field=LocalCorrectionField(centers,support_radius=1.2)
+    with torch.no_grad():
+      field.coefficients.copy_(torch.tensor([.2,-.3],dtype=points.dtype))
+    loss=local_correction_regularization(field)
+    loss.backward()
+    assert torch.isfinite(loss)
+    assert field.coefficients.grad is not None
+    assert torch.isfinite(field.coefficients.grad).all()
