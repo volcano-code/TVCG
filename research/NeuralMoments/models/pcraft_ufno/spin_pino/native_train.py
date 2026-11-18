@@ -476,13 +476,14 @@ def train(args):
         chunk=args.chunk,lr=args.learning_rate,weight_decay=args.weight_decay,jacobian_weight=args.jacobian_weight,event_weight=args.event_weight,gradient_clip=args.gradient_clip,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound,min_queries=args.min_queries_per_record)
     out=Path(args.out); out.mkdir(parents=True,exist_ok=True)
     step=0; best_step=0; best_score=float("inf"); best_state=None; history=[]
+    gradient_norms=[]; nonfinite_grad_steps=0
     if args.resume:
         saved=torch.load(args.resume,map_location="cpu",weights_only=False)
         if saved.get("training_schema")!=TRAIN_SCHEMA or saved.get("contract")!=contract:
             raise ValueError("resume rejected: exact data/source/runtime/training contract mismatch")
         model.load_state_dict(saved["model"]); opt.load_state_dict(saved["optimizer"])
         step=saved["step"]; best_step=saved["best_step"]; best_score=saved["best_score"]
-        best_state=saved["best_state"]; history=saved["history"]
+        best_state=saved["best_state"]; history=saved["history"]; gradient_norms=list(saved.get("gradient_norms",[])); nonfinite_grad_steps=int(saved.get("nonfinite_grad_steps",0))
         rng.bit_generator.state=saved["numpy_rng"]; torch.set_rng_state(saved["torch_rng"])
         if args.device.startswith("cuda"): torch.cuda.set_rng_state_all(saved["cuda_rng"])
     initial=validate(model,corpus,args.device,args.amp,args.chunk,args.val_max_records,args.val_max_queries,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound)
@@ -493,7 +494,8 @@ def train(args):
         common=dict(schema=SCHEMA,semantics=SEMANTICS,config=asdict(cfg),contract=contract)
         last=common|dict(training_schema=TRAIN_SCHEMA,model={k:v.detach().cpu() for k,v in model.state_dict().items()},
             optimizer=opt.state_dict(),step=step,best_step=best_step,best_score=best_score,best_state=best_state,
-            history=history,numpy_rng=rng.bit_generator.state,torch_rng=torch.get_rng_state(),
+            history=history,gradient_norms=gradient_norms,nonfinite_grad_steps=nonfinite_grad_steps,
+            numpy_rng=rng.bit_generator.state,torch_rng=torch.get_rng_state(),
             cuda_rng=torch.cuda.get_rng_state_all() if args.device.startswith("cuda") else [])
         atomic_save(out/"last.pt",last)
         atomic_save(out/"best.pt",common|dict(model=best_state,step=best_step,selection_score=best_score))
@@ -507,12 +509,18 @@ def train(args):
         opt.zero_grad(set_to_none=True)
         with autocast(args.device,args.amp):
             cache=model.encode(geometry,args.chunk)
-            loss,ml,jl=loss_for_batch(model,cache,labels,idx,args.jacobian_weight,args.device)
+            loss,ml,jl,el=loss_for_batch(model,cache,labels,idx,args.jacobian_weight,args.device)
         if not torch.isfinite(loss): raise FloatingPointError(f"nonfinite loss at step {step+1}")
-        loss.backward(); torch.nn.utils.clip_grad_norm_(model.parameters(),args.gradient_clip,error_if_nonfinite=True)
+        loss.backward()
+        grad_norm=torch.nn.utils.clip_grad_norm_(model.parameters(),args.gradient_clip,error_if_nonfinite=True)
+        grad_value=float(grad_norm.detach())
+        if not math.isfinite(grad_value):
+            nonfinite_grad_steps+=1
+            raise FloatingPointError(f"nonfinite gradient norm at step {step+1}")
+        gradient_norms.append(grad_value)
         opt.step(); step+=1
         history.append(dict(step=step,id=row["id"],group=row["group_id"],loss=float(loss.detach()),
-                            moment=float(ml.detach()),jacobian=float(jl.detach()),event=float(el.detach())))
+                            moment=float(ml.detach()),jacobian=float(jl.detach()),event=float(el.detach()),gradient_norm=grad_value))
         if step%args.val_every==0:
             val=validate(model,corpus,args.device,args.amp,args.chunk,args.val_max_records,args.val_max_queries,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound)
             score=val["moment_scaled_mse"]+args.jacobian_weight*(val["jacobian_scaled_mse"] or 0.)+args.event_weight*(val["event_validity_bce"] or 0.)
@@ -536,7 +544,9 @@ def train(args):
         best_step=best_step,best_validation_score=best_score,initial_validation=initial,
         final_last_validation=final_last,best_checkpoint_validation=best_validation,
         one_time_test_evaluation=test_evaluation,
-        parameter_count=sum(p.numel() for p in model.parameters()),config=asdict(cfg),contract=contract,derivative_supervision_policy=dict(min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound),
+        parameter_count=sum(p.numel() for p in model.parameters()),config=asdict(cfg),contract=contract,
+        gradient_diagnostics=dict(global_norm=_distribution_summary(gradient_norms),nonfinite_steps=nonfinite_grad_steps,clipping_threshold=float(args.gradient_clip)),
+        derivative_supervision_policy=dict(min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound),
         data=corpus.summary(),query_coverage_min=int(min(query_coverage.values())),query_coverage_max=int(max(query_coverage.values())),
         counters=dict(model.counters,gno_graph_cache_bytes=model._neighbor_cache_bytes),
         limitations=["query-response validation is not design acceptance",
