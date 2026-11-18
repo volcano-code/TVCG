@@ -20,9 +20,17 @@ def sha256_file(path):
     return h.hexdigest()
 
 def _read(path):
+    if isinstance(path,dict):
+        return path
     p=Path(path)
     if not p.is_file():raise FileNotFoundError(p)
     return json.loads(p.read_text())
+
+def _evidence_digest(value):
+    if isinstance(value,dict):
+        raw=json.dumps(value,sort_keys=True,separators=(",",":"),allow_nan=False).encode()
+        return hashlib.sha256(raw).hexdigest()
+    return sha256_file(value)
 
 def _require(d,keys,name):
     missing=[k for k in keys if k not in d]
@@ -118,7 +126,7 @@ def audit_double_replay(paths:dict[str,str])->dict[str,Any]:
     ia,ib=loaded["independent_a"],loaded["independent_b"]
     independent_match=ia["raw_moments"]==ib["raw_moments"]
     independent_backend_match=(ia["backend_identity"]==ib["backend_identity"] and ia["backend_sha256"]==ib["backend_sha256"])
-    evidence_hashes={k:sha256_file(v) for k,v in paths.items()}
+    evidence_hashes={k:_evidence_digest(v) for k,v in paths.items()}
     return {"schema":SCHEMA,"case_id":a["case_id"],"geometry_hash":a["geometry_hash"],
       "task_hash":a["task_hash"],"invariant_inputs_match":True,
       "native_replay_scientific_match":not replay_mismatches,
