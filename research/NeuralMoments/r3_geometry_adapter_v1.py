@@ -29,7 +29,7 @@ def _mesh(v,f):
     return v,f.astype(np.int64,copy=False)
 
 def _mask(path,key,shape,name):
-    a=_np(path,key)
+    a=_npz(path,key)
     if a.shape!=shape: raise ValueError(f"{name} shape {a.shape} != {shape}")
     if a.dtype!=np.bool_: raise ValueError(f"{name} must be bool; thresholding forbidden")
     return a
