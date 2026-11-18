@@ -12,7 +12,7 @@ def record_for_tetra():
     R=eigvecs.copy()
     if np.linalg.det(R)<0: R[:,0]*=-1
     com=np.asarray(props["center_of_mass"])
-    return {"case_id":"analytic-tetra","source_geometry_hash":"geom-1",
+    return {"case_id":"analytic-tetra","task_hash":"task-1","source_geometry_hash":"geom-1",
       "coordinate_frame":"world","length_unit":"m","meters_per_unit":1.0,
       "density":2.0,"geometric_volume_m3":1/6,"density_source":"test analytical density",
       "tetrahedra_sha256":"tetra-sha","backend_sha256":"backend-sha","backend_identity":"independent_tetra_exact_v1",
