@@ -3,12 +3,12 @@ from research.NeuralMoments.r3_native_independent_moment_compare_v1 import compa
 
 def pair():
     raw=[2.0,0.5,0.5,0.5,0.2,0.2,0.2,0.01,0.01,0.01]
-    meta={"case_id":"case-1","geometry_hash":"geom-1","coordinate_frame":"world",
+    meta={"case_id":"case-1","task_hash":"task-1","geometry_hash":"geom-1","coordinate_frame":"world",
       "length_unit":"m","meters_per_unit":1.0,"density":1000.0,"moment_order":MOMENT_ORDER}
     native={"ledger":{"moment_metadata":meta},"native_result":{"final_total_raw_moments":raw}}
-    independent={"case_id":"case-1","source_geometry_hash":"geom-1","coordinate_frame":"world",
+    independent={"case_id":"case-1","task_hash":"task-1","source_geometry_hash":"geom-1","coordinate_frame":"world",
       "length_unit":"m","meters_per_unit":1.0,"density":1000.0,
-      "moment_order":MOMENT_ORDER,"backend_identity":"independent_tetra_exact_v1","raw_moments":raw.copy()}
+      "moment_order":MOMENT_ORDER,"backend_identity":"independent_tetra_exact_v1","backend_sha256":"backend-sha","raw_moments":raw.copy()}
     return native,independent
 
 class R3NativeIndependentMomentCompareTests(unittest.TestCase):
