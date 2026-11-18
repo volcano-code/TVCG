@@ -200,7 +200,7 @@ def test_optional_event_head_is_jointly_supervised_by_derivative_valid_labels():
     q=np.asarray([[0.,1.,0,0,0,0,0,0,0,0],
                   [0.,0,1.,0,0,0,0,0,0,0]],dtype=np.float64)
     labels={"queries":q,"moments":np.zeros((2,10)),"jacobian":np.zeros((2,10,10)),
-      "derivative_valid":np.asarray([True,False])}
+      "derivative_valid":np.asarray([True,False]),"event_valid":np.asarray([True,False],dtype=bool)}
     loss,_,_,event_loss=loss_for_batch(model,cache,labels,np.arange(2),.05,"cpu",event_weight=.1)
     assert torch.isfinite(loss) and torch.isfinite(event_loss) and float(event_loss)>0
     loss.backward()
