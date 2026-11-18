@@ -123,7 +123,8 @@ def run_replay(request_path, initialization_path, evaluator_path, output_path, a
       "final_geometry_hash":raw["final_geometry_hash"],
       "quadric_coefficients":raw["quadric_coefficients"],
       "request_sha256":_sha(request_path),"request_envelope_schema":request_envelope.get("schema"),
-      "physical_admission":admission_validation,"result_acceptance":result_acceptance,\n      "moment_metadata":request_envelope.get("moment_metadata"),"initialization_record_sha256":_sha(init_path),
+      "physical_admission":admission_validation,"result_acceptance":result_acceptance,
+      "moment_metadata":request_envelope.get("moment_metadata"),"initialization_record_sha256":_sha(init_path),
       "evaluator_config_sha256":_sha(Path(evaluator_path)),
     }
     validation=validate_ledger(ledger)
