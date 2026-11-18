@@ -237,3 +237,22 @@ def test_cpu_preflight_accepts_moment_only_labels(tmp_path):
     assert report["moment_only_preflight"] is True
     assert report["derivative_supervision_queries"]==0
     assert np.isfinite(report["moment_loss"])
+
+
+def test_validation_reports_convex_gate_saturation_and_effective_amplitude(tmp_path):
+    from dataclasses import replace
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_train import M72Corpus,validate
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import PcraftNativeMomentOperator,make_config
+    manifest,audit=make_corpus(tmp_path)
+    corpus=M72Corpus(manifest,audit,grid_size=8,min_queries=4)
+    cfg=replace(make_config("smoke",min_native_resolution=1),
+                convex_potential_enabled=True,convex_potential_components=2,
+                convex_amplitude_mode="atan")
+    model=PcraftNativeMomentOperator(cfg)
+    report=validate(model,corpus,"cpu","none",chunk=16,max_records=1,max_queries=4)
+    assert report["convex_amplitude"]["mode"]=="atan"
+    assert report["convex_amplitude"]["fraction"]["count"]==1
+    assert report["convex_amplitude"]["gate_logit"]["count"]==1
+    assert report["convex_amplitude"]["bound"]["count"]==1
+    assert report["convex_amplitude"]["effective"]["count"]==1
+    assert report["details"][0]["convex_amplitude"]["mode"]=="atan"
