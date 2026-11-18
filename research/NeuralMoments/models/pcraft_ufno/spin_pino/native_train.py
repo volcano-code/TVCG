@@ -55,7 +55,8 @@ def source_fingerprints():
     paths={"native_pcraft.py":here/"native_pcraft.py",
            "native_train.py":here/"native_train.py",
            "pino_backbone.py":here/"pino_backbone.py",
-           "model.py":parent/"model.py"}
+           "model.py":parent/"model.py",
+           "sqno_v12_adapter.py":parent/"candidate_projects"/"quadrann_reproduction"/"spin_adapter"/"spin_quadrann_v12.py"}
     return {name:file_sha(path) for name,path in paths.items()}
 
 
