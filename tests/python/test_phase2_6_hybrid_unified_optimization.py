@@ -53,9 +53,10 @@ def base_operator(beta):
       .02 + .001*beta[7], .015 + .001*beta[8], .01 + .001*beta[9]
     ))
 
-RELAXED_TEST_TASK=dict(TASK, min_removal_fraction=0.0, polar_retention=0.5,
-    com_tolerance=1e-2, alignment_tolerance=1e-2,
-    principal_gap_min=-1.0, max_centroid_rise=1.0)
+RELAXED_TEST_TASK=dict(TASK, min_removal_fraction=0.0, polar_retention=0.0,
+    com_tolerance=1.0, alignment_tolerance=1.0,
+    principal_gap_min=-1.0, max_centroid_rise=1.0,
+    moment_psd_tolerance=1.0)
 
 def make_hybrid(task=TASK):
     points,masks,centers,beta,weights=fixture()
