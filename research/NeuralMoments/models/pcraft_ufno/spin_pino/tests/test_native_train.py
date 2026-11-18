@@ -118,6 +118,7 @@ def test_m72_optional_event_and_derivative_audit_fields_are_loaded_and_validated
         arrays={k:np.array(z[k],copy=True) for k in z.files}
     arrays.update(
         event_type=np.asarray(["regular","regular","tangent","regular"],dtype="U16"),
+        event_valid=np.asarray([True,True,False,True],dtype=bool),
         derivative_valid_reason=np.asarray(["smooth","smooth","event","smooth"],dtype="U16"),
         event_margin=np.asarray([.2,.1,0.,.3],dtype=np.float64),
         finite_difference_audit=np.asarray([True,True,False,True],dtype=bool),
@@ -134,6 +135,7 @@ def test_m72_optional_event_and_derivative_audit_fields_are_loaded_and_validated
     corpus=M72Corpus(manifest,audit,grid_size=8,min_queries=4)
     geometry,labels=corpus.get(corpus.splits["train"][0])
     assert labels["event_type"].tolist()==["regular","regular","tangent","regular"]
+    assert labels["event_valid"].tolist()==[True,True,False,True]
     assert labels["derivative_valid_reason"][2]=="event"
     assert labels["finite_difference_audit"].dtype==bool
     assert labels["jacobian_error_bound"][1]==pytest.approx(2e-6)
