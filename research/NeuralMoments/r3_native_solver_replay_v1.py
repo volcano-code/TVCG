@@ -81,7 +81,8 @@ def validate_native_replay_inputs(request_payload, init, evaluator_payload):
 
 def run_replay(request_path, initialization_path, evaluator_path, output_path, admission_path):
     run_receipt={"run_id":str(uuid.uuid4()),"started_at_utc":datetime.now(timezone.utc).isoformat(),
-      "host":socket.gethostname(),"platform":platform.platform(),"python":platform.python_version(),\n      "pid":os.getpid()}
+      "host":socket.gethostname(),"platform":platform.platform(),"python":platform.python_version(),
+      "pid":os.getpid()}
     request_path,init_path=Path(request_path),Path(initialization_path)
     request_envelope=json.loads(request_path.read_text())
     if request_envelope.get("schema")=="tvcg.r3.native-request.v1":
