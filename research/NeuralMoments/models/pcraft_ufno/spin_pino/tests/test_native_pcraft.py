@@ -568,3 +568,83 @@ def test_event_validity_head_is_optional_and_checkpoint_compatible(tmp_path):
     restored,_=load_model(path,"cpu")
     assert restored.config.event_validity_head_enabled
     assert hasattr(restored,"event_validity_head")
+
+
+def test_native_moment_and_quadric_coefficient_order_contract():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import (
+        MOMENT_ORDER,QUERY_ORDER,_quadric_bounds
+    )
+    assert MOMENT_ORDER==("mass","x","y","z","xx","yy","zz","yz","xz","xy")
+    assert QUERY_ORDER==("1","x","y","z","xx","yy","zz","2yz","2xz","2xy")
+    model=small_model()
+    assert torch.equal(model.native_B,torch.tensor([1.,1.,1.,1.,1.,1.,1.,2.,2.,2.],dtype=torch.float64))
+    bounds=torch.tensor([[-1.,-1.,-1.],[1.,1.,1.]],dtype=torch.float64)
+    # q_7 multiplies 2*y*z, not y*z.
+    q=torch.zeros(10,dtype=torch.float64);q[7]=1.
+    lo,hi=_quadric_bounds(bounds,q)
+    assert float(lo)==pytest.approx(-2.)
+    assert float(hi)==pytest.approx(2.)
+    # The three cross-term coefficients share the factor-of-two contract.
+    for index in (7,8,9):
+        q=torch.zeros(10,dtype=torch.float64);q[index]=1.
+        lo,hi=_quadric_bounds(bounds,q)
+        assert float(lo)==pytest.approx(-2.)
+        assert float(hi)==pytest.approx(2.)
+
+
+def test_pino_single_checkpoint_accepts_multiple_preserved_resolutions():
+    torch.manual_seed(103)
+    encoder=PINOFeatureEncoder(width=2,modes=2,n_layers=2,grid_size=16).eval()
+    parameter_ids={id(p) for p in encoder.parameters()}
+    shapes=((8,8,8),(16,16,16),(32,32,32))
+    with torch.no_grad():
+        outputs=[]
+        for side in shapes:
+            x=torch.rand(1,4,*side)
+            pooled,spatial=encoder.forward_with_map(x,preserve_resolution=True)
+            assert pooled.shape==(1,encoder.feature_dim)
+            assert spatial.shape==(1,encoder.width,*side)
+            assert torch.isfinite(pooled).all() and torch.isfinite(spatial).all()
+            outputs.append(pooled)
+    assert len(parameter_ids)==len({id(p) for p in encoder.parameters()})
+    assert len({tuple(x.shape) for x in outputs})==1
+
+
+def test_bounded_odd_jacobian_central_difference_step_sweep():
+    torch.manual_seed(107)
+    model=small_model().eval()
+    cache=model.encode(small_geometry(),chunk=16).detached()
+    q=torch.tensor([.07,-.04,.09,.02,-.03,.01,.025,.006,-.008,.004],dtype=torch.float64)
+    _,jac=model.moments_and_jacobian(cache,q,create_graph=False)
+    errors=[]
+    with torch.no_grad():
+        for eps in (2e-4,1e-4,5e-5):
+            fd=torch.empty_like(jac)
+            for k in range(10):
+                delta=torch.zeros_like(q);delta[k]=eps
+                fd[:,k]=(model.predict(cache,q+delta)-model.predict(cache,q-delta))/(2*eps)
+            errors.append(torch.linalg.vector_norm(jac-fd)/torch.linalg.vector_norm(jac).clamp_min(1e-12))
+    assert all(torch.isfinite(e) for e in errors)
+    assert float(min(errors))<2e-2
+
+
+def test_convex_head_psd_is_parameterization_property_not_global_head_contract():
+    from dataclasses import replace
+    torch.manual_seed(109)
+    base=small_model()
+    convex=PcraftNativeMomentOperator(replace(base.config,convex_potential_enabled=True,
+        convex_potential_components=3)).eval()
+    bounded=small_model().eval()
+    geometry=small_geometry()
+    ccache=convex.encode(geometry,chunk=16).detached()
+    bcache=bounded.encode(geometry,chunk=16).detached()
+    q=torch.tensor([.05,.08,-.03,.02,.01,-.015,.007,.003,-.002,.004],dtype=torch.float64)
+    _,jc=convex.moments_and_jacobian(ccache,q,create_graph=False)
+    _,jb=bounded.moments_and_jacobian(bcache,q,create_graph=False)
+    assert torch.allclose(jc,jc.T,rtol=1e-6,atol=1e-7)
+    assert float(torch.linalg.eigvalsh(.5*(jc+jc.T)).min())>=-1e-7
+    # The bounded-odd head has no imposed Hessian/PSD contract; only require
+    # a finite, independently differentiable Jacobian.
+    assert torch.isfinite(jb).all()
+    assert not torch.allclose(jb,jb.T,rtol=1e-4,atol=1e-5) or float(
+        torch.linalg.eigvalsh(.5*(jb+jb.T)).min()) < -1e-7
