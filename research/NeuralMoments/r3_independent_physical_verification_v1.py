@@ -33,6 +33,9 @@ def verify_spinning_top_constraints(record, task_frame, tolerances, *, expected_
     if expected_geometry_hash is not None and record["source_geometry_hash"]!=expected_geometry_hash:
         raise ValueError("geometry hash mismatch")
     if not isinstance(tolerances,dict): raise ValueError("explicit tolerances object required")
+    tolerance_source=tolerances.get("source_reference")
+    if not isinstance(tolerance_source,str) or not tolerance_source.strip(): raise ValueError("tolerance source_reference must be explicit")
+    if not task_frame.get("task_hash"): raise ValueError("task_frame task_hash must be explicit")
     hard_names=("Lx_abs","Ly_abs","Icxz_abs","Icyz_abs","mass_relative")
     missing_tol=[k for k in hard_names if k not in tolerances]
     if missing_tol: raise ValueError("explicit hard-constraint tolerances missing: "+", ".join(missing_tol))
@@ -112,7 +115,7 @@ def verify_spinning_top_constraints(record, task_frame, tolerances, *, expected_
         if not math.isfinite(lim) or lim<0: raise ValueError("principal-axis angle tolerance invalid")
         optional["principal_axis_alignment_angle_radians"]={"value":principal_axis_angle_radians,"limit":lim,"pass":principal_axis_angle_radians<=lim}
 
-    return {"schema":SCHEMA,"case_id":record["case_id"],"geometry_hash":record["source_geometry_hash"],
+    return {"schema":SCHEMA,"case_id":record["case_id"],"geometry_hash":record["source_geometry_hash"],"task_hash":task_frame["task_hash"],
       "backend_identity":record["backend_identity"],"independent_backend_sha256":record.get("backend_sha256"),
       "density":density,"geometric_volume_m3":volume,"integrated_mass":float(mass),
       "expected_density_times_volume_mass":expected_mass,"mass_relative_error":mass_rel,
@@ -120,7 +123,7 @@ def verify_spinning_top_constraints(record, task_frame, tolerances, *, expected_
       "hard_constraint_passes":passes,"hard_constraints_pass":all(passes.values()),
       "diagnostics":diagnostics,"optional_diagnostic_gates":optional,
       "overall_pass":all(passes.values()) and all(x["pass"] for x in optional.values()),
-      "tolerances":limits|{k:float(v) for k,v in tolerances.items() if k not in limits},
+      "tolerances":limits|{k:float(v) for k,v in tolerances.items() if k not in limits and k!="source_reference"},\n      "tolerance_source_reference":tolerance_source,
       "constraint_semantics":"SpinMomentProblem::SpinningTop equalities Lx=0, Ly=0, I_c,xz=0, I_c,yz=0; other reported values are diagnostics unless explicit limits are supplied"}
 
 def main():
