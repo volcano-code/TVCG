@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 
 SCHEMA = "tvcg.r3.independent-tetra-moments.v1"
-MOMENT_ORDER = ["V","Lx","Ly","Lz","Qxx","Qyy","Qzz","Qyz","Qxz","Qxy"]
+MOMENT_ORDER = ["M","LX","LY","LZ","QXX","QYY","QZZ","QYZ","QXZ","QXY"]
 
 def sha256_file(path):
     h=hashlib.sha256()
@@ -49,8 +49,8 @@ def derive_mass_properties(raw_moments):
     m=np.asarray(raw_moments,dtype=np.float64)
     if m.shape!=(10,) or not np.isfinite(m).all() or m[0]<=0:
         raise ValueError("raw moments must be finite [10] with positive mass-volume component")
-    mass,V1,V2,V3,Qxx,Qyy,Qzz,Qyz,Qxz,Qxy=m
-    com=np.array([V1,V2,V3])/mass
+    mass,Lx,Ly,Lz,Qxx,Qyy,Qzz,Qyz,Qxz,Qxy=m
+    com=np.array([Lx,Ly,Lz])/mass
     Q=np.array([[Qxx,Qxy,Qxz],[Qxy,Qyy,Qyz],[Qxz,Qyz,Qzz]])
     I_origin=np.trace(Q)*np.eye(3)-Q
     I_center=I_origin-mass*((com@com)*np.eye(3)-np.outer(com,com))
@@ -72,6 +72,7 @@ def integrate_from_manifest(manifest_path):
     with np.load(f,allow_pickle=False) as z:
         if m["tetrahedra_key"] not in z.files: raise KeyError("tetrahedra array key missing")
         t=np.array(z[m["tetrahedra_key"]],copy=True)
+    geometric_volume_m3=float(integrate_tetrahedra(t,density=1.0,meters_per_unit=m["meters_per_unit"])[0])
     raw=integrate_tetrahedra(t,density=m["density"],meters_per_unit=m["meters_per_unit"])
     props=derive_mass_properties(raw)
     return {"schema":"tvcg.r3.independent-moment-record.v1","case_id":m["case_id"],
@@ -79,6 +80,7 @@ def integrate_from_manifest(manifest_path):
       "tetrahedra_sha256":actual,"coordinate_frame":m["coordinate_frame"],
       "length_unit":m["length_unit"],"meters_per_unit":m["meters_per_unit"],
       "density":m["density"],"density_source":m["density_source"],
+      "geometric_volume_m3":geometric_volume_m3,
       "moment_order":MOMENT_ORDER,"raw_moments":raw.tolist(),"mass_properties":props}
 
 def main():
