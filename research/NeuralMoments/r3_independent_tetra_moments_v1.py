@@ -38,9 +38,7 @@ def integrate_tetrahedra(tetrahedra, *, density, meters_per_unit, orientation_to
     sums=x.sum(axis=1)
     first=np.einsum("t,ti->i",volumes,sums/4.0)
     second=np.einsum("t,ti,tj->ij",volumes,sums,sums)/20.0
-    second+=np.einsum("t,ti,tj->ij",volumes,x.sum(axis=1)*0 + 1.0,np.zeros_like(sums))/20.0 if False else 0.0
     # Exact simplex identity: integral x_i*x_j = V/20 * (sum_v x_v_i * sum_v x_v_j + sum_v x_v_i*x_v_j).
-    second += np.einsum("t,ti,tj->ij",volumes,x.sum(axis=1)*0 + 1.0,np.zeros_like(sums)) if False else 0.0
     vertex_products=np.einsum("tvi,tvj->tij",x,x).sum(axis=1)
     second += np.einsum("t,tij->ij",volumes,vertex_products)/20.0
     raw=np.array([volumes.sum(),*first,*np.diag(second),second[1,2],second[0,2],second[0,1]],dtype=np.float64)
