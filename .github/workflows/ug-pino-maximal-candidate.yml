@@ -1,0 +1,53 @@
+name: UG-PINO Maximal Trainable Candidate
+
+on:
+  push:
+    branches:
+      - research/phase2-6-r3-m69-hybrid-ablation
+    paths:
+      - "research/NeuralMoments/models/pcraft_ufno/spin_pino/native_pcraft.py"
+      - "research/NeuralMoments/models/pcraft_ufno/spin_pino/native_train.py"
+      - "research/NeuralMoments/models/pcraft_ufno/spin_pino/tests/**"
+      - ".github/workflows/ug-pino-maximal-candidate.yml"
+  pull_request:
+    paths:
+      - "research/NeuralMoments/models/pcraft_ufno/spin_pino/native_pcraft.py"
+      - "research/NeuralMoments/models/pcraft_ufno/spin_pino/native_train.py"
+      - "research/NeuralMoments/models/pcraft_ufno/spin_pino/tests/**"
+      - ".github/workflows/ug-pino-maximal-candidate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  maximal-candidate-cpu-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Install CPU test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          python -m pip install "numpy<2.3" scipy pytest
+      - name: Compile operator and trainer
+        run: |
+          python -m compileall -q research/NeuralMoments/models/pcraft_ufno/spin_pino
+      - name: Run maximal UG-PINO and training contracts
+        env:
+          PYTHONPATH: .
+          OMP_NUM_THREADS: "1"
+          OPENBLAS_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+        run: |
+          python -m pytest -q research/NeuralMoments/models/pcraft_ufno/spin_pino/tests/
+      - name: Verify training CLI
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m research.NeuralMoments.models.pcraft_ufno.spin_pino.native_train --help
