@@ -115,12 +115,25 @@ PRESETS = {
                                  multiscale_enabled=True, multiscale_grids=(32,64,128),
                                  gno_enabled=True, gno_neighbors=8, gno_topology_filter=True,
                                  transolver_enabled=True, transolver_slices=32, transolver_heads=8),
+    "xl_ms_gno_transolver_bounded_odd": dict(grid_size=64, pino_width=32, pino_modes=12, pino_layers=6,
+                                               interval_width=192, interval_depth=4, chunk_intervals=512,
+                                               multiscale_enabled=True, multiscale_grids=(32,64,128),
+                                               gno_enabled=True, gno_neighbors=8, gno_topology_filter=True,
+                                               transolver_enabled=True, transolver_slices=32, transolver_heads=8,
+                                               convex_potential_enabled=False),
     "xl_ms_gno_transolver_convex": dict(grid_size=64, pino_width=32, pino_modes=12, pino_layers=6,
                                           interval_width=192, interval_depth=4, chunk_intervals=512,
                                           multiscale_enabled=True, multiscale_grids=(32,64,128),
                                           gno_enabled=True, gno_neighbors=8, gno_topology_filter=True,
                                           transolver_enabled=True, transolver_slices=32, transolver_heads=8,
                                           convex_potential_enabled=True, convex_potential_components=8),
+    "xl_ms_gno_transolver_convex_atan": dict(grid_size=64, pino_width=32, pino_modes=12, pino_layers=6,
+                                               interval_width=192, interval_depth=4, chunk_intervals=512,
+                                               multiscale_enabled=True, multiscale_grids=(32,64,128),
+                                               gno_enabled=True, gno_neighbors=8, gno_topology_filter=True,
+                                               transolver_enabled=True, transolver_slices=32, transolver_heads=8,
+                                               convex_potential_enabled=True, convex_potential_components=8,
+                                               convex_amplitude_mode="atan"),
     "xl_ms_gno_transolver_convex_event": dict(grid_size=64, pino_width=32, pino_modes=12, pino_layers=6,
                                                 interval_width=192, interval_depth=4, chunk_intervals=512,
                                                 multiscale_enabled=True, multiscale_grids=(32,64,128),
@@ -153,6 +166,7 @@ class NativePCRAFTConfig:
     multiscale_grids: tuple[int, ...] = (32, 64, 128)
     convex_potential_enabled: bool = False
     convex_potential_components: int = 4
+    convex_amplitude_mode: str = "sigmoid"
     event_validity_head_enabled: bool = False
 
     def __post_init__(self):
@@ -177,6 +191,8 @@ class NativePCRAFTConfig:
             raise ValueError("event_validity_head_enabled must be bool")
         if isinstance(self.convex_potential_components,bool) or not isinstance(self.convex_potential_components,int) or self.convex_potential_components<1:
             raise ValueError("convex_potential_components must be a positive integer")
+        if self.convex_amplitude_mode not in ("sigmoid","atan"):
+            raise ValueError("convex_amplitude_mode must be 'sigmoid' or 'atan'")
         if (not isinstance(self.multiscale_grids, tuple) or len(self.multiscale_grids) < 2
                 or any(isinstance(v,bool) or not isinstance(v,int) or v < 8 or v % 4
                        for v in self.multiscale_grids)
@@ -461,18 +477,26 @@ class ConvexMomentPotentialHead(nn.Module):
     dependent amplitude bound keeps the deviation within the existing
     absolute-moment envelope.
     """
-    def __init__(self,width:int,components:int=4,min_diag:float=1e-3):
+    def __init__(self,width:int,components:int=4,min_diag:float=1e-3,amplitude_mode:str="sigmoid"):
         super().__init__()
         if components<1 or min_diag<=0:
             raise ValueError("components and min_diag must be positive")
         self.components=int(components)
+        if amplitude_mode not in ("sigmoid","atan"):
+            raise ValueError("amplitude_mode must be 'sigmoid' or 'atan'")
         self.min_diag=float(min_diag)
+        self.amplitude_mode=amplitude_mode
         self.parameter_net=nn.Sequential(
             nn.LayerNorm(width),nn.Linear(width,2*width),nn.GELU(),
             nn.Linear(2*width,self.components*56)
         )
         self.total_gate=nn.Linear(width,1)
         nn.init.constant_(self.total_gate.bias,-1.0)
+
+    def amplitude_parameters(self,latent:Tensor):
+        logits=self.total_gate(latent).reshape(()).double()
+        fraction=torch.sigmoid(logits) if self.amplitude_mode=="sigmoid" else 0.5+torch.atan(logits)/math.pi
+        return logits,fraction
 
     def forward(self,latent:Tensor,q_tilde:Tensor,amplitude_bound:Tensor):
         if q_tilde.ndim!=2 or q_tilde.shape[-1]!=10:
@@ -489,13 +513,13 @@ class ConvexMomentPotentialHead(nn.Module):
         gram=lower@lower.transpose(-1,-2)
         gram_diag=torch.diagonal(gram,dim1=-2,dim2=-1).clamp_min(1e-24).sqrt()
         correlation=gram/(gram_diag.unsqueeze(-1)*gram_diag.unsqueeze(-2))
-        fraction=torch.sigmoid(self.total_gate(latent).reshape(()).double())
+        gate_logits,fraction=self.amplitude_parameters(latent)
         total_amplitude=amplitude_bound.to(torch.float64)*fraction
         amplitudes=torch.softmax(amp_logits,dim=0)*total_amplitude
         quadratic=torch.einsum("qi,kij,qj->qk",q_tilde,correlation,q_tilde)
         norms=torch.sqrt(quadratic.clamp_min(torch.finfo(torch.float64).tiny))
         potential=(norms*amplitudes.unsqueeze(0)).sum(-1)
-        return potential,fraction
+        return potential,fraction,gate_logits
 
 def native_interval_components(columns: np.ndarray) -> np.ndarray:
     """Label 6-connected components of M72 x/y/z RLE intervals.
@@ -630,7 +654,8 @@ class PcraftNativeMomentOperator(nn.Module):
         if c.transolver_enabled:
             self.transolver=PhysicsStateSlicing(w,c.transolver_slices,c.transolver_heads)
         if c.convex_potential_enabled:
-            self.convex_potential_head=ConvexMomentPotentialHead(w,c.convex_potential_components)
+            self.convex_potential_head=ConvexMomentPotentialHead(w,c.convex_potential_components,
+                amplitude_mode=c.convex_amplitude_mode)
         else:
             self.query_head=nn.Sequential(nn.Linear(w+36+10,2*w),nn.SiLU(),
                                           nn.Linear(2*w,w),nn.SiLU(),nn.Linear(w,10))
@@ -657,7 +682,10 @@ class PcraftNativeMomentOperator(nn.Module):
                            multiscale_global_weights=[],
                            multiscale_local_weights=[],
                            convex_potential_calls=0,
-                           convex_potential_scale_fraction=0.0)
+                           convex_potential_scale_fraction=0.0,
+                           convex_potential_gate_logit=0.0,
+                           convex_potential_amplitude_bound=0.0,
+                           convex_potential_effective_amplitude=0.0)
 
     def _versions(self):
         return tuple(p._version for p in self.parameters())
@@ -913,12 +941,15 @@ class PcraftNativeMomentOperator(nn.Module):
                 if not q_tilde.requires_grad:
                     q_tilde=q_tilde.detach().requires_grad_(True)
                 amplitude_bound=.5*(cache.absolute_moments/cache.coordinate_scales).min()
-                potential,fraction=self.convex_potential_head(cache.latent,q_tilde,amplitude_bound)
+                potential,fraction,gate_logits=self.convex_potential_head(cache.latent,q_tilde,amplitude_bound)
                 gradient=torch.autograd.grad(potential.sum(),q_tilde,
                     create_graph=need_graph,retain_graph=True)[0]
                 result=cache.fixed_moments+.5*cache.design_moments+cache.coordinate_scales*gradient
             self.counters["convex_potential_calls"]+=1
             self.counters["convex_potential_scale_fraction"]=float(fraction.detach())
+            self.counters["convex_potential_gate_logit"]=float(gate_logits.detach())
+            self.counters["convex_potential_amplitude_bound"]=float(amplitude_bound.detach())
+            self.counters["convex_potential_effective_amplitude"]=float((amplitude_bound*fraction).detach())
         else:
             u=unit.to(latent.dtype)
             odd=(self.query_head(torch.cat((latent,stats,u),-1))-self.query_head(torch.cat((latent,stats,-u),-1))).double()/2
@@ -928,6 +959,23 @@ class PcraftNativeMomentOperator(nn.Module):
         result=torch.where((upper<0)[:,None],cache.fixed_moments,result)
         self.counters["queries"]+=len(q)
         return result[0] if single else result
+
+    def convex_amplitude_diagnostics(self,cache: EncodedNativeGeometry):
+        """Return interpretable convex-head gate/bound diagnostics for one geometry."""
+        if not self.config.convex_potential_enabled:
+            return None
+        if cache.owner!=id(self) or cache.versions!=self._versions():
+            raise ValueError("foreign or stale geometry cache")
+        logit,fraction=self.convex_potential_head.amplitude_parameters(cache.latent)
+        bound=.5*(cache.absolute_moments/cache.coordinate_scales).min()
+        effective=bound*fraction
+        return {
+            "mode":self.config.convex_amplitude_mode,
+            "gate_logit":float(logit.detach()),
+            "fraction":float(fraction.detach()),
+            "amplitude_bound":float(bound.detach()),
+            "effective_amplitude":float(effective.detach()),
+        }
 
     def predict_event_validity(self,cache: EncodedNativeGeometry,q):
         """Predict whether a query lies in a derivative-valid regular regime.
@@ -983,6 +1031,7 @@ def load_model(path,device="cpu"):
     config.setdefault("multiscale_grids",(32,64,128))
     config.setdefault("convex_potential_enabled",False)
     config.setdefault("convex_potential_components",4)
+    config.setdefault("convex_amplitude_mode","sigmoid")
     config.setdefault("event_validity_head_enabled",False)
     if isinstance(config.get("multiscale_grids"),list):
         config["multiscale_grids"]=tuple(config["multiscale_grids"])
