@@ -48,15 +48,15 @@ def base_operator(beta):
     x,y,z=beta[1:4]
     return torch.stack((
       1.2 + .02*beta[0] + .01*beta[4],
-      .01*x, .01*y, .005*z,
+      .03 + .01*x, .015 + .01*y, .024 + .005*z,
       .8 + .01*beta[4], .7 + .01*beta[5], .6 + .01*beta[6],
-      .001*beta[7], .001*beta[8], .001*beta[9]
+      .02 + .001*beta[7], .015 + .001*beta[8], .01 + .001*beta[9]
     ))
 
 def make_hybrid():
     points,masks,centers,beta,weights=fixture()
     field=LocalCorrectionField(centers,support_radius=.9)
-    original=torch.tensor([1.2,0.,0.,0.,.8,.7,.6,0.,0.,0.],dtype=points.dtype)
+    original=torch.tensor([1.2,.012,.006,.018,.8,.7,.6,.02,.015,.01],dtype=points.dtype)
     return make_hybrid_m80_local_problem(
       base_moment_fn=base_operator,local_field=field,points=points,
       quadrature_mass=weights,masks=masks,original_moments=original,
@@ -89,7 +89,7 @@ def test_hybrid_kkt_dimension_includes_local_correction():
     chart=make_hybrid_material_chart(problem)
     state=chart.encode_zero_correction(beta)
     active=torch.zeros(10,dtype=torch.bool)
-    system=m69_kkt_shape=build_hybrid_m69_kkt_system(
+    system=build_hybrid_m69_kkt_system(
       problem,state,active,event_tolerance=1e-12
     )[1]
     assert system.unknowns.shape==(chart.dimension,)
