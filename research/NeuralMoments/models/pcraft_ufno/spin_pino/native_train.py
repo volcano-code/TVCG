@@ -288,7 +288,7 @@ def validate(model,corpus,device,amp,chunk,max_records=8,max_queries=256,split="
         raise ValueError(f"unknown validation split {split!r}")
     model.eval(); rows=[]; scores=[]; jac_scores=[]
     all_moment_query_rmse=[]; all_jacobian_query_rmse=[]
-    all_jacobian_symmetry_error=[]; all_jacobian_min_eigenvalue=[]; all_event_bce=[]; all_event_accuracy=[]; all_event_brier=[]
+    all_jacobian_symmetry_error=[]; all_jacobian_min_eigenvalue=[]; all_event_bce=[]; all_event_accuracy=[]; all_event_brier=[]; all_convex_fraction=[]; all_convex_logit=[]; all_convex_bound=[]; all_convex_effective=[]
     selected=corpus.splits[split] if max_records is None else corpus.splits[split][:max_records]
     for row in selected:
         geometry,labels=corpus.get(row)
@@ -305,6 +305,12 @@ def validate(model,corpus,device,amp,chunk,max_records=8,max_queries=256,split="
         all_moment_query_rmse.extend(moment_query_rmse.detach().cpu().tolist())
         base_valid=np.asarray(labels["derivative_valid"][:n],dtype=bool)
         valid=derivative_supervision_mask(labels,np.arange(n),min_event_margin=min_event_margin,require_fd_audit=require_fd_audit,max_jacobian_error_bound=max_jacobian_error_bound)
+        convex_metrics=model.convex_amplitude_diagnostics(cache)
+        if convex_metrics is not None:
+            all_convex_fraction.append(convex_metrics["fraction"])
+            all_convex_logit.append(convex_metrics["gate_logit"])
+            all_convex_bound.append(convex_metrics["amplitude_bound"])
+            all_convex_effective.append(convex_metrics["effective_amplitude"])
         event_metrics=None
         if model.config.event_validity_head_enabled:
             with torch.no_grad():
@@ -339,7 +345,7 @@ def validate(model,corpus,device,amp,chunk,max_records=8,max_queries=256,split="
             all_jacobian_min_eigenvalue.extend(min_eigen_query.detach().cpu().tolist())
         scores.append(float(ml.detach()))
         rows.append(dict(id=row["id"],group_id=row["group_id"],queries=n,
-            derivative_valid=int(valid.sum()),derivative_valid_before_event_gate=int(base_valid.sum()),derivative_masked_count=int(base_valid.sum()-valid.sum()),event_validity=event_metrics,moment_scaled_mse=float(ml.detach()),
+            derivative_valid=int(valid.sum()),derivative_valid_before_event_gate=int(base_valid.sum()),derivative_masked_count=int(base_valid.sum()-valid.sum()),event_validity=event_metrics,convex_amplitude=convex_metrics,moment_scaled_mse=float(ml.detach()),
             jacobian_scaled_mse=None if jl is None else float(jl.detach()),
             moment_query_rmse=_distribution_summary(moment_query_rmse.detach().cpu().numpy()),
             jacobian_query_rmse=None if jac_query_rmse is None else
@@ -353,6 +359,11 @@ def validate(model,corpus,device,amp,chunk,max_records=8,max_queries=256,split="
         event_validity_bce=float(np.mean(all_event_bce)) if all_event_bce else None,
         event_validity_accuracy=float(np.mean(all_event_accuracy)) if all_event_accuracy else None,
         event_validity_brier=float(np.mean(all_event_brier)) if all_event_brier else None,
+        convex_amplitude=dict(mode=model.config.convex_amplitude_mode,
+            fraction=_distribution_summary(all_convex_fraction),
+            gate_logit=_distribution_summary(all_convex_logit),
+            bound=_distribution_summary(all_convex_bound),
+            effective=_distribution_summary(all_convex_effective)) if all_convex_fraction else None,
         moment_scaled_mse=float(np.mean(scores)) if scores else None,
         jacobian_scaled_mse=float(np.mean(jac_scores)) if jac_scores else None,
         moment_query_rmse=_distribution_summary(all_moment_query_rmse),
