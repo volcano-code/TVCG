@@ -34,6 +34,8 @@ def _sha(path: Path) -> str:
 
 def _request(payload: dict) -> SpinItFasterRequest:
     d=dict(payload)
+    for metadata_key in ("case_id","geometry_hash","task_hash"):
+        d.pop(metadata_key, None)
     settings=dict(d.get("settings",{}))
     d["settings"]=SpinSolverConfig(**settings)
     return SpinItFasterRequest(**d)
@@ -47,11 +49,22 @@ def run_replay(request_path, initialization_path, evaluator_path, output_path):
         raise ValueError("native full-rank replay requires dual_monomial_raw_v1 profile")
     if init.mode!="spinning_top":
         raise ValueError("R3 replay currently admits only spinning_top mode")
+    for key,expected in (("geometry_hash",init.geometry_hash),("task_hash",init.task_hash)):
+        if request_payload.get(key)!=expected:
+            raise ValueError(f"request {key} does not match initialization provenance")
+    if not request_payload.get("case_id"):
+        raise ValueError("request must bind a nonempty case_id")
     request=_request(request_payload)
     if request.mode!="SPINNING_TOP":
         raise ValueError("request mode must be SPINNING_TOP")
     if request.settings.equation_profile!="DUAL_MONOMIAL_RAW_V1":
         raise ValueError("request must use DUAL_MONOMIAL_RAW_V1")
+    if not request.settings.capture_evaluation_payload:
+        raise ValueError("capture_evaluation_payload must be true for R3 replay")
+    if request.settings.maximum_function_evaluations_per_restart!=init.maximum_function_evaluations_per_restart:
+        raise ValueError("request function-evaluation budget differs from initialization record")
+    if abs(request.settings.equation_tolerance-init.equation_tolerance)>0 or abs(request.settings.physical_relative_tolerance-init.physical_relative_tolerance)>0:
+        raise ValueError("request tolerances differ from initialization record")
     if request.settings.deterministic_seed!=init.deterministic_seed:
         raise ValueError("request seed differs from initialization record")
     if request.settings.maximum_iterations!=init.maximum_iterations or request.settings.maximum_restarts!=init.maximum_restarts:
