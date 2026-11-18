@@ -76,8 +76,18 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
             missing=[key for key in required if key not in pcraft]
             if missing:
                 raise ValueError("shared P-CRAFT feature contract missing: "+", ".join(missing))
-            if pcraft["local_features"].shape[0] != len(geometry["xyz"]):
-                raise ValueError("shared P-CRAFT interval feature count mismatch")
+            expected_width=self.pcraft.operator.config.interval_width
+            if pcraft["local_features"].ndim!=2 or pcraft["local_features"].shape != (len(geometry["xyz"]),expected_width):
+                raise ValueError(
+                    "shared P-CRAFT local feature shape mismatch; construct SQNO with a preset "
+                    "whose interval_width matches the UG-PINO encoder (e.g. preset='xl_ms' for width 192)"
+                )
+            if pcraft["global_context"].shape!=(expected_width,):
+                raise ValueError("shared P-CRAFT global context width mismatch")
+            if pcraft["interval_mass"].shape!=(len(geometry["xyz"]),):
+                raise ValueError("shared P-CRAFT interval mass shape mismatch")
+            if pcraft["global_scale_weights"].ndim not in (1,2):
+                raise ValueError("shared P-CRAFT global scale weights must be rank 1 or 2")
             supplied_id=str(pcraft.get("geometry_id",""))
             geometry_id=str(geometry.get("geometry_sha256",""))
             if supplied_id and geometry_id and supplied_id != geometry_id:
