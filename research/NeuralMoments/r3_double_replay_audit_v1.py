@@ -88,7 +88,7 @@ def audit_double_replay(paths:dict[str,str])->dict[str,Any]:
         raise ValueError("Replay A/B must have distinct nonempty execution run_id receipts")
     invariant=("case_id","geometry_hash","task_hash","evaluator_identity",
       "solver_source_commit","initialization_record_hash","equation_profile","moment_metadata",
-      "physical_admission","input_hash")
+      "physical_admission","input_hash","request_sha256","evaluator_config_sha256")
     for key in invariant:_same(a[key],b[key],key)
     scientific=("event_hash","trace_hash","output_hash","status","function_evaluations",
       "restart_count","restart_function_evaluations","quadric_coefficients",
