@@ -94,3 +94,23 @@ python -m research.NeuralMoments.models.pcraft_ufno.spin_pino.native_train train
 ```
 
 This pilot can begin operator training today without waiting for TRELLIS. Its scope is limited to the existing M72 label domain and cannot establish 256-query coverage, real TRELLIS generalization, production-quality UQ or solver acceleration.
+
+
+## Event-aware maximal extension
+
+A second opt-in preset is now available:
+
+`xl_ms_gno_transolver_convex_event`
+
+It adds a derivative-validity classifier over the shared geometry latent, global statistics and normalized query. The label is the teacher-provided `derivative_valid` flag. It is trained jointly with Moment/Jacobian using BCE-with-logits and `--event-weight`. This predicts derivative validity; it does not replace the exact event ledger, does not certify smoothness, and must be calibrated before use as a solver admission gate.
+
+The original `xl_ms_gno_transolver_convex` preset is unchanged and remains compatible with the current local pilot. The event-aware preset is a separate candidate that should be GPU-preflighted and compared at matched data/seeds.
+
+Example additional training flag:
+
+```bash
+--preset xl_ms_gno_transolver_convex_event \
+--event-weight 0.05
+```
+
+The trainer records event BCE, accuracy and Brier score on validation and includes event BCE in checkpoint selection when the head is enabled.
