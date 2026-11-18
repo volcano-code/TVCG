@@ -1,0 +1,36 @@
+name: Phase 2.6 R3.1.4 Native Result Acceptance
+
+on:
+  push:
+    branches:
+      - research/phase2-6-r3-m69-hybrid-ablation
+    paths:
+      - "research/NeuralMoments/r3_native_result_acceptance_v1.py"
+      - "research/NeuralMoments/r3_native_solver_replay_v1.py"
+      - "tests/python/test_r3_native_result_acceptance.py"
+      - ".github/workflows/phase2-6-r3-native-result.yml"
+  pull_request:
+    paths:
+      - "research/NeuralMoments/r3_native_result_acceptance_v1.py"
+      - "research/NeuralMoments/r3_native_solver_replay_v1.py"
+      - "tests/python/test_r3_native_result_acceptance.py"
+      - ".github/workflows/phase2-6-r3-native-result.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  native-result-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install "numpy>=1.26,<3" "pytest>=8,<10"
+      - run: python -m py_compile research/NeuralMoments/r3_native_result_acceptance_v1.py research/NeuralMoments/r3_native_solver_replay_v1.py
+      - name: Run native result acceptance tests
+        env:
+          PYTHONPATH: .:python:research/NeuralMoments
+        run: python -m pytest -q tests/python/test_r3_native_result_acceptance.py
