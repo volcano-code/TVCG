@@ -14,12 +14,14 @@ class R3NativeRequestBuilderTests(unittest.TestCase):
             f=np.array([[0,1,2],[0,1,3],[0,2,3],[1,2,3]],np.int64)
             np.savez(mesh,vertices=v,faces=f)
             task=root/"task.json"; task.write_text(json.dumps({"task_hash":"task-1"}))
+            pin=root/"pin.obj"; pin.write_bytes(b"pin-support")
             manifest={"schema":SCHEMA,"case_id":"case-1","geometry_hash":"geom-1","task_hash":"task-1",
               "task_record":"task.json","task_record_sha256":sha(task),
               "outer_mesh_file":"mesh.npz","outer_mesh_sha256":sha(mesh),
               "outer_vertices_key":"vertices","outer_faces_key":"faces",
               "design_mesh_file":"mesh.npz","design_mesh_sha256":sha(mesh),
               "design_vertices_key":"vertices","design_faces_key":"faces",
+              "pin_support_file":"pin.obj","pin_support_sha256":sha(pin),
               "request_fields":{"fixed_shell_moments":[0.0]*10,"target_origin":[0,0,0],
                 "target_axes":[[1,0,0],[0,1,0],[0,0,1]],"mode":"SPINNING_TOP",
                 "material_density":1.0,"original_units_per_normalized_unit":1.0,
