@@ -86,7 +86,7 @@ def test_cpu_preflight_runs_real_pcraft_m72_backward_and_checkpoint_roundtrip(tm
     args=Namespace(device="cpu",amp="none",threads=1,seed=800071,preset="smoke",
         min_native_resolution=1,manifest=manifest,audit=audit,cache_mib=16.,
         batch_queries=2,chunk=16,learning_rate=3e-4,weight_decay=1e-4,
-        jacobian_weight=.05,gradient_clip=1.,out=tmp_path/"preflight.json")
+        jacobian_weight=.05,gradient_clip=1.,min_event_margin=0.,require_fd_audit=False,max_jacobian_error_bound=None,out=tmp_path/"preflight.json")
     report=preflight(args)
     assert report["status"]=="passed"
     assert report["native_intervals"]>0
