@@ -42,7 +42,7 @@ jobs:
         run: python -m pytest -q research/NeuralMoments/models/pcraft_ufno/spin_pino/tests/
       - name: Run SQNO and unified contracts
         env:
-          PYTHONPATH: .:research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter
+          PYTHONPATH: .:research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction
           OMP_NUM_THREADS: "1"
           OPENBLAS_NUM_THREADS: "1"
           MKL_NUM_THREADS: "1"
