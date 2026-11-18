@@ -70,7 +70,7 @@ def load_geometry_bundle(manifest_path):
         actual=sha256_file(path)
         if actual!=str(m[hash_key]).lower():
             raise ValueError(f"{hash_key} mismatch: expected {m[hash_key]}, got {actual}")
-    v,f=_mesh(_np(paths["mesh_file"],m["vertices_key"]),_np(paths["mesh_file"],m["faces_key"]))
+    v,f=_mesh(_npz(paths["mesh_file"],m["vertices_key"]),_npz(paths["mesh_file"],m["faces_key"]))
     shape=tuple(m["grid_shape"])
     if len(shape)!=3 or any(type(x) is not int or x<=0 for x in shape):
         raise ValueError("grid_shape must be three positive integers")
