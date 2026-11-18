@@ -31,7 +31,8 @@ def test_checkpoint_payload_roundtrip(tmp_path):
     path=tmp_path/"m80.pt"
     torch.save(payload,path)
     target=TinyM80()
-    loaded=load_m80_checkpoint(path,target)
+    loaded=load_m80_checkpoint(path,target,
+        expected_model_class=f"{TinyM80.__module__}.{TinyM80.__qualname__}")
     assert loaded.provenance.training_run_id=="m80-test-run"
     assert loaded.provenance.training_commit=="abc123"
     assert loaded.provenance.frozen_backbone
