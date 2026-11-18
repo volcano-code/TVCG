@@ -1,0 +1,59 @@
+name: Phase 2.6 R3.1.5.3 Independent Physical Verification
+
+on:
+  push:
+    branches:
+      - research/phase2-6-r3-m69-hybrid-ablation
+    paths:
+      - "research/NeuralMoments/r3_independent_physical_verification_v1.py"
+      - "research/NeuralMoments/r3_independent_tetra_moments_v1.py"
+      - "research/NeuralMoments/r3_native_independent_moment_compare_v1.py"
+      - "research/NeuralMoments/r3_native_request_builder_v1.py"
+      - "research/NeuralMoments/r3_native_solver_replay_v1.py"
+      - "tests/python/test_r3_independent_physical_verification.py"
+      - "tests/python/test_r3_independent_tetra_moments.py"
+      - "tests/python/test_r3_native_independent_moment_compare.py"
+      - "tests/python/test_r3_native_request_builder.py"
+      - ".github/workflows/phase2-6-r3-physical-verification.yml"
+  pull_request:
+    paths:
+      - "research/NeuralMoments/r3_independent_physical_verification_v1.py"
+      - "research/NeuralMoments/r3_independent_tetra_moments_v1.py"
+      - "research/NeuralMoments/r3_native_independent_moment_compare_v1.py"
+      - "research/NeuralMoments/r3_native_request_builder_v1.py"
+      - "research/NeuralMoments/r3_native_solver_replay_v1.py"
+      - "tests/python/test_r3_independent_physical_verification.py"
+      - "tests/python/test_r3_independent_tetra_moments.py"
+      - "tests/python/test_r3_native_independent_moment_compare.py"
+      - "tests/python/test_r3_native_request_builder.py"
+      - ".github/workflows/phase2-6-r3-physical-verification.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  independent-physical-verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install "numpy>=1.26,<3" "pytest>=8,<10"
+      - name: Compile verification pipeline
+        run: |
+          python -m py_compile research/NeuralMoments/r3_independent_physical_verification_v1.py
+          python -m py_compile research/NeuralMoments/r3_independent_tetra_moments_v1.py
+          python -m py_compile research/NeuralMoments/r3_native_independent_moment_compare_v1.py
+          python -m py_compile research/NeuralMoments/r3_native_request_builder_v1.py
+          python -m py_compile research/NeuralMoments/r3_native_solver_replay_v1.py
+      - name: Run independent physical and moment tests
+        env:
+          PYTHONPATH: .:python:research/NeuralMoments
+        run: |
+          python -m pytest -q \
+            tests/python/test_r3_independent_physical_verification.py \
+            tests/python/test_r3_independent_tetra_moments.py \
+            tests/python/test_r3_native_independent_moment_compare.py \
+            tests/python/test_r3_native_request_builder.py
