@@ -111,8 +111,15 @@ class UnifiedM80SQNO(nn.Module):
             raise ValueError("coefficients must be finite and nonzero")
         m80,j80=self.shared_encoder.moments_and_jacobian(cache.shared_cache,qb,create_graph=create_graph)
         sq=self.sqno.evaluate_queries(cache.sqno_cache,qb,with_jacobian=True)
-        ms,js=sq["moments"],sq["jacobian_q"]
-        if m80.shape!=ms.shape or j80.shape!=js.shape: raise RuntimeError("M80/SQNO output shape mismatch")
+        ms=sq["moments"]
+        # M80.moments_and_jacobian differentiates with respect to the raw
+        # coefficient tensor supplied to this wrapper. SQNO's jacobian_q is
+        # with respect to its internal normalized quadrature coordinates;
+        # jacobian_input is the chain-rule derivative with respect to the raw
+        # input coefficients and is therefore the compatible quantity.
+        js=sq["jacobian_input"]
+        if m80.shape!=ms.shape or j80.shape!=js.shape:
+            raise RuntimeError("M80/SQNO output contract mismatch")
         if cache.inference_only:
             # M80 internally enables autograd to obtain dM/dq. Do not retain
             # that temporary graph or parameter gradients in inference mode.
@@ -120,16 +127,24 @@ class UnifiedM80SQNO(nn.Module):
         alpha=self.fusion_weight.to(device=m80.device,dtype=m80.dtype)
         result={
           "moments":alpha*m80+(1-alpha)*ms,
+          # Canonical derivative is with respect to the raw coefficient
+          # tensor passed to evaluate_queries. Keep jacobian_q as a
+          # compatibility alias for earlier Phase 2.8.4 callers.
+          "jacobian_coefficients":alpha*j80+(1-alpha)*js,
           "jacobian_q":alpha*j80+(1-alpha)*js,
-          "m80_moments":m80,"m80_jacobian_q":j80,
-          "sqno_moments":ms,"sqno_jacobian_q":js,
+          "m80_moments":m80,"m80_jacobian_coefficients":j80,
+          "m80_jacobian_q":j80,
+          "sqno_moments":ms,"sqno_jacobian_coefficients":js,
+          "sqno_jacobian_q":js,
           "fusion_weight":alpha,"geometry_id":cache.geometry_id,
           "native_intervals":torch.as_tensor(cache.native_intervals,device=m80.device),
           "mass_error":sq["total_mass_error"],
         }
         self.query_evaluation_calls+=1
         if single:
-            for key in ("moments","jacobian_q","m80_moments","m80_jacobian_q","sqno_moments","sqno_jacobian_q"):
+            for key in ("moments","jacobian_coefficients","jacobian_q","m80_moments",
+                        "m80_jacobian_coefficients","m80_jacobian_q","sqno_moments",
+                        "sqno_jacobian_coefficients","sqno_jacobian_q"):
                 result[key]=result[key][0]
         return result
 

@@ -192,3 +192,72 @@ def test_train_step_updates_parameters_and_invalidates_preupdate_cache():
     assert not torch.equal(before,model.fusion_logit.detach())
     with pytest.raises(ValueError,match="stale"):
         model.evaluate_queries(cache,queries())
+
+
+def test_unified_jacobian_uses_raw_coefficient_coordinates_and_matches_finite_difference():
+    model=make_unified().eval()
+    geometry=make_geometry()
+    q=queries()[:1]
+    with torch.no_grad():
+        cache=model.encode_geometry(geometry,inference=True)
+        base=model.evaluate_queries(cache,q)
+        eps=2e-6
+        for column in (0,4,8):
+            delta=torch.zeros_like(q)
+            delta[0,column]=eps
+            plus=model.evaluate_queries(cache,q+delta)
+            minus=model.evaluate_queries(cache,q-delta)
+            fd=(plus["moments"]-minus["moments"])/(2*eps)
+            predicted=base["jacobian_coefficients"][:,column]
+            assert torch.allclose(predicted,fd,rtol=4e-3,atol=3e-5), (
+                f"fused raw-coefficient Jacobian mismatch at column {column}: "
+                f"max_abs={(predicted-fd).abs().max().item()}"
+            )
+            assert torch.allclose(
+                base["jacobian_coefficients"][:,column],
+                base["jacobian_q"][:,column],rtol=0,atol=0,
+            )
+
+
+def test_unified_moments_are_positive_scale_invariant_and_jacobian_scales_reciprocally():
+    model=make_unified().eval()
+    with torch.no_grad():
+        cache=model.encode_geometry(make_geometry(),inference=True)
+        q=queries()[:2]
+        scale=3.7
+        a=model.evaluate_queries(cache,q)
+        b=model.evaluate_queries(cache,q*scale)
+    assert torch.allclose(a["moments"],b["moments"],rtol=2e-7,atol=2e-9)
+    assert torch.allclose(a["jacobian_coefficients"]/scale,
+                          b["jacobian_coefficients"],rtol=2e-5,atol=2e-7)
+
+
+def test_unified_single_query_shapes_and_mass_quadrature_contract():
+    model=make_unified().eval()
+    geometry=make_geometry()
+    with torch.no_grad():
+        cache=model.encode_geometry(geometry,inference=True)
+        out=model.evaluate_queries(cache,queries()[0])
+    assert out["moments"].shape==(10,)
+    assert out["jacobian_coefficients"].shape==(10,10)
+    assert out["m80_jacobian_coefficients"].shape==(10,10)
+    assert out["sqno_jacobian_coefficients"].shape==(10,10)
+    assert torch.isfinite(out["mass_error"])
+    assert float(out["mass_error"])<1e-7
+    assert out["geometry_id"]==cache.geometry_id
+
+
+def test_unified_architecture_contract_rejects_different_fusion_initialization(tmp_path):
+    model=make_unified().eval()
+    optimizer=model.build_optimizer()
+    path=tmp_path/"contract.pt"
+    model.save_checkpoint(path,optimizer=optimizer,data_fingerprint="pilot-mini7")
+    other=UnifiedM80SQNO(
+        model.shared_encoder.__class__(model.shared_encoder.config),
+        SpinQuadrANNV12(pcraft_width=8,hidden_dim=4,final_hidden_dim=16,
+            num_layers=2,neighbors=4,temperature=.04,quadrature_order=2,
+            chunk_intervals=2,chunk_nodes=64,query_chunk=2),
+        fusion_initial_weight=.6,
+    )
+    with pytest.raises(ValueError,match="architecture contract"):
+        other.load_checkpoint(path)

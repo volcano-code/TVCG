@@ -126,3 +126,68 @@ cache; the caller controls its lifetime.
 - one joint update and stale-cache rejection after optimizer mutation.
 
 These tests do not require the formal M69/M72 corpus or a long GPU run.
+
+
+## 2.8.4.8 — Mathematical and Software Release Gate
+
+### Jacobian coordinate convention (critical)
+
+The M80 branch differentiates its Moment output with respect to the raw
+coefficient tensor supplied to `PcraftNativeMomentOperator.moments_and_jacobian`.
+SQNO internally normalizes its coefficient input and exposes multiple
+Jacobians. Its `jacobian_q` is with respect to the internal quadrature
+coordinates, not the raw input tensor. The compatible derivative is
+`jacobian_input`, which applies the normalization chain rule.
+
+The unified wrapper therefore fuses M80's raw-input Jacobian with SQNO's
+`jacobian_input`. The canonical result key is
+`jacobian_coefficients`. The older `jacobian_q` key remains as a
+backward-compatible alias, but now explicitly carries the derivative with
+respect to the raw coefficient tensor passed to the wrapper. Branch-specific
+canonical keys are `m80_jacobian_coefficients` and
+`sqno_jacobian_coefficients`.
+
+This distinction is required for mathematically meaningful joint Jacobian
+supervision. Do not train the unified wrapper against SQNO's internal
+`jacobian_q` while training M80 against raw-input derivatives.
+
+### Added release-gate tests
+
+- finite-difference comparison of fused Jacobian columns with respect to raw
+  coefficient inputs;
+- positive coefficient scale invariance and reciprocal Jacobian scaling;
+- single-query and Query-many shape contracts;
+- quadrature mass error and geometry identity;
+- architecture mismatch rejection during checkpoint loading;
+- existing shared-encoder ownership, both-branch gradient flow, optimizer
+  uniqueness, stale cache, inference cache and checkpoint round-trip tests.
+
+The finite-difference test is a synthetic operator contract test. It does not
+replace comparisons against the Faster teacher labels.
+
+### Mini7 pilot data policy
+
+The seven-geometry Faster Mini7 corpus is suitable for initial real-geometry
+smoke tests and operator-response diagnostics after its files and manifest
+are independently verified. All seven geometries belong to the training
+partition under the supplied source-isolation rule. The 483 query rows are
+not 483 independent geometries. Do not create validation/test splits from
+these seven objects, claim OOD generalization, select the final Moment Head,
+or claim 512^3 throughput from this pilot.
+
+Of 483 labels, 258 have full native 10x10 Jacobians and 225 have only
+restricted tangent-space derivatives. The training adapter must use
+`derivative_valid` and the corresponding restricted basis/matrix; NaN
+placeholders must never be treated as zero labels. The discrete label
+re-integration agreement reported by the handoff is distinct from the
+continuous-reference discrepancy, which can be substantial for paraboloid
+queries. Keep discrete-teacher and continuous-reference metrics separate.
+
+### Release acceptance boundary
+
+Phase 2.8.4.8 software acceptance requires the native and SQNO test suites,
+including the new mathematical checks, to pass in the user's pinned
+environment and in CI. It establishes architecture/interface correctness on
+synthetic fixtures. It does not establish training convergence, real-corpus
+accuracy, cross-geometry generalization, OOD performance, or final hybrid
+optimization speed. Those remain later data/training/exact-solver gates.

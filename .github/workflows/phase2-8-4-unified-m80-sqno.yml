@@ -28,6 +28,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
           python -m pip install "numpy<2.3" scipy pytest
+          python -m pip install torch-geometric
           python -m pip install torch-scatter -f https://data.pyg.org/whl/torch-2.5.1+cpu.html
       - name: Compile modules
         run: |
