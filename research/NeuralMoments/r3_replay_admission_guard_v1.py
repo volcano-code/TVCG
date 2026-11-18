@@ -28,7 +28,7 @@ def validate_replay_admission(request_envelope: dict[str,Any], initialization: A
         raise ValueError("missing native physical-admission certificate")
     if admission.get("status") != "physically_admitted" or admission.get("physical_mesh_admission") is not True:
         raise ValueError("metadata-only admission cannot authorize native exact replay")
-    required=("case_id","geometry_hash","task_hash","outer_mesh_sha256",
+    required=("case_id","geometry_hash","task_hash","task_record_sha256","outer_mesh_sha256",
               "design_mesh_sha256","pin_support_sha256","native_geometry_evidence_sha256",
               "reviewer","review_source")
     missing=[k for k in required if not admission.get(k)]
@@ -45,10 +45,17 @@ def validate_replay_admission(request_envelope: dict[str,Any], initialization: A
     if not isinstance(assets,dict):
         raise ValueError("request source_assets provenance is missing")
     for key,expected in (("outer_mesh_file",admission["outer_mesh_sha256"]),
-                         ("design_mesh_file",admission["design_mesh_sha256"])):
+                         ("design_mesh_file",admission["design_mesh_sha256"]),
+                         ("pin_support_file",admission["pin_support_sha256"]),
+                         ("task_record",admission["task_record_sha256"])):
         record=assets.get(key)
         if not isinstance(record,dict) or record.get("sha256") != expected:
             raise ValueError(f"{key} hash differs from physical-admission certificate")
+        asset_path=record.get("path")
+        if not isinstance(asset_path,str) or not Path(asset_path).is_file():
+            raise FileNotFoundError(f"request asset missing: {asset_path}")
+        if sha256_file(asset_path) != expected:
+            raise ValueError(f"{key} file content changed after request assembly")
     evaluator_path=Path(evaluator_path)
     if not evaluator_path.is_file():
         raise FileNotFoundError(evaluator_path)
