@@ -128,7 +128,7 @@ class M72Corpus:
         geometry["pcraft_grid"]=conservative_coarse_grid(geometry,self.grid_size)
         with np.load(lp,allow_pickle=False) as z:
             required=("queries","moments","jacobian","derivative_valid")
-            optional=("event_type","derivative_valid_reason","event_margin",
+            optional=("event_type","event_valid","derivative_valid_reason","event_margin",
                       "finite_difference_audit","moment_error_bound","jacobian_error_bound")
             labels={k:np.array(z[k],copy=True) for k in required}
             labels.update({k:np.array(z[k],copy=True) for k in optional if k in z.files})
@@ -138,6 +138,8 @@ class M72Corpus:
         for name in ("event_type","derivative_valid_reason"):
             if name in labels and (labels[name].shape!=(n,) or labels[name].dtype.kind not in "US"):
                 raise ValueError(f"{key}: {name} must be a string array with shape [queries]")
+        if "event_valid" in labels and (labels["event_valid"].shape!=(n,) or labels["event_valid"].dtype.kind!="b"):
+            raise ValueError(f"{key}: event_valid must be bool [queries] and means teacher-confirmed event regularity")
         if "finite_difference_audit" in labels and (labels["finite_difference_audit"].shape!=(n,)
                 or labels["finite_difference_audit"].dtype.kind!="b"):
             raise ValueError(f"{key}: finite_difference_audit must be bool [queries]")
@@ -252,7 +254,9 @@ def loss_for_batch(model,cache,labels,indices,jacobian_weight,device,*,
         if event_weight<0 or not math.isfinite(float(event_weight)):
             raise ValueError("event_weight must be finite and nonnegative")
         event_logits=model.predict_event_validity(cache,q)
-        event_target=torch.as_tensor(labels["derivative_valid"][indices].astype(np.float64),
+        if "event_valid" not in labels:
+            raise ValueError("event-validity head requires explicit teacher event_valid labels; derivative_valid is not an event class")
+        event_target=torch.as_tensor(labels["event_valid"][indices].astype(np.float64),
                                      device=device,dtype=event_logits.dtype)
         event_loss=torch.nn.functional.binary_cross_entropy_with_logits(event_logits,event_target)
     return moment+jacobian_weight*derivative+event_weight*event_loss,moment,derivative,event_loss
@@ -305,7 +309,9 @@ def validate(model,corpus,device,amp,chunk,max_records=8,max_queries=256,split="
         if model.config.event_validity_head_enabled:
             with torch.no_grad():
                 event_logits=model.predict_event_validity(cache,q)
-                event_target=torch.as_tensor(labels["derivative_valid"][:n].astype(np.float64),device=device,dtype=event_logits.dtype)
+                if "event_valid" not in labels:
+                raise ValueError("event-validity validation requires explicit teacher event_valid labels")
+                event_target=torch.as_tensor(labels["event_valid"][:n].astype(np.float64),device=device,dtype=event_logits.dtype)
                 event_probability=torch.sigmoid(event_logits)
                 event_bce=torch.nn.functional.binary_cross_entropy_with_logits(event_logits,event_target)
                 event_accuracy=((event_probability>=.5)==event_target.bool()).to(torch.float64).mean()
@@ -420,7 +426,8 @@ def preflight(args):
     report=dict(schema="m80.pcraft-native-preflight.v1",status="passed",record_id=row["id"],
         native_intervals=len(geometry["xyz"]),native_resolution=int(geometry["native_resolution"]),
         parameter_count=sum(p.numel() for p in model.parameters()),config=asdict(cfg),
-        batch_queries=len(indices),amp=args.amp,device=args.device,loss=float(loss.detach()),
+        batch_queries=len(indices),derivative_supervision_queries=int(len(valid)),
+        moment_only_preflight=bool(len(valid)==0),amp=args.amp,device=args.device,loss=float(loss.detach()),
         moment_loss=float(ml.detach()),jacobian_loss=float(jl.detach()),gradient_norm=float(grad),
         optimizer_step_seconds=seconds,checkpoint_roundtrip_max_abs=parity,checkpoint_roundtrip_relative=relative_parity,
         peak_allocated=(torch.cuda.max_memory_allocated(args.device) if args.device.startswith("cuda") else None),
