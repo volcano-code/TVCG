@@ -69,3 +69,17 @@ These tests use analytic synthetic samples. They do not establish 512^3 accuracy
 3. Add exact binary threshold + connectivity/shell/protection checks.
 4. Optimize Pure Quadric and Hybrid under the same M69 exact oracle and report whether local correction actually improves the feasible minimum-mass solution.
 5. Keep Hybrid optional unless the ablation demonstrates a real benefit.
+
+
+## 8. Joint design Jacobians
+
+The module now exposes `hybrid_moments_and_jacobians`, returning the same integrated Moment vector and both derivative blocks:
+[
+J_\beta=\partial M/\partial\beta,\qquad
+J_\psi=\partial M/\partial\psi.
+]
+This is the local-correction counterpart to the Phase 2.1 Query/Material Jacobian contract. It differentiates the continuous relaxation; it does not claim a derivative through hard thresholding or topology changes.
+
+An optional `local_correction_regularization` adds coefficient L2 and nearby-center smoothness penalties. These are optimization regularizers, not M69 physical constraints.
+
+Two additional tests check selected columns of both Jacobian blocks against central finite differences and verify regularization gradients.
