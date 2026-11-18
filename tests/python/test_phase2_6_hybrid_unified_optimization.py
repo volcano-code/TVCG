@@ -101,7 +101,7 @@ def test_hybrid_exact_oracle_requires_beta_and_psi_and_is_independent():
     problem,beta=make_hybrid()
     psi=torch.tensor([.2,-.1],dtype=beta.dtype)
     calls={"n":0}
-    exact=problem.original_moments.clone()
+    exact=problem.original_moments*0.95
     def oracle(b,p):
       calls["n"]+=1
       assert not b.requires_grad and not p.requires_grad
@@ -123,7 +123,7 @@ def test_exact_hybrid_callback_counts_oracle_calls():
     calls={"n":0}
     def oracle(b,p):
       calls["n"]+=1
-      return {"moments":problem.original_moments,"connected":True,
+      return {"moments":problem.original_moments*0.95,"connected":True,
               "topology_valid":True,"event_valid":True,"source":"independent"}
     callback=make_exact_hybrid_merit_callback(
       problem,exact_material_oracle=oracle,
