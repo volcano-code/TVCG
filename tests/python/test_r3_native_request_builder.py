@@ -22,7 +22,7 @@ class R3NativeRequestBuilderTests(unittest.TestCase):
               "design_mesh_file":"mesh.npz","design_mesh_sha256":sha(mesh),
               "design_vertices_key":"vertices","design_faces_key":"faces",
               "pin_support_file":"pin.obj","pin_support_sha256":sha(pin),
-              "request_fields":{"fixed_shell_moments":[0.0]*10,"target_origin":[0,0,0],
+              "moment_metadata":{"coordinate_frame":"world","length_unit":"m","meters_per_unit":1.0,"density":1.0,"moment_order":["V","Lx","Ly","Lz","Qxx","Qyy","Qzz","Qyz","Qxz","Qxy"]},"request_fields":{"fixed_shell_moments":[0.0]*10,"target_origin":[0,0,0],
                 "target_axes":[[1,0,0],[0,1,0],[0,0,1]],"mode":"SPINNING_TOP",
                 "material_density":1.0,"original_units_per_normalized_unit":1.0,
                 "minimum_wall_thickness":0.0,"spinning_top_objective":"INERTIA_AND_LOWERING",
@@ -45,7 +45,7 @@ class R3NativeRequestBuilderTests(unittest.TestCase):
               "outer_mesh_file":"mesh.npz","outer_mesh_sha256":sha(mesh),"outer_vertices_key":"vertices","outer_faces_key":"faces",
               "design_mesh_file":"mesh.npz","design_mesh_sha256":sha(mesh),"design_vertices_key":"vertices","design_faces_key":"faces",
               "pin_support_file":"pin.obj","pin_support_sha256":sha(pin),
-              "request_fields":{},"semantic_review":{"status":"reviewed","reviewer":"h","source_reference":"r"}}
+              "moment_metadata":{"coordinate_frame":"world","length_unit":"m","meters_per_unit":1.0,"density":1.0,"moment_order":["V","Lx","Ly","Lz","Qxx","Qyy","Qzz","Qyz","Qxz","Qxy"]},"request_fields":{},"semantic_review":{"status":"reviewed","reviewer":"h","source_reference":"r"}}
             p=root/"m.json";p.write_text(json.dumps(m))
             with self.assertRaisesRegex(ValueError,"request_fields missing"):build_request(p)
 
