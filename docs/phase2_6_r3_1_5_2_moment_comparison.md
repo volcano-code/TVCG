@@ -7,3 +7,8 @@ The independent tetrahedral backend reports the same metadata plus a distinct ba
 Component-wise comparison uses `abs(native-independent) <= atol + rtol * max(abs(native), abs(independent))`. This avoids the prior incorrect global denominator `max(1, abs(moment))`, which can hide substantial relative errors in small SI second-moment components. The report includes absolute/relative errors and pass/fail per component.
 
 Tests use controlled numerical fixtures only. They establish comparison semantics, not a real TRELLIS/M69 match. A real comparison still requires an independently tetrahedralized copy of the exact retained material volume and matching source geometry hash.
+
+
+## Canonical moment semantics correction
+
+The repository-native `physics::RawMassMoments10` convention is density-weighted and ordered `(M,LX,LY,LZ,QXX,QYY,QZZ,QYZ,QXZ,QXY)`. The first component is mass, not geometric volume. Geometric volume is tracked separately in m^3. The independent tetrahedral integrator, request metadata, and comparator have been aligned to this exact native order.
