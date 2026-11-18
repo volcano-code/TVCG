@@ -21,7 +21,8 @@ def evidence():
     def independent():
         return {"case_id":"case","task_hash":"task","source_geometry_hash":"geom",
           "backend_identity":"independent_tetra_exact_v1","backend_sha256":"backend-sha",
-          "raw_moments":raw.copy(),"moment_order":order,"coordinate_frame":"world",\n          "length_unit":"m","meters_per_unit":1.0,"density":1000.0}
+          "raw_moments":raw.copy(),"moment_order":order,"coordinate_frame":"world",
+          "length_unit":"m","meters_per_unit":1.0,"density":1000.0}
     def physical():
         return {"case_id":"case","task_hash":"task","geometry_hash":"geom",
           "overall_pass":True,"hard_constraints_pass":True,"tolerance_source_reference":"test fixture"}
