@@ -123,7 +123,8 @@ def verify_spinning_top_constraints(record, task_frame, tolerances, *, expected_
       "hard_constraint_passes":passes,"hard_constraints_pass":all(passes.values()),
       "diagnostics":diagnostics,"optional_diagnostic_gates":optional,
       "overall_pass":all(passes.values()) and all(x["pass"] for x in optional.values()),
-      "tolerances":limits|{k:float(v) for k,v in tolerances.items() if k not in limits and k!="source_reference"},\n      "tolerance_source_reference":tolerance_source,
+      "tolerances":limits|{k:float(v) for k,v in tolerances.items() if k not in limits and k!="source_reference"},
+      "tolerance_source_reference":tolerance_source,
       "constraint_semantics":"SpinMomentProblem::SpinningTop equalities Lx=0, Ly=0, I_c,xz=0, I_c,yz=0; other reported values are diagnostics unless explicit limits are supplied"}
 
 def main():
