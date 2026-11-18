@@ -10,7 +10,7 @@ import argparse, json, math
 from pathlib import Path
 import numpy as np
 
-MOMENT_ORDER=["V","Lx","Ly","Lz","Qxx","Qyy","Qzz","Qyz","Qxz","Qxy"]
+MOMENT_ORDER=["M","LX","LY","LZ","QXX","QYY","QZZ","QYZ","QXZ","QXY"]
 
 def compare_records(native_bundle, independent_record, *, rtol=1e-8, atol=1e-14):
     ledger=native_bundle.get("ledger",{})
