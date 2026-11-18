@@ -201,12 +201,45 @@ def sync(device):
     if str(device).startswith("cuda"): torch.cuda.synchronize(device)
 
 
-def loss_for_batch(model,cache,labels,indices,jacobian_weight,device):
+def derivative_supervision_mask(labels, indices, *, min_event_margin=0.0,
+                                require_fd_audit=False, max_jacobian_error_bound=None):
+    """Fail-closed derivative label gate for smooth, audited queries.
+
+    The base derivative_valid label is mandatory. If event_margin is present,
+    queries at/below the configured margin are excluded. Optional finite-
+    difference audit and Jacobian error-bound gates can be made mandatory.
+    Moment supervision is unaffected by this mask.
+    """
+    if not math.isfinite(float(min_event_margin)) or min_event_margin < 0:
+        raise ValueError("min_event_margin must be finite and nonnegative")
+    if max_jacobian_error_bound is not None:
+        if not math.isfinite(float(max_jacobian_error_bound)) or max_jacobian_error_bound < 0:
+            raise ValueError("max_jacobian_error_bound must be finite and nonnegative")
+    valid=np.asarray(labels["derivative_valid"][indices],dtype=bool).copy()
+    if "event_margin" in labels:
+        valid &= np.asarray(labels["event_margin"][indices],dtype=np.float64) > float(min_event_margin)
+    elif min_event_margin > 0:
+        raise ValueError("event-margin gate requested but event_margin labels are absent")
+    if require_fd_audit:
+        if "finite_difference_audit" not in labels:
+            raise ValueError("finite-difference audit required but labels are absent")
+        valid &= np.asarray(labels["finite_difference_audit"][indices],dtype=bool)
+    if max_jacobian_error_bound is not None:
+        if "jacobian_error_bound" not in labels:
+            raise ValueError("Jacobian error-bound gate requested but labels are absent")
+        valid &= np.asarray(labels["jacobian_error_bound"][indices],dtype=np.float64) <= float(max_jacobian_error_bound)
+    return valid
+
+
+def loss_for_batch(model,cache,labels,indices,jacobian_weight,device,*,
+                   min_event_margin=0.0,require_fd_audit=False,
+                   max_jacobian_error_bound=None):
     q=torch.tensor(np.array(labels["queries"][indices],copy=True),device=device,dtype=torch.float64)
     target=torch.tensor(np.array(labels["moments"][indices],copy=True),device=device,dtype=torch.float64)
     pred,jac=model.moments_and_jacobian(cache,q,create_graph=True)
     moment=((pred-target)/cache.moment_scales).square().mean()
-    valid=labels["derivative_valid"][indices].astype(bool)
+    valid=derivative_supervision_mask(labels,indices,min_event_margin=min_event_margin,
+        require_fd_audit=require_fd_audit,max_jacobian_error_bound=max_jacobian_error_bound)
     derivative=moment*0
     if valid.any():
         mask=torch.as_tensor(valid,device=device)
@@ -237,7 +270,7 @@ def _distribution_summary(values):
         p99=float(np.percentile(array,99)),max=float(array.max()))
 
 
-def validate(model,corpus,device,amp,chunk,max_records=8,max_queries=256,split="val"):
+def validate(model,corpus,device,amp,chunk,max_records=8,max_queries=256,split="val",*, min_event_margin=0.0,require_fd_audit=False,max_jacobian_error_bound=None):
     if split not in corpus.splits:
         raise ValueError(f"unknown validation split {split!r}")
     model.eval(); rows=[]; scores=[]; jac_scores=[]
@@ -257,7 +290,7 @@ def validate(model,corpus,device,amp,chunk,max_records=8,max_queries=256,split="
         ml=normalized_moment.square().mean()
         moment_query_rmse=torch.sqrt(normalized_moment.square().mean(dim=-1))
         all_moment_query_rmse.extend(moment_query_rmse.detach().cpu().tolist())
-        valid=labels["derivative_valid"][:n].astype(bool)
+        valid=derivative_supervision_mask(labels,np.arange(n),min_event_margin=min_event_margin,require_fd_audit=require_fd_audit,max_jacobian_error_bound=max_jacobian_error_bound)
         jl=None; jac_query_rmse=None; symmetry_query=None; min_eigen_query=None
         if valid.any():
             mask=torch.as_tensor(valid,device=device)
@@ -304,7 +337,7 @@ def preflight(args):
     cfg=make_config(args.preset,min_native_resolution=args.min_native_resolution,chunk_intervals=args.chunk)
     corpus=M72Corpus(args.manifest,args.audit,cfg.grid_size,min_queries=1,cache_mib=args.cache_mib)
     row=corpus.largest_train_row(); geometry,labels=corpus.get(row)
-    valid=np.flatnonzero(labels["derivative_valid"].astype(bool))
+    valid=np.flatnonzero(derivative_supervision_mask(labels,np.arange(len(labels["queries"])),min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound))
     if len(valid)<1: raise ValueError("largest training geometry has no derivative-valid queries")
     indices=valid[:args.batch_queries] if len(valid)>=args.batch_queries else np.resize(valid,args.batch_queries)
     model=PcraftNativeMomentOperator(cfg).to(args.device).train()
@@ -313,7 +346,7 @@ def preflight(args):
     sync(args.device); start=perf_counter()
     with autocast(args.device,args.amp):
         cache=model.encode(geometry,args.chunk)
-        loss,ml,jl=loss_for_batch(model,cache,labels,indices,args.jacobian_weight,args.device)
+        loss,ml,jl=loss_for_batch(model,cache,labels,indices,args.jacobian_weight,args.device,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound)
     if not torch.isfinite(loss): raise FloatingPointError("nonfinite preflight loss")
     opt.zero_grad(set_to_none=True); loss.backward()
     grad=torch.nn.utils.clip_grad_norm_(model.parameters(),args.gradient_clip,error_if_nonfinite=True)
@@ -393,8 +426,7 @@ def train(args):
     contract=dict(schema=TRAIN_SCHEMA,config=asdict(cfg),manifest_sha256=corpus.manifest_sha,
         audit_sha256=corpus.audit_sha,corpus_fingerprint=corpus.doc["fingerprint"],source=source_fingerprints(),
         runtime=runtime_info(args.device,args.amp),seed=args.seed,batch_queries=args.batch_queries,
-        chunk=args.chunk,lr=args.learning_rate,weight_decay=args.weight_decay,jacobian_weight=args.jacobian_weight,
-        gradient_clip=args.gradient_clip,min_queries=args.min_queries_per_record)
+        chunk=args.chunk,lr=args.learning_rate,weight_decay=args.weight_decay,jacobian_weight=args.jacobian_weight,gradient_clip=args.gradient_clip,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound,min_queries=args.min_queries_per_record)
     out=Path(args.out); out.mkdir(parents=True,exist_ok=True)
     step=0; best_step=0; best_score=float("inf"); best_state=None; history=[]
     if args.resume:
@@ -406,7 +438,7 @@ def train(args):
         best_state=saved["best_state"]; history=saved["history"]
         rng.bit_generator.state=saved["numpy_rng"]; torch.set_rng_state(saved["torch_rng"])
         if args.device.startswith("cuda"): torch.cuda.set_rng_state_all(saved["cuda_rng"])
-    initial=validate(model,corpus,args.device,args.amp,args.chunk,args.val_max_records,args.val_max_queries)
+    initial=validate(model,corpus,args.device,args.amp,args.chunk,args.val_max_records,args.val_max_queries,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound)
     score=initial["moment_scaled_mse"]+args.jacobian_weight*(initial["jacobian_scaled_mse"] or 0.)
     if best_state is None: best_score=score; best_state={k:v.detach().cpu().clone() for k,v in model.state_dict().items()}
     start=perf_counter(); stop="step_budget"
@@ -435,21 +467,21 @@ def train(args):
         history.append(dict(step=step,id=row["id"],group=row["group_id"],loss=float(loss.detach()),
                             moment=float(ml.detach()),jacobian=float(jl.detach())))
         if step%args.val_every==0:
-            val=validate(model,corpus,args.device,args.amp,args.chunk,args.val_max_records,args.val_max_queries)
+            val=validate(model,corpus,args.device,args.amp,args.chunk,args.val_max_records,args.val_max_queries,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound)
             score=val["moment_scaled_mse"]+args.jacobian_weight*(val["jacobian_scaled_mse"] or 0.)
             if score<best_score:
                 best_score,best_step=score,step
                 best_state={k:v.detach().cpu().clone() for k,v in model.state_dict().items()}
         if step%args.save_every==0: save()
-    final_last=validate(model,corpus,args.device,args.amp,args.chunk,args.val_max_records,args.val_max_queries)
+    final_last=validate(model,corpus,args.device,args.amp,args.chunk,args.val_max_records,args.val_max_queries,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound)
     last_state={k:v.detach().cpu().clone() for k,v in model.state_dict().items()}
     model.load_state_dict(best_state)
-    best_validation=validate(model,corpus,args.device,args.amp,args.chunk,args.val_max_records,args.val_max_queries)
+    best_validation=validate(model,corpus,args.device,args.amp,args.chunk,args.val_max_records,args.val_max_queries,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound)
     test_evaluation=None
     if getattr(args,"evaluate_test",False):
         # Test is evaluated only on the selected best checkpoint. Do not use
         # this result for architecture or hyperparameter selection.
-        test_evaluation=validate(model,corpus,args.device,args.amp,args.chunk,None,args.val_max_queries,split="test")
+        test_evaluation=validate(model,corpus,args.device,args.amp,args.chunk,None,args.val_max_queries,split="test",min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound)
     model.load_state_dict(last_state)
     save()
     report=dict(schema=TRAIN_SCHEMA,steps_completed=step,stop_reason=stop,elapsed_seconds=perf_counter()-start,
@@ -479,6 +511,9 @@ def main():
         q.add_argument("--min-native-resolution",type=int,default=512); q.add_argument("--batch-queries",type=int,default=16)
         q.add_argument("--learning-rate",type=float,default=3e-4); q.add_argument("--weight-decay",type=float,default=1e-4)
         q.add_argument("--jacobian-weight",type=float,default=.05); q.add_argument("--gradient-clip",type=float,default=1.)
+        q.add_argument("--min-event-margin",type=float,default=0.0,help="exclude Jacobian labels with event_margin <= threshold when available")
+        q.add_argument("--require-fd-audit",action="store_true",help="only supervise Jacobians with finite_difference_audit=true")
+        q.add_argument("--max-jacobian-error-bound",type=float,default=None,help="exclude Jacobian labels whose certified error bound exceeds this value")
         if name=="train":
             q.add_argument("--max-steps",type=int,required=True); q.add_argument("--max-seconds",type=float,required=True)
             q.add_argument("--min-queries-per-record",type=int,default=256)
