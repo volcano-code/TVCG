@@ -556,7 +556,7 @@ def test_event_validity_head_forward_scale_invariance_and_joint_gradients():
 
 
 def test_event_validity_head_is_optional_and_checkpoint_compatible(tmp_path):
-    from dataclasses import asdict
+    from dataclasses import asdict, replace
     from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import SCHEMA,SEMANTICS,load_model,make_config
     base=make_config("smoke",min_native_resolution=1)
     assert not base.event_validity_head_enabled
