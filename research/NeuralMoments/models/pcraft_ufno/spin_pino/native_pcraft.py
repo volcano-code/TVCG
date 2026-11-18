@@ -322,11 +322,22 @@ class EncodedNativeGeometry:
     native_intervals: int
     owner: int
     versions: tuple
+    interval_features: Tensor | None = None
+    global_context: Tensor | None = None
+    interval_mass: Tensor | None = None
+    descriptor: Tensor | None = None
+    normalized_xyz: Tensor | None = None
+    global_scale_weights: Tensor | None = None
 
     def detached(self):
         names=("latent","statistics","fixed_moments","design_moments","absolute_moments",
                "moment_scales","coordinate_scales","normalized_bounds")
-        return replace(self,**{name:getattr(self,name).detach() for name in names})
+        optional=("interval_features","global_context","interval_mass","descriptor",
+                  "normalized_xyz","global_scale_weights")
+        values={name:getattr(self,name).detach() for name in names}
+        values.update({name:getattr(self,name).detach() for name in optional
+                       if getattr(self,name) is not None})
+        return replace(self,**values)
 
 
 class IntervalResidual(nn.Module):
@@ -702,7 +713,7 @@ class PcraftNativeMomentOperator(nn.Module):
         local_integral=(alpha.unsqueeze(-1)*self.gno_value(neighbor_features)).sum(1)
         return center_features+self.gno_update(torch.cat((center_features,local_integral),dim=-1))
 
-    def encode(self,geometry: Mapping[str,object],chunk: int|None=None):
+    def encode(self,geometry: Mapping[str,object],chunk: int|None=None,*,retain_interval_features=False):
         c=self.config; w=c.interval_width; chunk=c.chunk_intervals if chunk is None else chunk
         if chunk<1: raise ValueError("chunk must be positive")
         if "xyz" not in geometry: geometry=geometry_from_columns(geometry)
@@ -769,6 +780,7 @@ class PcraftNativeMomentOperator(nn.Module):
             if grid.shape!=(1,4,c.grid_size,c.grid_size,c.grid_size): raise ValueError("invalid P-CRAFT conservative grid")
             pino_global,pino_map=self.pino_encoder.forward_with_map(grid)
             pino_context=self.pino_global(pino_global)
+            global_weights=torch.ones((1,1,1),device=device,dtype=pino_context.dtype)
         context=(self.statistics_context(stats)+pino_context).squeeze(0)
         origin=torch.as_tensor(np.asarray(geometry["origin"],dtype=np.float64),device=device)
         span=side*float(geometry["h"])
@@ -784,7 +796,7 @@ class PcraftNativeMomentOperator(nn.Module):
                 d.update(np.asarray(geometry["columns"],dtype="<i8").tobytes())
             geom_hash=d.hexdigest()
         latent=torch.zeros(w,dtype=p.dtype,device=device)
-        if c.gno_enabled or c.transolver_enabled:
+        if c.gno_enabled or c.transolver_enabled or retain_interval_features:
             # Encode every native interval once. The feature table is shared
             # by local GNO messages and global physical-state slicing.
             feature_chunks=[]
@@ -835,7 +847,36 @@ class PcraftNativeMomentOperator(nn.Module):
                     latent=latent+self._chunk_pool(*args)
         self.counters["encode_calls"]+=1; self.counters["intervals"]+=len(xyz_np)
         return EncodedNativeGeometry(latent[None],stats,fixed,design,absolute,scale,coord,
-            torch.stack((lo/length,hi/length)),geom_hash,side,len(xyz_np),id(self),self._versions())
+            torch.stack((lo/length,hi/length)),geom_hash,side,len(xyz_np),id(self),self._versions(),
+            all_features if (c.gno_enabled or c.transolver_enabled or retain_interval_features) else None,
+            context,weights,desc,normalized,
+            global_weights.squeeze(0) if global_weights is not None else None)
+
+    def export_shared_geometry_features(self,cache: EncodedNativeGeometry):
+        """Export encoded P-CRAFT interval features for a compatible SQNO branch.
+
+        Call encode(..., retain_interval_features=True) once. Returned tensors
+        retain their autograd graph, enabling joint training without running a
+        second P-CRAFT geometry encoder.
+        """
+        if cache.owner!=id(self) or cache.versions!=self._versions():
+            raise ValueError("foreign or stale geometry cache")
+        required=(cache.interval_features,cache.global_context,cache.interval_mass,
+                  cache.descriptor,cache.normalized_xyz,cache.global_scale_weights)
+        if any(value is None for value in required):
+            raise ValueError("geometry cache was not encoded with retain_interval_features=True")
+        if cache.interval_features.shape[0]!=cache.native_intervals:
+            raise ValueError("shared interval feature count mismatch")
+        return {
+            "local_features":cache.interval_features,
+            "global_context":cache.global_context,
+            "global_scale_weights":cache.global_scale_weights,
+            "interval_mass":cache.interval_mass,
+            "descriptor":cache.descriptor,
+            "normalized_xyz":cache.normalized_xyz,
+            "geometry_id":cache.geometry_sha256,
+            "n_intervals":cache.native_intervals,
+        }
 
     def predict(self,cache: EncodedNativeGeometry,q):
         if cache.owner!=id(self) or cache.versions!=self._versions(): raise ValueError("foreign or stale geometry cache")
