@@ -11,7 +11,7 @@ def evidence():
           "evaluator_identity":"eval","solver_source_commit":"commit","initialization_record_hash":"init",
           "equation_profile":"dual_monomial_raw_v1","moment_metadata":meta,
           "physical_admission":{"authorized":True},"result_acceptance":{"physically_accepted":True},
-          "run_receipt":{"run_id":run_id}}
+          "run_receipt":{"run_id":run_id},"request_sha256":"request-sha","evaluator_config_sha256":"evaluator-sha"}
         native={"status":"CONVERGED","event_hash":"event","trace_hash":"trace","input_hash":"input",
           "output_hash":"output","function_evaluations":4,"restart_count":1,
           "restart_function_evaluations":[4],"quadric_coefficients":[1.0]+[0.0]*9,
