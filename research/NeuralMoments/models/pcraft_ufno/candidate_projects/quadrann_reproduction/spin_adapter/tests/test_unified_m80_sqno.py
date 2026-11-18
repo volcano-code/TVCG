@@ -139,6 +139,8 @@ def test_inference_cache_is_graph_free_reusable_and_rejected_for_training():
         assert cache.inference_only
         assert not cache.shared_cache.latent.requires_grad
         first=model.evaluate_queries(cache,queries())
+        assert not first["moments"].requires_grad
+        assert not first["jacobian_q"].requires_grad
         second=model.evaluate_queries(cache,queries().flip(0))
     assert torch.allclose(first["moments"],second["moments"].flip(0),rtol=1e-8,atol=1e-9)
     model.train()

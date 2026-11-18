@@ -113,6 +113,10 @@ class UnifiedM80SQNO(nn.Module):
         sq=self.sqno.evaluate_queries(cache.sqno_cache,qb,with_jacobian=True)
         ms,js=sq["moments"],sq["jacobian_q"]
         if m80.shape!=ms.shape or j80.shape!=js.shape: raise RuntimeError("M80/SQNO output shape mismatch")
+        if cache.inference_only:
+            # M80 internally enables autograd to obtain dM/dq. Do not retain
+            # that temporary graph or parameter gradients in inference mode.
+            m80,j80,ms,js=(value.detach() for value in (m80,j80,ms,js))
         alpha=self.fusion_weight.to(device=m80.device,dtype=m80.dtype)
         result={
           "moments":alpha*m80+(1-alpha)*ms,
