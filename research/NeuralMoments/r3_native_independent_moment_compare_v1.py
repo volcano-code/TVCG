@@ -19,11 +19,13 @@ def compare_records(native_bundle, independent_record, *, rtol=1e-8, atol=1e-14)
     if not isinstance(native_meta,dict):
         raise ValueError("native replay bundle lacks explicit moment_metadata")
     native_required=("case_id","geometry_hash","coordinate_frame","length_unit","meters_per_unit","density","moment_order")
-    independent_required=("case_id","source_geometry_hash","coordinate_frame","length_unit","meters_per_unit","density","moment_order","backend_identity","raw_moments")
+    independent_required=("case_id","task_hash","source_geometry_hash","coordinate_frame","length_unit","meters_per_unit","density","moment_order","backend_identity","backend_sha256","raw_moments")
     for src,name,required in ((native_meta,"native moment metadata",native_required),
                               (independent_record,"independent record",independent_required)):
         missing=[k for k in required if k not in src]
         if missing: raise ValueError(f"{name} missing metadata: "+", ".join(missing))
+    if ledger.get("task_hash") != independent_record["task_hash"]:
+        raise ValueError("TaskSpec hash mismatch")
     if native_meta["case_id"]!=independent_record["case_id"]:
         raise ValueError("case_id mismatch")
     if native_meta["geometry_hash"]!=independent_record.get("source_geometry_hash"):
@@ -57,7 +59,7 @@ def compare_records(native_bundle, independent_record, *, rtol=1e-8, atol=1e-14)
     return {
       "schema":"tvcg.r3.native-independent-moment-comparison.v1",
       "case_id":native_meta["case_id"],"geometry_hash":native_meta["geometry_hash"],
-      "independent_backend":independent_record["backend_identity"],
+      "independent_backend":independent_record["backend_identity"],\n      "independent_backend_sha256":independent_record["backend_sha256"],
       "moment_order":MOMENT_ORDER,"native_raw_moments":n.tolist(),
       "independent_raw_moments":i.tolist(),"absolute_errors":abs_error.tolist(),
       "relative_errors":rel.tolist(),"allowed_errors":allowed.tolist(),
