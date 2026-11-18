@@ -434,3 +434,51 @@ def test_convex_potential_presets_are_opt_in():
     assert not base.convex_potential_enabled
     assert convex.convex_potential_enabled
     assert convex.convex_potential_components==4
+
+
+def test_full_ug_pino_candidate_combines_multiscale_gno_transolver_convex_and_trains():
+    from dataclasses import replace
+    torch.manual_seed(79)
+    base=small_model()
+    cfg=replace(base.config,grid_size=16,multiscale_enabled=True,multiscale_grids=(8,16),
+        gno_enabled=True,gno_neighbors=4,gno_topology_filter=True,
+        transolver_enabled=True,transolver_slices=4,transolver_heads=2,
+        convex_potential_enabled=True,convex_potential_components=3)
+    model=PcraftNativeMomentOperator(cfg).train()
+    geometry=small_geometry16()
+    cache=model.encode(geometry,chunk=32)
+    q=torch.tensor([.03,.11,-.07,.04,.02,-.01,.015,.004,-.006,.003],dtype=torch.float64)
+    moments,jac=model.moments_and_jacobian(cache,q,create_graph=True)
+    assert moments.shape==(10,) and jac.shape==(10,10)
+    assert torch.isfinite(moments).all() and torch.isfinite(jac).all()
+    assert torch.allclose(moments,model.predict(cache,5*q),rtol=1e-8,atol=1e-9)
+    assert torch.allclose(moments+model.predict(cache,-q),
+        2*cache.fixed_moments+cache.design_moments,rtol=1e-8,atol=1e-9)
+    assert torch.allclose(jac,jac.T,rtol=1e-6,atol=1e-7)
+    assert float(torch.linalg.eigvalsh(.5*(jac+jac.T)).min())>=-1e-6
+    (moments.square().mean()+jac.square().mean()).backward()
+    grads=[p.grad for p in model.parameters() if p.grad is not None]
+    assert grads and all(torch.isfinite(g).all() for g in grads)
+    assert model.counters["gno_graph_builds"]==1
+    assert model.counters["transolver_calls"]==1
+    assert model.counters["multiscale_calls"]==1
+    assert model.counters["convex_potential_calls"]>0
+
+
+def test_maximal_ug_pino_preset_is_explicit_and_checkpoint_roundtrips(tmp_path):
+    from dataclasses import asdict
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import (
+        SCHEMA,SEMANTICS,load_model,make_config
+    )
+    cfg=make_config("xl_ms_gno_transolver_convex")
+    assert cfg.multiscale_enabled and cfg.gno_enabled and cfg.transolver_enabled
+    assert cfg.convex_potential_enabled and cfg.gno_topology_filter
+    model=PcraftNativeMomentOperator(cfg)
+    checkpoint=tmp_path/"ug-pino-maximal.pt"
+    torch.save(dict(schema=SCHEMA,semantics=SEMANTICS,config=asdict(cfg),
+                    model=model.state_dict()),checkpoint)
+    restored,_=load_model(checkpoint,"cpu")
+    assert restored.config==cfg
+    assert hasattr(restored,"transolver") and hasattr(restored,"gno_kernel")
+    assert hasattr(restored,"convex_potential_head")
+    assert restored.config.multiscale_grids==(32,64,128)
