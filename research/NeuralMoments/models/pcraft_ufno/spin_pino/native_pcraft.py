@@ -120,6 +120,13 @@ PRESETS = {
                                           gno_enabled=True, gno_neighbors=8, gno_topology_filter=True,
                                           transolver_enabled=True, transolver_slices=32, transolver_heads=8,
                                           convex_potential_enabled=True, convex_potential_components=8),
+    "xl_ms_gno_transolver_convex_event": dict(grid_size=64, pino_width=32, pino_modes=12, pino_layers=6,
+                                                interval_width=192, interval_depth=4, chunk_intervals=512,
+                                                multiscale_enabled=True, multiscale_grids=(32,64,128),
+                                                gno_enabled=True, gno_neighbors=8, gno_topology_filter=True,
+                                                transolver_enabled=True, transolver_slices=32, transolver_heads=8,
+                                                convex_potential_enabled=True, convex_potential_components=8,
+                                                event_validity_head_enabled=True),
 }
 
 
@@ -145,6 +152,7 @@ class NativePCRAFTConfig:
     multiscale_grids: tuple[int, ...] = (32, 64, 128)
     convex_potential_enabled: bool = False
     convex_potential_components: int = 4
+    event_validity_head_enabled: bool = False
 
     def __post_init__(self):
         if self.grid_size < 8 or self.grid_size % 4:
@@ -164,6 +172,8 @@ class NativePCRAFTConfig:
             raise ValueError("multiscale_enabled must be bool")
         if not isinstance(self.convex_potential_enabled, bool):
             raise ValueError("convex_potential_enabled must be bool")
+        if not isinstance(self.event_validity_head_enabled, bool):
+            raise ValueError("event_validity_head_enabled must be bool")
         if isinstance(self.convex_potential_components,bool) or not isinstance(self.convex_potential_components,int) or self.convex_potential_components<1:
             raise ValueError("convex_potential_components must be a positive integer")
         if (not isinstance(self.multiscale_grids, tuple) or len(self.multiscale_grids) < 2
@@ -625,6 +635,11 @@ class PcraftNativeMomentOperator(nn.Module):
                                           nn.Linear(2*w,w),nn.SiLU(),nn.Linear(w,10))
             nn.init.normal_(self.query_head[-1].weight,std=.01)
             nn.init.zeros_(self.query_head[-1].bias)
+        if c.event_validity_head_enabled:
+            self.event_validity_head=nn.Sequential(
+                nn.LayerNorm(w+36+10),nn.Linear(w+36+10,w),nn.GELU(),
+                nn.Linear(w,max(8,w//2)),nn.GELU(),nn.Linear(max(8,w//2),1)
+            )
         self.register_buffer("native_B",torch.tensor([1.,1.,1.,1.,1.,1.,1.,2.,2.,2.],dtype=torch.float64))
         self._neighbor_cache=OrderedDict()
         self._neighbor_cache_bytes=0
@@ -913,6 +928,31 @@ class PcraftNativeMomentOperator(nn.Module):
         self.counters["queries"]+=len(q)
         return result[0] if single else result
 
+    def predict_event_validity(self,cache: EncodedNativeGeometry,q):
+        """Predict whether a query lies in a derivative-valid regular regime.
+
+        This is a learned risk signal only. It never overrides teacher
+        derivative_valid labels or the exact solver's event checks.
+        """
+        if not self.config.event_validity_head_enabled:
+            raise RuntimeError("event validity head is disabled in this checkpoint")
+        if cache.owner!=id(self) or cache.versions!=self._versions():
+            raise ValueError("foreign or stale geometry cache")
+        q=q.to(device=cache.latent.device,dtype=torch.float64) if isinstance(q,Tensor) else torch.tensor(np.asarray(q,dtype=np.float64),device=cache.latent.device)
+        single=q.ndim==1
+        if single:q=q[None]
+        if q.ndim!=2 or q.shape[1]!=10 or not torch.isfinite(q).all():
+            raise ValueError("q must be finite [Q,10]")
+        maxabs=q.abs().amax(-1,keepdim=True)
+        if (maxabs<=0).any():raise ValueError("zero quadric coefficient vector")
+        scaled=(q/maxabs)*cache.coordinate_scales
+        unit=scaled/torch.linalg.vector_norm(scaled,dim=-1,keepdim=True)
+        latent=cache.latent.expand(len(q),-1)
+        stats=cache.statistics.expand(len(q),-1)
+        features=torch.cat((latent,stats,unit.to(latent.dtype)),dim=-1)
+        logits=self.event_validity_head(features).squeeze(-1)
+        return logits[0] if single else logits
+
     def moments_and_jacobian(self,cache,q,*,create_graph=False):
         with torch.enable_grad():
             value=q.to(device=cache.latent.device,dtype=torch.float64) if isinstance(q,Tensor) else torch.tensor(np.asarray(q,dtype=np.float64),device=cache.latent.device)
@@ -942,6 +982,7 @@ def load_model(path,device="cpu"):
     config.setdefault("multiscale_grids",(32,64,128))
     config.setdefault("convex_potential_enabled",False)
     config.setdefault("convex_potential_components",4)
+    config.setdefault("event_validity_head_enabled",False)
     if isinstance(config.get("multiscale_grids"),list):
         config["multiscale_grids"]=tuple(config["multiscale_grids"])
     model=PcraftNativeMomentOperator(NativePCRAFTConfig(**config))
