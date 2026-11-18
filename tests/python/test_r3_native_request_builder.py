@@ -38,11 +38,13 @@ class R3NativeRequestBuilderTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
             task=root/"task.json";task.write_text('{"task_hash":"t"}')
+            pin=root/"pin.obj";pin.write_bytes(b"pin")
             mesh=root/"mesh.npz";np.savez(mesh,vertices=np.ones((4,3)),faces=np.array([[0,1,2],[0,1,3],[0,2,3],[1,2,3]]))
             m={"schema":SCHEMA,"case_id":"c","geometry_hash":"g","task_hash":"t",
               "task_record":"task.json","task_record_sha256":sha(task),
               "outer_mesh_file":"mesh.npz","outer_mesh_sha256":sha(mesh),"outer_vertices_key":"vertices","outer_faces_key":"faces",
               "design_mesh_file":"mesh.npz","design_mesh_sha256":sha(mesh),"design_vertices_key":"vertices","design_faces_key":"faces",
+              "pin_support_file":"pin.obj","pin_support_sha256":sha(pin),
               "request_fields":{},"semantic_review":{"status":"reviewed","reviewer":"h","source_reference":"r"}}
             p=root/"m.json";p.write_text(json.dumps(m))
             with self.assertRaisesRegex(ValueError,"request_fields missing"):build_request(p)
