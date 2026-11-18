@@ -40,6 +40,42 @@ def _request(payload: dict) -> SpinItFasterRequest:
     d["settings"]=SpinSolverConfig(**settings)
     return SpinItFasterRequest(**d)
 
+def validate_native_replay_inputs(request_payload, init, evaluator_payload):
+    if init.equation_profile != "dual_monomial_raw_v1":
+        raise ValueError("native full-rank replay requires dual_monomial_raw_v1 profile")
+    if init.mode != "spinning_top":
+        raise ValueError("R3 replay currently admits only spinning_top mode")
+    for key, expected in (("geometry_hash", init.geometry_hash), ("task_hash", init.task_hash)):
+        if request_payload.get(key) != expected:
+            raise ValueError(f"request {key} does not match initialization provenance")
+    if not request_payload.get("case_id"):
+        raise ValueError("request must bind a nonempty case_id")
+    request = _request(request_payload)
+    if request.mode != "SPINNING_TOP":
+        raise ValueError("request mode must be SPINNING_TOP")
+    if request.settings.equation_profile != "DUAL_MONOMIAL_RAW_V1":
+        raise ValueError("request must use DUAL_MONOMIAL_RAW_V1")
+    if not request.settings.capture_evaluation_payload:
+        raise ValueError("capture_evaluation_payload must be true for R3 replay")
+    checks = {
+        "maximum_function_evaluations_per_restart": init.maximum_function_evaluations_per_restart,
+        "equation_tolerance": init.equation_tolerance,
+        "physical_relative_tolerance": init.physical_relative_tolerance,
+        "deterministic_seed": init.deterministic_seed,
+        "maximum_iterations": init.maximum_iterations,
+        "maximum_restarts": init.maximum_restarts,
+    }
+    for field, expected in checks.items():
+        actual = getattr(request.settings, field)
+        if actual != expected:
+            raise ValueError(f"request {field} differs from initialization record")
+    evaluator_identity = evaluator_payload.get("evaluator_identity")
+    evaluator_settings_payload = evaluator_payload.get("settings", evaluator_payload)
+    if evaluator_identity is not None and evaluator_identity != init.evaluator_identity:
+        raise ValueError("evaluator identity differs from initialization record")
+    evaluator = SpinEvaluatorConfig(**evaluator_settings_payload)
+    return request, evaluator
+
 def run_replay(request_path, initialization_path, evaluator_path, output_path):
     request_path,init_path=Path(request_path),Path(initialization_path)
     request_envelope=json.loads(request_path.read_text())
@@ -50,32 +86,8 @@ def run_replay(request_path, initialization_path, evaluator_path, output_path):
         request_payload=request_envelope
     init_payload=json.loads(init_path.read_text())
     init=FasterInitialization.from_dict(init_payload)
-    if init.equation_profile!="dual_monomial_raw_v1":
-        raise ValueError("native full-rank replay requires dual_monomial_raw_v1 profile")
-    if init.mode!="spinning_top":
-        raise ValueError("R3 replay currently admits only spinning_top mode")
-    for key,expected in (("geometry_hash",init.geometry_hash),("task_hash",init.task_hash)):
-        if request_payload.get(key)!=expected:
-            raise ValueError(f"request {key} does not match initialization provenance")
-    if not request_payload.get("case_id"):
-        raise ValueError("request must bind a nonempty case_id")
-    request=_request(request_payload)
-    if request.mode!="SPINNING_TOP":
-        raise ValueError("request mode must be SPINNING_TOP")
-    if request.settings.equation_profile!="DUAL_MONOMIAL_RAW_V1":
-        raise ValueError("request must use DUAL_MONOMIAL_RAW_V1")
-    if not request.settings.capture_evaluation_payload:
-        raise ValueError("capture_evaluation_payload must be true for R3 replay")
-    if request.settings.maximum_function_evaluations_per_restart!=init.maximum_function_evaluations_per_restart:
-        raise ValueError("request function-evaluation budget differs from initialization record")
-    if abs(request.settings.equation_tolerance-init.equation_tolerance)>0 or abs(request.settings.physical_relative_tolerance-init.physical_relative_tolerance)>0:
-        raise ValueError("request tolerances differ from initialization record")
-    if request.settings.deterministic_seed!=init.deterministic_seed:
-        raise ValueError("request seed differs from initialization record")
-    if request.settings.maximum_iterations!=init.maximum_iterations or request.settings.maximum_restarts!=init.maximum_restarts:
-        raise ValueError("request solver budgets differ from initialization record")
     evaluator_payload=json.loads(Path(evaluator_path).read_text())
-    evaluator=SpinEvaluatorConfig(**evaluator_payload)
+    request, evaluator = validate_native_replay_inputs(request_payload, init, evaluator_payload)
     initial=[list(x) for x in init.initial_guesses]
     result=solve_spin_it_faster_fullrank_quadric(request,initial_quadrics=initial,evaluator_settings=evaluator)
     raw=_jsonable(result)
