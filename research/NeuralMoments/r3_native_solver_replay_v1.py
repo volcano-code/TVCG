@@ -5,7 +5,8 @@ Python facade backed by the native pybind C++ solver, and writes a provenance-
 bound replay bundle. It does not emulate Newton in Python.
 """
 from __future__ import annotations
-import argparse, dataclasses, hashlib, json
+import argparse, dataclasses, hashlib, json, os, platform, socket, uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 import numpy as np
@@ -79,7 +80,7 @@ def validate_native_replay_inputs(request_payload, init, evaluator_payload):
     return request, evaluator
 
 def run_replay(request_path, initialization_path, evaluator_path, output_path, admission_path):
-    request_path,init_path=Path(request_path),Path(initialization_path)
+    run_receipt={"run_id":str(uuid.uuid4()),"started_at_utc":datetime.now(timezone.utc).isoformat(),\n      "host":socket.gethostname(),"platform":platform.platform(),"python":platform.python_version(),\n      "pid":os.getpid()}\n    request_path,init_path=Path(request_path),Path(initialization_path)
     request_envelope=json.loads(request_path.read_text())
     if request_envelope.get("schema")=="tvcg.r3.native-request.v1":
         request_payload=request_envelope.get("request")
@@ -95,7 +96,7 @@ def run_replay(request_path, initialization_path, evaluator_path, output_path, a
     initial=[list(x) for x in init.initial_guesses]
     result=solve_spin_it_faster_fullrank_quadric(request,initial_quadrics=initial,evaluator_settings=evaluator)
     raw=_jsonable(result)
-    result_acceptance=validate_native_result(raw)
+    run_receipt["finished_at_utc"]=datetime.now(timezone.utc).isoformat()\n    result_acceptance=validate_native_result(raw)
     events=raw["events"]
     for e in events:
         e["type"]=str(e["type"]).lower()
@@ -124,7 +125,7 @@ def run_replay(request_path, initialization_path, evaluator_path, output_path, a
       "quadric_coefficients":raw["quadric_coefficients"],
       "request_sha256":_sha(request_path),"request_envelope_schema":request_envelope.get("schema"),
       "physical_admission":admission_validation,"result_acceptance":result_acceptance,
-      "moment_metadata":request_envelope.get("moment_metadata"),"initialization_record_sha256":_sha(init_path),
+      "moment_metadata":request_envelope.get("moment_metadata"),"run_receipt":run_receipt,\n      "initialization_record_sha256":_sha(init_path),
       "evaluator_config_sha256":_sha(Path(evaluator_path)),
     }
     validation=validate_ledger(ledger)
