@@ -27,7 +27,7 @@ def _moments(record):
 
 def verify_spinning_top_constraints(record, task_frame, tolerances, *, expected_geometry_hash=None):
     required=("case_id","source_geometry_hash","coordinate_frame","length_unit",
-      "meters_per_unit","density","geometric_volume_m3","density_source","tetrahedra_sha256")
+      "meters_per_unit","density","geometric_volume_m3","density_source","tetrahedra_sha256","backend_sha256")
     missing=[k for k in required if k not in record]
     if missing: raise ValueError("independent record missing: "+", ".join(missing))
     if expected_geometry_hash is not None and record["source_geometry_hash"]!=expected_geometry_hash:
