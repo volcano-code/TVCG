@@ -16,6 +16,7 @@ from make_it_stand.spin import (
 )
 from r3_faster_initialization_v1 import FasterInitialization
 from r3_solver_event_ledger_v1 import SCHEMA as LEDGER_SCHEMA, validate_ledger
+from r3_replay_admission_guard_v1 import validate_replay_admission
 
 def _jsonable(x: Any):
     if dataclasses.is_dataclass(x): return {k:_jsonable(v) for k,v in dataclasses.asdict(x).items()}
@@ -76,7 +77,7 @@ def validate_native_replay_inputs(request_payload, init, evaluator_payload):
     evaluator = SpinEvaluatorConfig(**evaluator_settings_payload)
     return request, evaluator
 
-def run_replay(request_path, initialization_path, evaluator_path, output_path):
+def run_replay(request_path, initialization_path, evaluator_path, output_path, admission_path):
     request_path,init_path=Path(request_path),Path(initialization_path)
     request_envelope=json.loads(request_path.read_text())
     if request_envelope.get("schema")=="tvcg.r3.native-request.v1":
@@ -87,6 +88,8 @@ def run_replay(request_path, initialization_path, evaluator_path, output_path):
     init_payload=json.loads(init_path.read_text())
     init=FasterInitialization.from_dict(init_payload)
     evaluator_payload=json.loads(Path(evaluator_path).read_text())
+    admission_payload=json.loads(Path(admission_path).read_text())
+    admission_validation=validate_replay_admission(request_envelope,init,admission_payload,evaluator_path)
     request, evaluator = validate_native_replay_inputs(request_payload, init, evaluator_payload)
     initial=[list(x) for x in init.initial_guesses]
     result=solve_spin_it_faster_fullrank_quadric(request,initial_quadrics=initial,evaluator_settings=evaluator)
@@ -117,7 +120,8 @@ def run_replay(request_path, initialization_path, evaluator_path, output_path):
       "independent_total_raw_moments":raw["independent_total_raw_moments"],
       "final_geometry_hash":raw["final_geometry_hash"],
       "quadric_coefficients":raw["quadric_coefficients"],
-      "request_sha256":_sha(request_path),"request_envelope_schema":request_envelope.get("schema"),"initialization_record_sha256":_sha(init_path),
+      "request_sha256":_sha(request_path),"request_envelope_schema":request_envelope.get("schema"),
+      "physical_admission":admission_validation,"initialization_record_sha256":_sha(init_path),
       "evaluator_config_sha256":_sha(Path(evaluator_path)),
     }
     validation=validate_ledger(ledger)
@@ -132,6 +136,6 @@ def run_replay(request_path, initialization_path, evaluator_path, output_path):
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("--request",required=True);p.add_argument("--initialization",required=True)
-    p.add_argument("--evaluator",required=True);p.add_argument("--output",required=True)
-    a=p.parse_args();print(json.dumps(run_replay(a.request,a.initialization,a.evaluator,a.output),indent=2))
+    p.add_argument("--evaluator",required=True);p.add_argument("--admission",required=True);p.add_argument("--output",required=True)
+    a=p.parse_args();print(json.dumps(run_replay(a.request,a.initialization,a.evaluator,a.output,a.admission),indent=2))
 if __name__=="__main__":main()
