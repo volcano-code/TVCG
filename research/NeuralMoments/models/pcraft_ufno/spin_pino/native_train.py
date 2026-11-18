@@ -283,7 +283,7 @@ def validate(model,corpus,device,amp,chunk,max_records=8,max_queries=256,split="
         raise ValueError(f"unknown validation split {split!r}")
     model.eval(); rows=[]; scores=[]; jac_scores=[]
     all_moment_query_rmse=[]; all_jacobian_query_rmse=[]
-    all_jacobian_symmetry_error=[]; all_jacobian_min_eigenvalue=[]
+    all_jacobian_symmetry_error=[]; all_jacobian_min_eigenvalue=[]; all_event_bce=[]; all_event_accuracy=[]; all_event_brier=[]
     selected=corpus.splits[split] if max_records is None else corpus.splits[split][:max_records]
     for row in selected:
         geometry,labels=corpus.get(row)
@@ -300,6 +300,20 @@ def validate(model,corpus,device,amp,chunk,max_records=8,max_queries=256,split="
         all_moment_query_rmse.extend(moment_query_rmse.detach().cpu().tolist())
         base_valid=np.asarray(labels["derivative_valid"][:n],dtype=bool)
         valid=derivative_supervision_mask(labels,np.arange(n),min_event_margin=min_event_margin,require_fd_audit=require_fd_audit,max_jacobian_error_bound=max_jacobian_error_bound)
+        event_metrics=None
+        if model.config.event_validity_head_enabled:
+            with torch.no_grad():
+                event_logits=model.predict_event_validity(cache,q)
+                event_target=torch.as_tensor(labels["derivative_valid"][:n].astype(np.float64),device=device,dtype=event_logits.dtype)
+                event_probability=torch.sigmoid(event_logits)
+                event_bce=torch.nn.functional.binary_cross_entropy_with_logits(event_logits,event_target)
+                event_accuracy=((event_probability>=.5)==event_target.bool()).to(torch.float64).mean()
+                event_brier=(event_probability-event_target).square().mean()
+            all_event_bce.append(float(event_bce))
+            all_event_accuracy.append(float(event_accuracy))
+            all_event_brier.append(float(event_brier))
+            event_metrics=dict(bce=float(event_bce),accuracy=float(event_accuracy),brier=float(event_brier),
+                               positive_fraction=float(event_target.mean()))
         jl=None; jac_query_rmse=None; symmetry_query=None; min_eigen_query=None
         if valid.any():
             mask=torch.as_tensor(valid,device=device)
@@ -318,7 +332,7 @@ def validate(model,corpus,device,amp,chunk,max_records=8,max_queries=256,split="
             all_jacobian_min_eigenvalue.extend(min_eigen_query.detach().cpu().tolist())
         scores.append(float(ml.detach()))
         rows.append(dict(id=row["id"],group_id=row["group_id"],queries=n,
-            derivative_valid=int(valid.sum()),derivative_valid_before_event_gate=int(base_valid.sum()),derivative_masked_count=int(base_valid.sum()-valid.sum()),moment_scaled_mse=float(ml.detach()),
+            derivative_valid=int(valid.sum()),derivative_valid_before_event_gate=int(base_valid.sum()),derivative_masked_count=int(base_valid.sum()-valid.sum()),event_validity=event_metrics,moment_scaled_mse=float(ml.detach()),
             jacobian_scaled_mse=None if jl is None else float(jl.detach()),
             moment_query_rmse=_distribution_summary(moment_query_rmse.detach().cpu().numpy()),
             jacobian_query_rmse=None if jac_query_rmse is None else
@@ -328,7 +342,11 @@ def validate(model,corpus,device,amp,chunk,max_records=8,max_queries=256,split="
             jacobian_min_eigenvalue=None if min_eigen_query is None else
                 _distribution_summary(min_eigen_query.detach().cpu().numpy())))
     model.train()
-    return dict(split=split,derivative_gate=dict(min_event_margin=float(min_event_margin),require_fd_audit=bool(require_fd_audit),max_jacobian_error_bound=max_jacobian_error_bound),moment_scaled_mse=float(np.mean(scores)) if scores else None,
+    return dict(split=split,derivative_gate=dict(min_event_margin=float(min_event_margin),require_fd_audit=bool(require_fd_audit),max_jacobian_error_bound=max_jacobian_error_bound),
+        event_validity_bce=float(np.mean(all_event_bce)) if all_event_bce else None,
+        event_validity_accuracy=float(np.mean(all_event_accuracy)) if all_event_accuracy else None,
+        event_validity_brier=float(np.mean(all_event_brier)) if all_event_brier else None,
+        moment_scaled_mse=float(np.mean(scores)) if scores else None,
         jacobian_scaled_mse=float(np.mean(jac_scores)) if jac_scores else None,
         moment_query_rmse=_distribution_summary(all_moment_query_rmse),
         jacobian_query_rmse=_distribution_summary(all_jacobian_query_rmse),
@@ -448,7 +466,7 @@ def train(args):
         rng.bit_generator.state=saved["numpy_rng"]; torch.set_rng_state(saved["torch_rng"])
         if args.device.startswith("cuda"): torch.cuda.set_rng_state_all(saved["cuda_rng"])
     initial=validate(model,corpus,args.device,args.amp,args.chunk,args.val_max_records,args.val_max_queries,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound)
-    score=initial["moment_scaled_mse"]+args.jacobian_weight*(initial["jacobian_scaled_mse"] or 0.)
+    score=initial["moment_scaled_mse"]+args.jacobian_weight*(initial["jacobian_scaled_mse"] or 0.)+args.event_weight*(initial["event_validity_bce"] or 0.)
     if best_state is None: best_score=score; best_state={k:v.detach().cpu().clone() for k,v in model.state_dict().items()}
     start=perf_counter(); stop="step_budget"
     def save():
@@ -477,7 +495,7 @@ def train(args):
                             moment=float(ml.detach()),jacobian=float(jl.detach()),event=float(el.detach())))
         if step%args.val_every==0:
             val=validate(model,corpus,args.device,args.amp,args.chunk,args.val_max_records,args.val_max_queries,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound)
-            score=val["moment_scaled_mse"]+args.jacobian_weight*(val["jacobian_scaled_mse"] or 0.)
+            score=val["moment_scaled_mse"]+args.jacobian_weight*(val["jacobian_scaled_mse"] or 0.)+args.event_weight*(val["event_validity_bce"] or 0.)
             if score<best_score:
                 best_score,best_step=score,step
                 best_state={k:v.detach().cpu().clone() for k,v in model.state_dict().items()}
