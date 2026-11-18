@@ -50,9 +50,10 @@ def make_s9_chart(beta:Tensor,*,orthogonality_tolerance:float=1e-10)->S9Chart:
     if beta.shape!=(10,) or not torch.isfinite(beta).all():
         raise ValueError("beta must be finite [10]")
     anchor=beta/torch.linalg.vector_norm(beta)
-    # QR of projected coordinate axes. Choose the least-aligned coordinate
-    # as the omitted seed so the projected matrix remains well-conditioned.
-    omitted=int(torch.argmin(torch.abs(anchor)).detach())
+    # QR of projected coordinate axes. Omit the largest-magnitude coordinate:
+    # keeping nine axes that include the dominant component can collapse the
+    # projected span when a different anchor coordinate is exactly zero.
+    omitted=int(torch.argmax(torch.abs(anchor)).detach())
     seed=torch.eye(10,device=beta.device,dtype=beta.dtype)
     seed=seed[:,[i for i in range(10) if i!=omitted]]
     projected=seed-anchor[:,None]*(anchor@seed)[None,:]
