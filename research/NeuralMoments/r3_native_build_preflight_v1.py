@@ -174,7 +174,7 @@ def main():
     )
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\\n")
+    output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
     print(json.dumps(report, indent=2))
     raise SystemExit(0 if report["ok"] else 2)
 
