@@ -10,7 +10,7 @@ For each positively oriented tetrahedron T with vertices x_0..x_3 and volume V_T
 - integral_T x dV = V_T/4 * sum_i x_i
 - integral_T x x^T dV = V_T/20 * ((sum_i x_i)(sum_i x_i)^T + sum_i x_i x_i^T)
 
-Coordinates are converted to metres using explicit meters_per_unit before integration. Density is explicit and multiplies all ten raw mass moments. The order is (V,Lx,Ly,Lz,Qxx,Qyy,Qzz,Qyz,Qxz,Qxy), where Qij = integral rho*x_i*x_j dV.
+Coordinates are converted to metres using explicit meters_per_unit before integration. Density is explicit and multiplies all ten raw mass moments. The order is (M,LX,LY,LZ,QXX,QYY,QZZ,QYZ,QXZ,QXY), where Qij = integral rho*x_i*x_j dV.
 
 The backend rejects non-finite coordinates, degenerate tetrahedra, and negative signed orientation. It requires a source-backed tetrahedralization that represents exactly the retained material domain. Tetrahedralization provenance and mesh-to-tet equivalence remain an external admission requirement.
 
