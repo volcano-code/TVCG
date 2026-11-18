@@ -40,7 +40,7 @@ def build_request(manifest_path):
     required=("case_id","geometry_hash","task_hash","task_record","task_record_sha256",
       "outer_mesh_file","outer_mesh_sha256","outer_vertices_key","outer_faces_key",
       "design_mesh_file","design_mesh_sha256","design_vertices_key","design_faces_key",
-      "request_fields","semantic_review")
+      "pin_support_file","pin_support_sha256","request_fields","semantic_review")
     missing=[k for k in required if k not in m]
     if missing: raise ValueError("incomplete native request manifest: "+", ".join(missing))
     if not isinstance(m["semantic_review"],dict) or m["semantic_review"].get("status")!="reviewed":
@@ -49,7 +49,7 @@ def build_request(manifest_path):
         if not m["semantic_review"].get(k): raise ValueError(f"semantic_review.{k} required")
     files={}
     for path_key,hash_key in (("task_record","task_record_sha256"),
-       ("outer_mesh_file","outer_mesh_sha256"),("design_mesh_file","design_mesh_sha256")):
+       ("outer_mesh_file","outer_mesh_sha256"),("design_mesh_file","design_mesh_sha256"),("pin_support_file","pin_support_sha256")):
         fp=root/m[path_key]
         if not fp.is_file(): raise FileNotFoundError(fp)
         actual=sha256(fp)
