@@ -40,7 +40,8 @@ def build_request(manifest_path):
     required=("case_id","geometry_hash","task_hash","task_record","task_record_sha256",
       "outer_mesh_file","outer_mesh_sha256","outer_vertices_key","outer_faces_key",
       "design_mesh_file","design_mesh_sha256","design_vertices_key","design_faces_key",
-      "pin_support_file","pin_support_sha256","request_fields","semantic_review")
+      "pin_support_file","pin_support_sha256","request_fields","semantic_review",
+      "moment_metadata")
     missing=[k for k in required if k not in m]
     if missing: raise ValueError("incomplete native request manifest: "+", ".join(missing))
     if not isinstance(m["semantic_review"],dict) or m["semantic_review"].get("status")!="reviewed":
@@ -59,7 +60,18 @@ def build_request(manifest_path):
     if task.get("task_hash")!=m["task_hash"]: raise ValueError("TaskSpec hash mismatch")
     outer_v,outer_f=mesh_npz(root/m["outer_mesh_file"],m["outer_vertices_key"],m["outer_faces_key"])
     design_v,design_f=mesh_npz(root/m["design_mesh_file"],m["design_vertices_key"],m["design_faces_key"])
+    moment_metadata=dict(m["moment_metadata"])
+    metadata_required=("coordinate_frame","length_unit","meters_per_unit","density","moment_order")
+    missing_metadata=[k for k in metadata_required if k not in moment_metadata]
+    if missing_metadata: raise ValueError("moment_metadata missing: "+", ".join(missing_metadata))
+    if moment_metadata["moment_order"] != ["V","Lx","Ly","Lz","Qxx","Qyy","Qzz","Qyz","Qxz","Qxy"]:
+        raise ValueError("moment_metadata moment_order mismatch")
+    for key in ("meters_per_unit","density"):
+        value=float(moment_metadata[key])
+        if not math.isfinite(value) or value<=0: raise ValueError(f"moment_metadata.{key} must be positive finite")
     fields=dict(m["request_fields"])
+    if float(fields.get("material_density",0)) != float(moment_metadata["density"]):
+        raise ValueError("request material_density differs from moment_metadata density")
     required_fields=("fixed_shell_moments","target_origin","target_axes","mode","material_density",
       "original_units_per_normalized_unit","minimum_wall_thickness","spinning_top_objective","settings")
     missing_fields=[k for k in required_fields if k not in fields]
@@ -85,6 +97,7 @@ def build_request(manifest_path):
         raise ValueError("target frame must provide origin and three axes")
     return {"schema":"tvcg.r3.native-request.v1","request":request,
       "source_assets":files,"semantic_review":m["semantic_review"],
+      "moment_metadata":moment_metadata,
       "request_status":"assembled_unexecuted","native_execution":False}
 
 def main():
