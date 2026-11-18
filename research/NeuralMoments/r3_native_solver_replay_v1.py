@@ -42,7 +42,12 @@ def _request(payload: dict) -> SpinItFasterRequest:
 
 def run_replay(request_path, initialization_path, evaluator_path, output_path):
     request_path,init_path=Path(request_path),Path(initialization_path)
-    request_payload=json.loads(request_path.read_text())
+    request_envelope=json.loads(request_path.read_text())
+    if request_envelope.get("schema")=="tvcg.r3.native-request.v1":
+        request_payload=request_envelope.get("request")
+        if not isinstance(request_payload,dict): raise ValueError("native request envelope has no request object")
+    else:
+        request_payload=request_envelope
     init_payload=json.loads(init_path.read_text())
     init=FasterInitialization.from_dict(init_payload)
     if init.equation_profile!="dual_monomial_raw_v1":
@@ -100,7 +105,7 @@ def run_replay(request_path, initialization_path, evaluator_path, output_path):
       "independent_total_raw_moments":raw["independent_total_raw_moments"],
       "final_geometry_hash":raw["final_geometry_hash"],
       "quadric_coefficients":raw["quadric_coefficients"],
-      "request_sha256":_sha(request_path),"initialization_record_sha256":_sha(init_path),
+      "request_sha256":_sha(request_path),"request_envelope_schema":request_envelope.get("schema"),"initialization_record_sha256":_sha(init_path),
       "evaluator_config_sha256":_sha(Path(evaluator_path)),
     }
     validation=validate_ledger(ledger)
