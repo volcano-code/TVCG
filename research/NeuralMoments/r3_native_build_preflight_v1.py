@@ -9,12 +9,8 @@ from pathlib import Path
 from typing import Any
 
 SCHEMA = "tvcg.r3.native-build-preflight.v1"
-REQUIRED_NATIVE_SYMBOLS = (
-    "solve_spin_it_faster_fullrank_quadric",
-    "SpinItFasterRequest",
-    "SpinSolverConfig",
-    "SpinEvaluatorConfig",
-)
+REQUIRED_NATIVE_SYMBOLS = ("solve_spin_it_faster_fullrank_quadric",)
+REQUIRED_FACADE_SYMBOLS = ("SpinItFasterRequest", "SpinSolverConfig", "SpinEvaluatorConfig", "solve_spin_it_faster_fullrank_quadric")
 
 def sha256(path: Path) -> str:
     h=hashlib.sha256()
@@ -52,6 +48,14 @@ def run_preflight(*,build_dir=None,expected_commit=None,module_name="make_it_sta
           "module_name":module_name,"import_error":f"{type(exc).__name__}: {exc}",
           "build_configuration":{},"checks":{"extension_import":False}}
     info=inspect_native_module(module)
+    try:
+        facade=importlib.import_module("make_it_stand.spin")
+        facade_missing=[name for name in REQUIRED_FACADE_SYMBOLS if not hasattr(facade,name)]
+        facade_info={"module_file":str(getattr(facade,"__file__",None)),
+                     "missing_symbols":facade_missing,"available":not facade_missing}
+    except Exception as exc:
+        facade_info={"module_file":None,"missing_symbols":list(REQUIRED_FACADE_SYMBOLS),
+                     "available":False,"import_error":f"{type(exc).__name__}: {exc}"}
     config={}
     cache_path=None
     if build_dir:
@@ -68,6 +72,7 @@ def run_preflight(*,build_dir=None,expected_commit=None,module_name="make_it_sta
     checks={
       "extension_import":True,
       "required_native_symbols":info["native_api_available"],
+      "python_facade_available":facade_info["available"],
       "python_build_enabled":config.get("MAKE_IT_STAND_BUILD_PYTHON")=="ON" if config else None,
       "spin_it_faster_enabled":config.get("MAKE_IT_STAND_BUILD_SPIN_IT_FASTER")=="ON" if config else None,
       "expected_commit_match":None,
@@ -75,12 +80,12 @@ def run_preflight(*,build_dir=None,expected_commit=None,module_name="make_it_sta
     if expected_commit is not None:
         actual=os.environ.get("TVCG_SOURCE_COMMIT")
         checks["expected_commit_match"]=(actual==expected_commit) if actual else False
-    hard=[checks["extension_import"],checks["required_native_symbols"]]
+    hard=[checks["extension_import"],checks["required_native_symbols"],checks["python_facade_available"]]
     if config and not config.get("cmake_cache_missing"):
         hard.extend([checks["python_build_enabled"],checks["spin_it_faster_enabled"]])
     if expected_commit is not None: hard.append(checks["expected_commit_match"])
     return {"schema":SCHEMA,"ok":all(x is True for x in hard),
-      "native_api_available":info["native_api_available"],"module":info,
+      "native_api_available":info["native_api_available"],"module":info,"python_facade":facade_info,
       "build_dir":str(build_dir) if build_dir else None,"cmake_cache":cache_path,
       "build_configuration":config,"checks":checks,
       "scope":"native extension preflight only; no geometry admission or solver replay"}
