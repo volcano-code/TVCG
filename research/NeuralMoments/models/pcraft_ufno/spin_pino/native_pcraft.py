@@ -24,8 +24,9 @@ from torch.utils.checkpoint import checkpoint
 from .pino_backbone import PINOFeatureEncoder
 
 SCHEMA = "m80.pcraft-native-query.v5"
-SEMANTICS = "pcraft-ufno-native-interval-m72-bounded-odd-or-convex-potential-moment-head-ad-jacobian-optional-gno-transolver-multiscale.v5"
+SEMANTICS = "pcraft-ufno-native-interval-m72-bounded-odd-or-convex-potential-moment-head-ad-jacobian-optional-gno-transolver-multiscale-event-validity.v6"
 LEGACY_SCHEMAS = {
+    ("m80.pcraft-native-query.v5", "pcraft-ufno-native-interval-m72-bounded-odd-or-convex-potential-moment-head-ad-jacobian-optional-gno-transolver-multiscale.v5"),
     ("m80.pcraft-native-query.v1",
      "pcraft-ufno-map-sampled-native-interval-m72-bounded-odd-head-ad-jacobian.v1"),
     ("m80.pcraft-native-query.v2",
