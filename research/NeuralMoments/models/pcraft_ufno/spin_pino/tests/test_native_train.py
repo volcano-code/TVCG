@@ -86,7 +86,7 @@ def test_cpu_preflight_runs_real_pcraft_m72_backward_and_checkpoint_roundtrip(tm
     args=Namespace(device="cpu",amp="none",threads=1,seed=800071,preset="smoke",
         min_native_resolution=1,manifest=manifest,audit=audit,cache_mib=16.,
         batch_queries=2,chunk=16,learning_rate=3e-4,weight_decay=1e-4,
-        jacobian_weight=.05,gradient_clip=1.,min_event_margin=0.,require_fd_audit=False,max_jacobian_error_bound=None,out=tmp_path/"preflight.json")
+        jacobian_weight=.05,event_weight=.05,gradient_clip=1.,min_event_margin=0.,require_fd_audit=False,max_jacobian_error_bound=None,out=tmp_path/"preflight.json")
     report=preflight(args)
     assert report["status"]=="passed"
     assert report["native_intervals"]>0
@@ -179,9 +179,10 @@ def test_event_margin_and_fd_audit_are_applied_to_jacobian_training_loss(tmp_pat
     labels={"queries":q,"moments":np.zeros((2,10)),"jacobian":np.zeros((2,10,10)),
       "derivative_valid":np.asarray([True,True]),"event_margin":np.asarray([.2,0.]),
       "finite_difference_audit":np.asarray([True,True])}
-    _,_,derivative=loss_for_batch(model,cache,labels,np.arange(2),.05,"cpu",
+    _,_,derivative,event_loss=loss_for_batch(model,cache,labels,np.arange(2),.05,"cpu",
       min_event_margin=.01,require_fd_audit=True)
     # Only the first, event-regular query contributes to the Jacobian loss.
     pred,jac=model.moments_and_jacobian(cache,torch.tensor(q,dtype=torch.float64),create_graph=True)
     expected=(jac[0]/(cache.moment_scales[:,None]*cache.coordinate_scales[None,:])).square().mean()
     assert torch.allclose(derivative,expected)
+    assert float(event_loss)==0.0
