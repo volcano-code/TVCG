@@ -40,6 +40,10 @@ The bounded-odd moment head and convex-potential candidate both obtain the coeff
 
 The convex-potential PSD Jacobian property is a property of that specific convex-potential parameterization in smooth regions; it is not asserted as a universal property of the exact Spin-It Faster moment map. The bounded-odd head is not required to have a symmetric or PSD Jacobian.
 
+## Learned event-validity branch
+
+An opt-in `event_validity_head_enabled` branch is now available through the `xl_ms_gno_transolver_convex_event` preset. It predicts the teacher's `derivative_valid` label from the shared geometry latent, global statistics and normalized quadric query. The training loss uses BCE-with-logits with a separately configurable `--event-weight`; validation reports BCE, accuracy and Brier score. This is a derivative-validity risk classifier, not a complete taxonomy of geometric event types and not a substitute for teacher derivative validity or exact solver event checks. The earlier `xl_ms_gno_transolver_convex` preset remains unchanged for local compatibility.
+
 ## Uncertainty status
 
 The repository has ensemble spread and split-conformal calibration utilities. These are calibration tools, not a trained uncertainty head. A calibrated reliability gate still requires independently trained seeds, held-out geometry-group calibration, risk-coverage evaluation, and frozen model/data/calibration hashes.
@@ -47,6 +51,7 @@ The repository has ensemble spread and split-conformal calibration utilities. Th
 ## Not yet complete
 
 - A single top-level UG-PINO wrapper/checkpoint that jointly owns M80 and SQNO trainable branches.
+- The optional event-validity head requires trained calibration and threshold selection; no calibrated event gate is claimed.
 - SQNO joint trainer and matched-budget ablation against M80 alone.
 - Event classifier trained against explicit event labels (currently event-aware Jacobian label masking).
 - Calibrated ensemble with multiple trained seeds.
