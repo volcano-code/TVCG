@@ -12,3 +12,5 @@ Tests use controlled numerical fixtures only. They establish comparison semantic
 ## Canonical moment semantics correction
 
 The repository-native `physics::RawMassMoments10` convention is density-weighted and ordered `(M,LX,LY,LZ,QXX,QYY,QZZ,QYZ,QXZ,QXY)`. The first component is mass, not geometric volume. Geometric volume is tracked separately in m^3. The independent tetrahedral integrator, request metadata, and comparator have been aligned to this exact native order.
+
+The comparison also requires the independent record's TaskSpec hash and integrator source SHA-256; the TaskSpec hash must match the native replay ledger. The comparator fixture keeps native and independent arrays separately allocated to ensure perturbation tests genuinely exercise disagreement detection.
