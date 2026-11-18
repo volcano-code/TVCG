@@ -386,7 +386,7 @@ def test_convex_potential_head_is_scale_invariant_complementary_and_psd():
     assert torch.all(deviation.abs()<=.5*cache.absolute_moments+1e-9)
     assert torch.allclose(jac,jac.T,rtol=1e-7,atol=1e-8)
     eigenvalues=torch.linalg.eigvalsh((jac+jac.T)/2)
-    assert float(eigenvalues.min())>=-1e-7
+    assert float(eigenvalues.min().detach())>=-1e-7
     eps=2e-5; fd=torch.empty_like(jac)
     with torch.no_grad():
         for j in range(10):

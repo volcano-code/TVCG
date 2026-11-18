@@ -62,3 +62,6 @@ sdist.exclude = [
   "**/__pycache__/**",
   "**/*.py[cod]",
 ]
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
