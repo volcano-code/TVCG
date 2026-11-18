@@ -1,4 +1,4 @@
-import tempfile, unittest
+import tempfile, unittest, ast
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -7,7 +7,7 @@ from research.NeuralMoments.r3_native_build_preflight_v1 import (
 )
 
 class R3NativeBuildPreflightTests(unittest.TestCase):
-    def test_required_native_symbols(self):
+    def test_preflight_source_is_valid_python(self):\n        from pathlib import Path\n        source=Path("research/NeuralMoments/r3_native_build_preflight_v1.py").read_text()\n        ast.parse(source)\n\n    def test_required_native_symbols(self):
         fake=SimpleNamespace(**{name:object() for name in REQUIRED_NATIVE_SYMBOLS})
         fake.__name__="fake_native"
         self.assertTrue(inspect_native_module(fake)["native_api_available"])
