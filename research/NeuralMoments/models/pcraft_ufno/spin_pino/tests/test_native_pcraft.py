@@ -482,3 +482,34 @@ def test_maximal_ug_pino_preset_is_explicit_and_checkpoint_roundtrips(tmp_path):
     assert hasattr(restored,"transolver") and hasattr(restored,"gno_kernel")
     assert hasattr(restored,"convex_potential_head")
     assert restored.config.multiscale_grids==(32,64,128)
+
+
+def test_shared_geometry_cache_exports_interval_features_for_sqno_without_reencoding():
+    torch.manual_seed(83)
+    model=small_model().train()
+    geometry=small_geometry()
+    cache=model.encode(geometry,chunk=16,retain_interval_features=True)
+    features=model.export_shared_geometry_features(cache)
+    assert features["local_features"].shape==(cache.native_intervals,model.config.interval_width)
+    assert features["global_context"].shape==(model.config.interval_width,)
+    assert features["interval_mass"].shape==(cache.native_intervals,)
+    assert features["descriptor"].shape==(cache.native_intervals,13)
+    assert features["normalized_xyz"].shape==(cache.native_intervals,3)
+    assert features["geometry_id"]==cache.geometry_sha256
+    assert model.counters["encode_calls"]==1
+    features["local_features"].square().mean().backward()
+    assert any(p.grad is not None and torch.isfinite(p.grad).all()
+               for p in model.pino_encoder.parameters())
+
+
+def test_shared_geometry_cache_rejects_stale_or_missing_feature_payload():
+    model=small_model().eval()
+    geometry=small_geometry()
+    cache=model.encode(geometry,chunk=16)
+    with pytest.raises(ValueError,match="retain_interval_features"):
+        model.export_shared_geometry_features(cache)
+    retained=model.encode(geometry,chunk=16,retain_interval_features=True)
+    with torch.no_grad():
+        next(model.parameters()).add_(1e-3)
+    with pytest.raises(ValueError,match="stale"):
+        model.export_shared_geometry_features(retained)
