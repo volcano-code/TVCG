@@ -61,7 +61,7 @@ def derive_mass_properties(raw_moments):
 def integrate_from_manifest(manifest_path):
     p=Path(manifest_path); m=json.loads(p.read_text()); root=p.parent
     if m.get("schema")!=SCHEMA: raise ValueError("unsupported independent tetra moment schema")
-    required=("case_id","tetrahedra_file","tetrahedra_sha256","tetrahedra_key",
+    required=("case_id","task_hash","tetrahedra_file","tetrahedra_sha256","tetrahedra_key",
       "geometry_hash","coordinate_frame","length_unit","meters_per_unit","density","density_source")
     missing=[k for k in required if k not in m]
     if missing: raise ValueError("manifest missing: "+", ".join(missing))
@@ -75,7 +75,7 @@ def integrate_from_manifest(manifest_path):
     geometric_volume_m3=float(integrate_tetrahedra(t,density=1.0,meters_per_unit=m["meters_per_unit"])[0])
     raw=integrate_tetrahedra(t,density=m["density"],meters_per_unit=m["meters_per_unit"])
     props=derive_mass_properties(raw)
-    return {"schema":"tvcg.r3.independent-moment-record.v1","case_id":m["case_id"],
+    return {"schema":"tvcg.r3.independent-moment-record.v1","case_id":m["case_id"],"task_hash":m["task_hash"],
       "source_geometry_hash":m["geometry_hash"],"backend_identity":"independent_tetra_exact_v1",
       "backend_sha256":sha256_file(Path(__file__)),
       "tetrahedra_sha256":actual,"coordinate_frame":m["coordinate_frame"],
