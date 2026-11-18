@@ -53,7 +53,8 @@ def source_fingerprints():
     here=Path(__file__).resolve().parent
     parent=here.parent
     paths={"native_pcraft.py":here/"native_pcraft.py",
-           "native_train.py":here/"native_train.py",\n           "head_ablation.py":here/"head_ablation.py",
+           "native_train.py":here/"native_train.py",
+           "head_ablation.py":here/"head_ablation.py",
            "pino_backbone.py":here/"pino_backbone.py",
            "model.py":parent/"model.py",
            "sqno_v12_adapter.py":parent/"candidate_projects"/"quadrann_reproduction"/"spin_adapter"/"spin_quadrann_v12.py"}
