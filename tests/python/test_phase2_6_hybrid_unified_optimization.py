@@ -113,7 +113,7 @@ def test_hybrid_exact_oracle_requires_beta_and_psi_and_is_independent():
               "event_valid":True,"source":"synthetic-independent-hybrid-oracle"}
     result=evaluate_exact_hybrid_candidate(
       beta,psi,exact_material_oracle=oracle,
-      original_moments=problem.original_moments,task=TASK,length_scale=2.
+      original_moments=problem.original_moments,task=problem.task,length_scale=2.
     )
     assert calls["n"]==1
     assert result.source=="synthetic-independent-hybrid-oracle"
