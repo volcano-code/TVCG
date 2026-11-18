@@ -69,13 +69,16 @@ def derive_spinning_top_physics(raw_moments,density):
 
 def verify_independent_moments(native_raw_moments,independent_record,*,density,
                                moment_relative_tolerance=1e-8,
-                               physical_constraint_tolerance=1e-6):
+                               physical_constraint_tolerance=1e-6,
+                               expected_geometry_hash=None):
     independent=_finite_vector(independent_record["raw_moments"],10,"independent raw_moments")
     native=_finite_vector(native_raw_moments,10,"native raw_moments")
     if independent_record.get("moment_order")!=list(MOMENT_ORDER):
         raise ValueError("independent record moment_order does not match canonical order")
     if not independent_record.get("backend_identity") or not independent_record.get("source_geometry_hash"):
         raise ValueError("independent record must bind backend_identity and source_geometry_hash")
+    if expected_geometry_hash is not None and independent_record["source_geometry_hash"] != expected_geometry_hash:
+        raise ValueError("independent moment geometry hash does not match replay input geometry")
     diffs=[abs(a-b) for a,b in zip(native,independent)]
     rel=[d/max(1.0,abs(a),abs(b)) for d,a,b in zip(diffs,native,independent)]
     physics=derive_spinning_top_physics(independent,density)
@@ -101,7 +104,8 @@ def main():
         n=json.loads(Path(a.native).read_text()); i=json.loads(Path(a.independent).read_text())
         raw=n.get("native_result",n).get("final_total_raw_moments")
         if raw is None: raise ValueError("native replay bundle lacks final_total_raw_moments")
-        result=verify_independent_moments(raw,i,density=a.density)
+        expected=n.get("ledger",{}).get("geometry_hash")
+        result=verify_independent_moments(raw,i,density=a.density,expected_geometry_hash=expected)
     out=Path(a.output); out.parent.mkdir(parents=True,exist_ok=True)
     out.write_text(json.dumps(result,indent=2,sort_keys=True,allow_nan=False)+"\n")
     print(json.dumps(result,indent=2))
