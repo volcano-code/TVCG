@@ -38,6 +38,9 @@ class R3DoubleReplayAuditTests(unittest.TestCase):
         self.assertTrue(r["double_replay_pass"])
         self.assertTrue(r["native_replay_scientific_match"])
         self.assertTrue(r["distinct_native_execution_ids"])
+    def test_evaluator_config_mismatch_rejected(self):
+        x=evidence();x["replay_b"]["ledger"]["evaluator_config_sha256"]="other"
+        with self.assertRaisesRegex(ValueError,"evaluator_config_sha256"):audit_double_replay(x)
     def test_same_run_id_rejected(self):
         x=evidence();x["replay_b"]["ledger"]["run_receipt"]["run_id"]="run-a"
         with self.assertRaisesRegex(ValueError,"distinct"):audit_double_replay(x)
