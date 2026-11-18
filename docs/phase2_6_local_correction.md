@@ -93,3 +93,63 @@ GitHub Actions run `44242728144` passed all stages on the Round 1 code revision:
 - actual M80 integration regression: 7 passed.
 
 Total: **23 CPU tests passed**. The local correction suite includes finite-difference checks for selected columns of both (J_\beta) and (J_\psi), plus regularization gradient validation. This is software and synthetic quadrature evidence only, not a trained M80 or real 512³ physical result.
+
+
+## 10. Phase 2.6 Round 2 — Hybrid Unified Optimization
+
+Round 2 does not replace the M80 global operator. It makes Local Correction a residual material-response degree of freedom inside the same optimization state.
+
+Let \(M_{80}(\beta;\phi_G,q)\) denote the existing geometry/task-conditioned M80 Moment operator. Let \(M_L(\beta,\psi)\) and \(M_L(\beta,0)\) be the local-field quadrature moments for the same registered geometry. The hybrid surrogate is defined as
+
+\[
+M_H(\beta,\psi)
+=
+M_{80}(\beta)
++
+\left[M_L(\beta,\psi)-M_L(\beta,0)\right].
+\]
+
+Therefore
+
+\[
+M_H(\beta,0)=M_{80}(\beta),
+\]
+
+which is an explicit zero-correction identity rather than an informal comparison.
+
+The optimization state is
+
+\[
+z=(\xi,\psi),\qquad
+\beta=\operatorname{S9Decode}(\xi),
+\]
+
+where \(\xi\in\mathbb R^9\) is the existing projective Quadric chart and \(\psi\in\mathbb R^K\) are local correction coefficients. The single differentiable operator now exposes
+
+\[
+\frac{\partial M_H}{\partial\xi},
+\qquad
+\frac{\partial M_H}{\partial\psi},
+\]
+
+to the same M69 KKT construction. Neural Newton sees the augmented primal dimension \(9+K\); it does not use a separate optimizer for Local Correction.
+
+### Exact boundary
+
+The learned/hybrid operator is only a proposal mechanism. Exact acceptance receives both \((\beta,\psi)\) and must return exact ten-dimensional moments plus connectivity, topology and event validity. The exact oracle is never replaced by the learned Moment prediction.
+
+### Evidence boundary
+
+Round 2 proves the software contract and differentiable coupling on synthetic quadrature fixtures. It does **not** yet prove a lower exact minimum mass, 512³ physical optimality, or end-to-end speedup. Those require the registered M69 geometry/material oracle and a controlled Pure-Quadric-vs-Hybrid experiment.
+
+### Round 2 tests
+
+The CI now checks:
+- exact \(\psi=0\) identity to the M80 baseline;
+- joint beta/local Jacobian finiteness;
+- augmented KKT dimension \(9+K\);
+- independent exact oracle requiring both \(\beta\) and \(\psi\);
+- exact-oracle evaluation counting;
+- immutable fixed/protected samples.
+
+This keeps Phase 2.6 faithful to its role as a **Hybrid Ablation**, rather than silently turning Local Correction into a second serial optimizer.
