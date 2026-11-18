@@ -177,7 +177,7 @@ def test_event_margin_and_fd_audit_are_applied_to_jacobian_training_loss(tmp_pat
     q=np.asarray([[0.,1.,0,0,0,0,0,0,0,0],
                   [0.,0,1.,0,0,0,0,0,0,0]],dtype=np.float64)
     labels={"queries":q,"moments":np.zeros((2,10)),"jacobian":np.zeros((2,10,10)),
-      "derivative_valid":np.asarray([True,True]),"event_margin":np.asarray([.2,0.]),
+      "derivative_valid":np.asarray([True,True]),"event_valid":np.asarray([True,False],dtype=bool),"event_margin":np.asarray([.2,0.]),
       "finite_difference_audit":np.asarray([True,True])}
     _,_,derivative,event_loss=loss_for_batch(model,cache,labels,np.arange(2),.05,"cpu",
       min_event_margin=.01,require_fd_audit=True)
