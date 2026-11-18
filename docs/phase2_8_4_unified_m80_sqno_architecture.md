@@ -68,3 +68,20 @@ loss balancing, matched multi-seed Moment Head selection, real-geometry OOD,
 256^3/512^3 memory and throughput, and independent exact-solver correction.
 The global scalar fusion is an integration baseline, not the final advanced
 fusion mechanism.
+
+
+## Local test environment
+
+The SQNO adapter tests import the package as `spin_adapter`. Therefore
+`PYTHONPATH` must include the package's **parent** directory
+(`quadrann_reproduction`), not the `spin_adapter` directory itself:
+
+```bash
+export ADAPTER_PARENT="$PWD/research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction"
+export PYTHONPATH="$PWD:$ADAPTER_PARENT"
+```
+
+The SQNO GNN imports `torch_scatter`. Install its wheel matching the
+installed PyTorch and CUDA build; do not install a random wheel or rebuild
+PyTorch. The official PyG wheel matrix is documented at
+https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html .
