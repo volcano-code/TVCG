@@ -646,5 +646,3 @@ def test_convex_head_psd_is_parameterization_property_not_global_head_contract()
     # The bounded-odd head has no imposed Hessian/PSD contract; only require
     # a finite, independently differentiable Jacobian.
     assert torch.isfinite(jb).all()
-    assert not torch.allclose(jb,jb.T,rtol=1e-4,atol=1e-5) or float(
-        torch.linalg.eigvalsh(.5*(jb+jb.T)).min()) < -1e-7
