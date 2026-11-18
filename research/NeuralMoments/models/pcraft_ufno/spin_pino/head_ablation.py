@@ -26,7 +26,9 @@ def assert_matched_backbones():
 def build_plan(manifest,audit,output,seeds=SEEDS,min_queries=256,min_train_groups=50,
                min_val_groups=7,min_test_groups=10,max_steps=3000,max_seconds=86400,
                device="cuda:0",amp="bf16",batch_queries=64,learning_rate=3e-4,
-               weight_decay=1e-4,jacobian_weight=.05):
+               weight_decay=1e-4,jacobian_weight=.05,gradient_clip=1.0,
+               chunk=2048,min_native_resolution=512,threads=1,cache_mib=512,
+               val_every=20,save_every=25,val_max_records=8,val_max_queries=256):
     seeds=tuple(int(s) for s in seeds)
     if len(seeds)<3 or len(set(seeds))!=len(seeds) or min(seeds)<0: raise ValueError("need >=3 unique nonnegative seeds")
     if min_queries<1 or max_steps<1 or max_seconds<=0: raise ValueError("invalid data/training budget")
@@ -44,8 +46,10 @@ def build_plan(manifest,audit,output,seeds=SEEDS,min_queries=256,min_train_group
        "matched_configs":trunk,"source_fingerprints":source_fingerprints(),"seeds":list(seeds),
        "training":{"optimizer":"AdamW","max_steps":max_steps,"max_seconds":max_seconds,
        "device":device,"amp":amp,"batch_queries":batch_queries,"learning_rate":learning_rate,
-       "weight_decay":weight_decay,"jacobian_weight":jacobian_weight,
-       "selection":"best validation checkpoint; test split not used"}}
+       "weight_decay":weight_decay,"jacobian_weight":jacobian_weight,"gradient_clip":gradient_clip,
+       "chunk":chunk,"min_native_resolution":min_native_resolution,"threads":threads,"cache_mib":cache_mib,
+       "val_every":val_every,"save_every":save_every,"val_max_records":val_max_records,
+       "val_max_queries":val_max_queries,"selection":"best validation checkpoint; test split not used"}}
     p["fingerprint"]=_hash(p)
     out=Path(output); out.mkdir(parents=True,exist_ok=True)
     (out/"plan.json").write_text(json.dumps(p,indent=2,sort_keys=True,allow_nan=False)+"\n")
@@ -58,6 +62,11 @@ def run_plan(plan_path,manifest,audit,output,min_queries=256,min_native_resoluti
         raise ValueError("plan fingerprint/schema mismatch")
     corpus=M72Corpus(manifest,audit,grid_size=64,min_queries=min_queries)
     if corpus.doc["fingerprint"]!=p["dataset"]["fingerprint"]: raise ValueError("corpus differs from admitted plan")
+    expected_mins=p["minimum_source_groups"]
+    if (min_queries!=p["query_coverage"]["required"] or min_train_groups!=expected_mins["train"]
+            or min_val_groups!=expected_mins["val"] or min_test_groups!=expected_mins["test"]
+            or min_native_resolution!=p["training"]["min_native_resolution"]):
+        raise ValueError("run arguments differ from the admitted experiment plan")
     if source_fingerprints()!=p["source_fingerprints"]:
         raise ValueError("source code changed after plan admission; create a new plan")
     out=Path(output); out.mkdir(parents=True,exist_ok=True); runs=[]
@@ -74,7 +83,10 @@ def run_plan(plan_path,manifest,audit,output,min_queries=256,min_native_resoluti
             cmd=[sys.executable,"-m","research.NeuralMoments.models.pcraft_ufno.spin_pino.native_train","train",
              "--manifest",str(Path(manifest).resolve()),"--audit",str(Path(audit).resolve()),"--out",str(d),
              "--preset",preset,"--device",t["device"],"--amp",t["amp"],"--seed",str(seed),
-             "--threads",str(threads),"--cache-mib",str(cache_mib),"--min-native-resolution",str(min_native_resolution),
+             "--threads",str(t["threads"]),"--cache-mib",str(t["cache_mib"]),"--chunk",str(t["chunk"]),
+             "--min-native-resolution",str(t["min_native_resolution"]),"--gradient-clip",str(t["gradient_clip"]),
+             "--val-every",str(t["val_every"]),"--save-every",str(t["save_every"]),
+             "--val-max-records",str(t["val_max_records"]),"--val-max-queries",str(t["val_max_queries"]),
              "--batch-queries",str(t["batch_queries"]),"--learning-rate",str(t["learning_rate"]),
              "--weight-decay",str(t["weight_decay"]),"--jacobian-weight",str(t["jacobian_weight"]),
              "--max-steps",str(t["max_steps"]),"--max-seconds",str(t["max_seconds"]),
@@ -153,6 +165,11 @@ def main():
     q.add_argument("--min-test-groups",type=int,default=10); q.add_argument("--max-steps",type=int,default=3000)
     q.add_argument("--max-seconds",type=float,default=86400); q.add_argument("--device",default="cuda:0")
     q.add_argument("--amp",choices=("bf16","none"),default="bf16"); q.add_argument("--batch-queries",type=int,default=64)
+    q.add_argument("--gradient-clip",type=float,default=1.0); q.add_argument("--chunk",type=int,default=2048)
+    q.add_argument("--min-native-resolution",type=int,default=512); q.add_argument("--threads",type=int,default=1)
+    q.add_argument("--cache-mib",type=float,default=512); q.add_argument("--val-every",type=int,default=20)
+    q.add_argument("--save-every",type=int,default=25); q.add_argument("--val-max-records",type=int,default=8)
+    q.add_argument("--val-max-queries",type=int,default=256)
     q=sub.add_parser("run")
     for n in ("plan","manifest","audit","output"): q.add_argument("--"+n,required=True)
     q.add_argument("--min-queries",type=int,default=256); q.add_argument("--min-native-resolution",type=int,default=512)
@@ -164,7 +181,10 @@ def main():
     if a.cmd=="plan":
         build_plan(a.manifest,a.audit,a.output,[int(x) for x in a.seeds.split(",") if x],
           a.min_queries,a.min_train_groups,a.min_val_groups,a.min_test_groups,a.max_steps,a.max_seconds,
-          a.device,a.amp,a.batch_queries)
+          a.device,a.amp,a.batch_queries,gradient_clip=a.gradient_clip,chunk=a.chunk,
+          min_native_resolution=a.min_native_resolution,threads=a.threads,cache_mib=a.cache_mib,
+          val_every=a.val_every,save_every=a.save_every,val_max_records=a.val_max_records,
+          val_max_queries=a.val_max_queries)
     elif a.cmd=="run":
         run_plan(a.plan,a.manifest,a.audit,a.output,a.min_queries,a.min_native_resolution,
           a.min_train_groups,a.min_val_groups,a.min_test_groups)
