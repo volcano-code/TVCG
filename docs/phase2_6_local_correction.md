@@ -153,3 +153,18 @@ The CI now checks:
 - immutable fixed/protected samples.
 
 This keeps Phase 2.6 faithful to its role as a **Hybrid Ablation**, rather than silently turning Local Correction into a second serial optimizer.
+
+
+## 11. Round 2 CI evidence and audit fix
+
+GitHub Actions run \`44244169573\` passed the full Phase 2.6 CPU workflow:
+- checkpoint contract: 7 passed;
+- Round 1 Local Correction: 9 passed;
+- Round 2 Hybrid Unified Optimization: 6 passed;
+- existing M80 integration regression: 7 passed.
+
+Total: **29 CPU tests passed**.
+
+During R2 validation we found and fixed a real edge case in the existing S9 chart: when a Quadric anchor contains zero coordinates, omitting a zero-magnitude coordinate can make the projected coordinate basis rank-deficient. The chart now omits the largest-magnitude anchor coordinate, preserving a full-rank tangent basis. This is a numerical robustness fix, not a relaxation of the KKT event rules.
+
+The R2 synthetic exact-oracle tests deliberately use a relaxed TaskSpec for contract validation so that the test isolates the oracle interface rather than claiming a physical optimum. The production M69 TaskSpec remains unchanged and must be used for the eventual Pure-Quadric-vs-Hybrid ablation.
