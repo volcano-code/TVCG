@@ -114,6 +114,12 @@ PRESETS = {
                                  multiscale_enabled=True, multiscale_grids=(32,64,128),
                                  gno_enabled=True, gno_neighbors=8, gno_topology_filter=True,
                                  transolver_enabled=True, transolver_slices=32, transolver_heads=8),
+    "xl_ms_gno_transolver_convex": dict(grid_size=64, pino_width=32, pino_modes=12, pino_layers=6,
+                                          interval_width=192, interval_depth=4, chunk_intervals=512,
+                                          multiscale_enabled=True, multiscale_grids=(32,64,128),
+                                          gno_enabled=True, gno_neighbors=8, gno_topology_filter=True,
+                                          transolver_enabled=True, transolver_slices=32, transolver_heads=8,
+                                          convex_potential_enabled=True, convex_potential_components=8),
 }
 
 
