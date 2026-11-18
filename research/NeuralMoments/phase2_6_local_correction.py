@@ -153,3 +153,60 @@ def validate_local_correction_contract(contract:Mapping[str,bool])->None:
     if missing: raise ValueError("local correction contract missing: "+",".join(missing))
     failed=[k for k in required if not bool(contract[k])]
     if failed: raise ValueError("local correction contract not admitted: "+",".join(failed))
+
+
+def hybrid_moments_and_jacobians(
+    field:LocalCorrectionField,beta:Tensor,psi:Tensor,points:Tensor,
+    quadrature_mass:Tensor,masks:MaterialMasks,*,create_graph:bool=False
+)->tuple[Tensor,Tensor,Tensor]:
+    """Return M, dM/dbeta and dM/dpsi for the joint Pure-Quadric/Local design.
+
+    beta uses the ten-coefficient Phase 2.1 QUERY_ORDER. psi contains one
+    coefficient per compact local basis center. The returned blocks are
+    derivatives of the same integrated ten-moment vector.
+    """
+    if beta.shape!=(10,) or psi.shape!=(field.centers.shape[0],):
+        raise ValueError("beta must be [10] and psi must match local basis count")
+    if beta.device!=points.device or psi.device!=points.device:
+        raise ValueError("beta, psi and points must share device")
+    if beta.dtype!=points.dtype or psi.dtype!=points.dtype:
+        raise ValueError("beta, psi and points must share dtype")
+    def moment_fn(theta):
+        b=theta[:10]
+        coeff=theta[10:]
+        q=quadric_query(b,points)
+        base=torch.sigmoid(q/field.temperature)
+        basis=wendland_c2_basis(points,field.centers,field.support_radius)
+        delta=field.max_logit_correction*torch.tanh(basis@coeff)
+        corrected=torch.sigmoid(q/field.temperature+delta)
+        retention=torch.where(masks.editable,corrected,base)
+        retention=torch.where(masks.fixed|masks.protected,torch.ones_like(retention),retention)
+        return integrate_retained_moments(points,quadrature_mass,retention)
+    theta=torch.cat((beta,psi))
+    moments=moment_fn(theta)
+    jac=torch.autograd.functional.jacobian(moment_fn,theta,create_graph=create_graph)
+    return moments,jac[:,:10],jac[:,10:]
+
+
+def local_correction_regularization(field:LocalCorrectionField,*,
+                                    l2_weight:float=1e-3,
+                                    smoothness_weight:float=1e-2)->Tensor:
+    """Small coefficient and center-neighbor smoothness penalty.
+
+    This is an optional optimization regularizer, not an M69 physical
+    constraint. Center pairs farther than twice the support radius are omitted.
+    """
+    if l2_weight<0 or smoothness_weight<0:
+        raise ValueError("regularization weights must be nonnegative")
+    coeff=field.coefficients
+    l2=coeff.square().mean()
+    if len(coeff)<2:
+        smooth=torch.zeros((),device=coeff.device,dtype=coeff.dtype)
+    else:
+        distances=torch.cdist(field.centers,field.centers)
+        pair=torch.triu((distances>0)&(distances<=2*field.support_radius),diagonal=1)
+        if pair.any():
+            smooth=(coeff[:,None]-coeff[None,:]).square()[pair].mean()
+        else:
+            smooth=torch.zeros((),device=coeff.device,dtype=coeff.dtype)
+    return float(l2_weight)*l2+float(smoothness_weight)*smooth
