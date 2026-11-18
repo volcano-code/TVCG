@@ -6,12 +6,14 @@ on:
       - research/tvcg-initial-import
     paths:
       - "research/NeuralMoments/phase2_6_unified_operator_integration.py"
+      - "research/NeuralMoments/phase2_6_local_correction.py"
       - "research/NeuralMoments/m80_checkpoint_contract_v1.py"
       - "research/NeuralMoments/phase2_3_differentiable_m69_kkt.py"
       - "research/NeuralMoments/phase2_4_neural_newton.py"
       - "research/NeuralMoments/m69_task_conditioned_m80_v1.py"
       - "research/NeuralMoments/models/pcraft_ufno/spin_pino/native_pcraft.py"
       - "tests/python/test_phase2_6_unified_operator_integration.py"
+      - "tests/python/test_phase2_6_local_correction.py"
       - "tests/python/test_m80_checkpoint_contract_v1.py"
       - ".github/workflows/phase2-6-unified-operator-integration.yml"
   pull_request:
@@ -45,6 +47,13 @@ jobs:
         env:
           PYTHONPATH: .
         run: python -m pytest -q tests/python/test_m80_checkpoint_contract_v1.py
+      - name: Compile local correction field
+        run: python -m py_compile research/NeuralMoments/phase2_6_local_correction.py
+      - name: Run Pure Quadric and Hybrid local correction tests
+        env:
+          PYTHONPATH: .
+          OMP_NUM_THREADS: "1"
+        run: python -m pytest -q tests/python/test_phase2_6_local_correction.py
       - name: Run actual M80 integration tests
         env:
           PYTHONPATH: .
