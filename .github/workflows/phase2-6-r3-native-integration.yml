@@ -1,0 +1,44 @@
+name: Phase 2.6 R3.1.3.2 Native Replay Integration
+
+on:
+  push:
+    branches:
+      - research/phase2-6-r3-m69-hybrid-ablation
+    paths:
+      - "research/NeuralMoments/r3_native_build_preflight_v1.py"
+      - "research/NeuralMoments/r3_native_solver_replay_v1.py"
+      - "tests/python/test_r3_native_build_preflight.py"
+      - "tests/python/test_r3_native_replay_integration.py"
+      - ".github/workflows/phase2-6-r3-native-integration.yml"
+  pull_request:
+    paths:
+      - "research/NeuralMoments/r3_native_build_preflight_v1.py"
+      - "research/NeuralMoments/r3_native_solver_replay_v1.py"
+      - "tests/python/test_r3_native_build_preflight.py"
+      - "tests/python/test_r3_native_replay_integration.py"
+      - ".github/workflows/phase2-6-r3-native-integration.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  native-replay-integration-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install "numpy>=1.26,<3" "pytest>=8,<10"
+      - name: Compile preflight and replay modules
+        run: |
+          python -m py_compile research/NeuralMoments/r3_native_build_preflight_v1.py
+          python -m py_compile research/NeuralMoments/r3_native_solver_replay_v1.py
+      - name: Run integration contract tests
+        env:
+          PYTHONPATH: .:python:research/NeuralMoments
+        run: |
+          python -m pytest -q \
+            tests/python/test_r3_native_build_preflight.py \
+            tests/python/test_r3_native_replay_integration.py
