@@ -59,7 +59,8 @@ def compare_records(native_bundle, independent_record, *, rtol=1e-8, atol=1e-14)
     return {
       "schema":"tvcg.r3.native-independent-moment-comparison.v1",
       "case_id":native_meta["case_id"],"geometry_hash":native_meta["geometry_hash"],
-      "independent_backend":independent_record["backend_identity"],\n      "independent_backend_sha256":independent_record["backend_sha256"],
+      "independent_backend":independent_record["backend_identity"],
+      "independent_backend_sha256":independent_record["backend_sha256"],
       "moment_order":MOMENT_ORDER,"native_raw_moments":n.tolist(),
       "independent_raw_moments":i.tolist(),"absolute_errors":abs_error.tolist(),
       "relative_errors":rel.tolist(),"allowed_errors":allowed.tolist(),
