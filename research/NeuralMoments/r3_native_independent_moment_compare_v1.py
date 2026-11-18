@@ -18,9 +18,11 @@ def compare_records(native_bundle, independent_record, *, rtol=1e-8, atol=1e-14)
     native_meta=ledger.get("moment_metadata")
     if not isinstance(native_meta,dict):
         raise ValueError("native replay bundle lacks explicit moment_metadata")
-    required_meta=("case_id","geometry_hash","coordinate_frame","length_unit","meters_per_unit","density")
-    for src,name in ((native_meta,"native moment metadata"),(independent_record,"independent record")):
-        missing=[k for k in required_meta if k not in src]
+    native_required=("case_id","geometry_hash","coordinate_frame","length_unit","meters_per_unit","density","moment_order")
+    independent_required=("case_id","source_geometry_hash","coordinate_frame","length_unit","meters_per_unit","density","moment_order","backend_identity","raw_moments")
+    for src,name,required in ((native_meta,"native moment metadata",native_required),
+                              (independent_record,"independent record",independent_required)):
+        missing=[k for k in required if k not in src]
         if missing: raise ValueError(f"{name} missing metadata: "+", ".join(missing))
     if native_meta["case_id"]!=independent_record["case_id"]:
         raise ValueError("case_id mismatch")
