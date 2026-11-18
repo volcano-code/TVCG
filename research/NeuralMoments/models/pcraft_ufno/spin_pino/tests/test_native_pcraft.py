@@ -513,3 +513,23 @@ def test_shared_geometry_cache_rejects_stale_or_missing_feature_payload():
         next(model.parameters()).add_(1e-3)
     with pytest.raises(ValueError,match="stale"):
         model.export_shared_geometry_features(retained)
+
+
+def test_bounded_odd_moment_jacobian_matches_independent_finite_difference():
+    torch.manual_seed(89)
+    model=small_model().eval()
+    cache=model.encode(small_geometry(),chunk=16).detached()
+    q=torch.tensor([.04,-.09,.06,.03,-.02,.015,.01,-.004,.008,.006],dtype=torch.float64)
+    moments,jac=model.moments_and_jacobian(cache,q,create_graph=False)
+    eps=1e-5
+    fd=torch.empty_like(jac)
+    with torch.no_grad():
+        for k in range(10):
+            delta=torch.zeros_like(q);delta[k]=eps
+            fd[:,k]=(model.predict(cache,q+delta)-model.predict(cache,q-delta))/(2*eps)
+        scaled=model.predict(cache,3.7*q)
+        complement=model.predict(cache,-q)
+    assert torch.allclose(jac,fd,rtol=2e-2,atol=2e-4)
+    assert torch.allclose(moments,scaled,rtol=1e-8,atol=1e-9)
+    assert torch.allclose(moments+complement,
+        2*cache.fixed_moments+cache.design_moments,rtol=1e-8,atol=1e-9)
