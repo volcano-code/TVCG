@@ -38,7 +38,7 @@ class SQNOGeometryCache:
 class SpinQuadrANNV12(SpinQuadrANNV11):
     """Geometry encoder plus batched query evaluator."""
 
-    def __init__(self, *args, query_chunk=16, **kwargs):
+    def __init__(self, *args, query_chunk=16, share_pcraft_encoder=False, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.batched_moment_operator = BatchedSpinMomentOperator(
@@ -47,10 +47,13 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
             chunk_queries=query_chunk,
         )
 
+        self.share_pcraft_encoder=bool(share_pcraft_encoder)
+        if self.share_pcraft_encoder:
+            self.pcraft.requires_grad_(False)
         self.geometry_encode_calls = 0
         self.query_evaluation_calls = 0
 
-    def encode_geometry(self, geometry, component_ids=None):
+    def encode_geometry(self, geometry, component_ids=None, *, pcraft_features=None):
         """Encode one geometry and retain a differentiable cache."""
 
         self.geometry_encode_calls += 1
@@ -61,8 +64,24 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
             )
             geometry = geometry_from_columns(geometry)
 
-        # P-CRAFT branch: exactly one multiscale encoding.
-        pcraft = self.pcraft(geometry)
+        # P-CRAFT may be supplied by the shared UG-PINO encoder. In that
+        # mode this SQNO branch performs only its topology/GNN and query work.
+        if pcraft_features is None:
+            if self.share_pcraft_encoder:
+                raise ValueError("shared P-CRAFT mode requires externally encoded pcraft_features")
+            pcraft = self.pcraft(geometry)
+        else:
+            pcraft = dict(pcraft_features)
+            required=("local_features","global_context","global_scale_weights","interval_mass")
+            missing=[key for key in required if key not in pcraft]
+            if missing:
+                raise ValueError("shared P-CRAFT feature contract missing: "+", ".join(missing))
+            if pcraft["local_features"].shape[0] != len(geometry["xyz"]):
+                raise ValueError("shared P-CRAFT interval feature count mismatch")
+            supplied_id=str(pcraft.get("geometry_id",""))
+            geometry_id=str(geometry.get("geometry_sha256",""))
+            if supplied_id and geometry_id and supplied_id != geometry_id:
+                raise ValueError("shared P-CRAFT geometry identity mismatch")
 
         parameter = next(self.parameters())
         device = parameter.device
