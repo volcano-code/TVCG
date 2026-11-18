@@ -64,7 +64,7 @@ def build_request(manifest_path):
     metadata_required=("coordinate_frame","length_unit","meters_per_unit","density","moment_order")
     missing_metadata=[k for k in metadata_required if k not in moment_metadata]
     if missing_metadata: raise ValueError("moment_metadata missing: "+", ".join(missing_metadata))
-    if moment_metadata["moment_order"] != ["V","Lx","Ly","Lz","Qxx","Qyy","Qzz","Qyz","Qxz","Qxy"]:
+    if moment_metadata["moment_order"] != ["M","LX","LY","LZ","QXX","QYY","QZZ","QYZ","QXZ","QXY"]:
         raise ValueError("moment_metadata moment_order mismatch")
     for key in ("meters_per_unit","density"):
         value=float(moment_metadata[key])
