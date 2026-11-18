@@ -310,7 +310,7 @@ def validate(model,corpus,device,amp,chunk,max_records=8,max_queries=256,split="
             with torch.no_grad():
                 event_logits=model.predict_event_validity(cache,q)
                 if "event_valid" not in labels:
-                raise ValueError("event-validity validation requires explicit teacher event_valid labels")
+                    raise ValueError("event-validity validation requires explicit teacher event_valid labels")
                 event_target=torch.as_tensor(labels["event_valid"][:n].astype(np.float64),device=device,dtype=event_logits.dtype)
                 event_probability=torch.sigmoid(event_logits)
                 event_bce=torch.nn.functional.binary_cross_entropy_with_logits(event_logits,event_target)
