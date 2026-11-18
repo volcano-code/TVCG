@@ -85,3 +85,44 @@ The SQNO GNN imports `torch_scatter`. Install its wheel matching the
 installed PyTorch and CUDA build; do not install a random wheel or rebuild
 PyTorch. The official PyG wheel matrix is documented at
 https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html .
+
+
+## 2.8.4.6 — Joint Training Contract
+
+The unified wrapper exposes `joint_training_loss(...)` and `train_step(...)`.
+The loss accepts teacher Moments `[Q,10]`, teacher query Jacobians
+`[Q,10,10]`, explicit positive normalization scales, independent
+valid-query masks, a Jacobian weight and a branch auxiliary weight. It
+supervises the fused output and both branch outputs on the same valid queries.
+Normalization is never inferred from the batch, and invalid derivative labels
+must be masked rather than silently replaced with zero.
+
+`train_step` performs zero-grad, joint backward, finite global-gradient
+clipping and one optimizer update. It returns fused/branch losses and the
+pre-clipping global gradient norm. The cache used for the update is stale
+after the optimizer step; callers must re-encode before the next update.
+
+This is a software contract, not a final loss-balancing result. Optimal task
+weights, branch-gradient conflict and schedules require formal-corpus
+experiments.
+
+## 2.8.4.7 — Inference Cache Lifecycle
+
+`encode_geometry(..., inference=True)` is allowed only in eval mode and
+encodes both branches under `torch.no_grad()`. It returns an explicitly
+marked inference-only cache. Such a cache can be reused for multiple query
+batches and supports first-order query Jacobians, but is rejected for training
+or higher-order gradient construction. Training caches retain their graph and
+must be recreated after every optimizer update. Cache ownership and parameter
+version checks reject foreign/stale cache objects. There is no implicit global
+cache; the caller controls its lifetime.
+
+## Added synthetic tests
+
+- graph-free inference cache and repeated Query-many calls;
+- rejection of inference caches after switching to training mode;
+- masked fused and branch-specific joint losses;
+- rejection of empty masks and nonpositive normalization scales;
+- one joint update and stale-cache rejection after optimizer mutation.
+
+These tests do not require the formal M69/M72 corpus or a long GPU run.
