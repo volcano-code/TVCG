@@ -52,7 +52,7 @@ export M72_AUDIT="/ABSOLUTE/PATH/TO/M72_FORMAL_AUDIT.json"
 export OUT="$PWD/runs/ug_pino_large_pilot_$(date +%Y%m%d_%H%M%S)"
 mkdir -p "$OUT"
 
-python research/NeuralMoments/models/pcraft_ufno/spin_pino/native_train.py preflight \
+python -m research.NeuralMoments.models.pcraft_ufno.spin_pino.native_train preflight \
   --manifest "$M72_MANIFEST" \
   --audit "$M72_AUDIT" \
   --out "$OUT/preflight.json" \
@@ -67,7 +67,7 @@ python research/NeuralMoments/models/pcraft_ufno/spin_pino/native_train.py prefl
 Only if preflight succeeds and the corpus meets the formal query/group gate, run the bounded pilot:
 
 ```bash
-python research/NeuralMoments/models/pcraft_ufno/spin_pino/native_train.py train \
+python -m research.NeuralMoments.models.pcraft_ufno.spin_pino.native_train train \
   --manifest "$M72_MANIFEST" \
   --audit "$M72_AUDIT" \
   --out "$OUT/train" \
