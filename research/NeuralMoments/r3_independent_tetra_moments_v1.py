@@ -76,7 +76,8 @@ def integrate_from_manifest(manifest_path):
     raw=integrate_tetrahedra(t,density=m["density"],meters_per_unit=m["meters_per_unit"])
     props=derive_mass_properties(raw)
     return {"schema":"tvcg.r3.independent-moment-record.v1","case_id":m["case_id"],
-      "source_geometry_hash":m["geometry_hash"],"backend_identity":"independent_tetra_exact_v1",\n      "backend_sha256":sha256_file(Path(__file__)),
+      "source_geometry_hash":m["geometry_hash"],"backend_identity":"independent_tetra_exact_v1",
+      "backend_sha256":sha256_file(Path(__file__)),
       "tetrahedra_sha256":actual,"coordinate_frame":m["coordinate_frame"],
       "length_unit":m["length_unit"],"meters_per_unit":m["meters_per_unit"],
       "density":m["density"],"density_source":m["density_source"],
