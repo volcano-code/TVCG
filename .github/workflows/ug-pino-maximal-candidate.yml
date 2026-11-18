@@ -8,6 +8,8 @@ on:
       - "research/NeuralMoments/models/pcraft_ufno/spin_pino/native_pcraft.py"
       - "research/NeuralMoments/models/pcraft_ufno/spin_pino/native_train.py"
       - "research/NeuralMoments/models/pcraft_ufno/spin_pino/tests/**"
+      - "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/spin_quadrann_v12.py"
+      - "docs/phase2_7_3_unified_feature_and_derivative_contracts.md"
       - ".github/workflows/ug-pino-maximal-candidate.yml"
   pull_request:
     paths:
@@ -38,6 +40,7 @@ jobs:
       - name: Compile operator and trainer
         run: |
           python -m compileall -q research/NeuralMoments/models/pcraft_ufno/spin_pino
+          python -m py_compile research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/spin_quadrann_v12.py
       - name: Run maximal UG-PINO and training contracts
         env:
           PYTHONPATH: .
