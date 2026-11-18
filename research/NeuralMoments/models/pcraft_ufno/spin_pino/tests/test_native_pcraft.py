@@ -533,3 +533,38 @@ def test_bounded_odd_moment_jacobian_matches_independent_finite_difference():
     assert torch.allclose(moments,scaled,rtol=1e-8,atol=1e-9)
     assert torch.allclose(moments+complement,
         2*cache.fixed_moments+cache.design_moments,rtol=1e-8,atol=1e-9)
+
+
+def test_event_validity_head_forward_scale_invariance_and_joint_gradients():
+    from dataclasses import replace
+    torch.manual_seed(97)
+    base=small_model()
+    cfg=replace(base.config,event_validity_head_enabled=True)
+    model=PcraftNativeMomentOperator(cfg).train()
+    cache=model.encode(small_geometry(),chunk=16)
+    q=torch.tensor([[.03,.11,-.07,.04,.02,-.01,.015,.004,-.006,.003],
+                    [.04,-.09,.06,.03,-.02,.015,.01,-.004,.008,.006]],dtype=torch.float64)
+    logits=model.predict_event_validity(cache,q)
+    scaled=model.predict_event_validity(cache,7.0*q)
+    assert logits.shape==(2,) and torch.isfinite(logits).all()
+    assert torch.allclose(logits,scaled,rtol=1e-8,atol=1e-9)
+    targets=torch.tensor([1.,0.],dtype=logits.dtype)
+    loss=torch.nn.functional.binary_cross_entropy_with_logits(logits,targets)
+    loss.backward()
+    grads=[p.grad for p in model.event_validity_head.parameters() if p.grad is not None]
+    assert grads and all(torch.isfinite(g).all() for g in grads)
+
+
+def test_event_validity_head_is_optional_and_checkpoint_compatible(tmp_path):
+    from dataclasses import asdict
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import SCHEMA,SEMANTICS,load_model,make_config
+    base=make_config("smoke",min_native_resolution=1)
+    assert not base.event_validity_head_enabled
+    event=replace(base,event_validity_head_enabled=True)
+    model=PcraftNativeMomentOperator(event)
+    path=tmp_path/"event.pt"
+    torch.save(dict(schema=SCHEMA,semantics=SEMANTICS,config=asdict(event),
+      model=model.state_dict()),path)
+    restored,_=load_model(path,"cpu")
+    assert restored.config.event_validity_head_enabled
+    assert hasattr(restored,"event_validity_head")
