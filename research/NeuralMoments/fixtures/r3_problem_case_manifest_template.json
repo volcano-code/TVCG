@@ -1,0 +1,12 @@
+{
+  "schema": "tvcg.r3.problem-reconstruction.v1",
+  "purpose": "template only; not a physical M69 admission",
+  "required_fields": [
+    "case_id", "original_mesh", "original_mesh_sha256",
+    "fixed_shell", "fixed_shell_sha256",
+    "design_domain", "design_domain_sha256",
+    "axis", "axis_origin", "contact", "pin_support",
+    "initial_material_policy", "quadric_coefficients",
+    "quadric_initialization_kind", "quadric_source"
+  ]
+}
