@@ -210,3 +210,25 @@ def local_correction_regularization(field:LocalCorrectionField,*,
         else:
             smooth=torch.zeros((),device=coeff.device,dtype=coeff.dtype)
     return float(l2_weight)*l2+float(smoothness_weight)*smooth
+
+
+def integrate_hybrid_moments(
+    field:LocalCorrectionField,beta:Tensor,psi:Tensor,points:Tensor,
+    quadrature_mass:Tensor,masks:MaterialMasks
+)->Tensor:
+    """Integrate the hybrid retention for an explicit beta/psi pair."""
+    if psi.shape!=(field.centers.shape[0],):
+        raise ValueError("psi must match local basis count")
+    masks.validate(len(points),points.device)
+    if beta.device!=points.device or psi.device!=points.device:
+        raise ValueError("beta, psi and points must share device")
+    if beta.dtype!=points.dtype or psi.dtype!=points.dtype:
+        raise ValueError("beta, psi and points must share dtype")
+    q=quadric_query(beta,points)
+    baseline=torch.sigmoid(q/field.temperature)
+    basis=wendland_c2_basis(points,field.centers,field.support_radius)
+    correction=field.max_logit_correction*torch.tanh(basis@psi)
+    corrected=torch.sigmoid(q/field.temperature+correction)
+    retention=torch.where(masks.editable,corrected,baseline)
+    retention=torch.where(masks.fixed|masks.protected,torch.ones_like(retention),retention)
+    return integrate_retained_moments(points,quadrature_mass,retention)
