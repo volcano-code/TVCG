@@ -660,7 +660,7 @@ def test_convex_amplitude_sigmoid_and_atan_modes_are_bounded_and_have_same_state
         atan.total_gate.weight.zero_()
         sigmoid.total_gate.bias.fill_(5.)
         atan.total_gate.bias.fill_(5.)
-    latent=torch.randn(1,16,dtype=torch.float64)
+    latent=torch.randn(1,16,dtype=torch.float32)
     logit_s,fraction_s=sigmoid.amplitude_parameters(latent)
     logit_a,fraction_a=atan.amplitude_parameters(latent)
     assert float(logit_s)==pytest.approx(5.)
