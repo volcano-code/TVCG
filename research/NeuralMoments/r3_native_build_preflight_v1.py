@@ -40,12 +40,21 @@ def inspect_native_module(module: Any) -> dict:
       "native_api_available":not missing,
     }
 
-def run_preflight(*,build_dir=None,expected_commit=None,module_name="make_it_stand._make_it_stand"):
-    try:
-        module=importlib.import_module(module_name)
-    except Exception as exc:
+def run_preflight(*,build_dir=None,expected_commit=None,module_name="auto"):
+    candidates = ("make_it_stand._make_it_stand", "_make_it_stand") if module_name == "auto" else (module_name,)
+    module = None
+    import_errors = []
+    selected_name = None
+    for candidate in candidates:
+        try:
+            module = importlib.import_module(candidate)
+            selected_name = candidate
+            break
+        except Exception as exc:
+            import_errors.append(f"{candidate}: {type(exc).__name__}: {exc}")
+    if module is None:
         return {"schema":SCHEMA,"ok":False,"native_api_available":False,
-          "module_name":module_name,"import_error":f"{type(exc).__name__}: {exc}",
+          "module_name":module_name,"import_errors":import_errors,
           "build_configuration":{},"checks":{"extension_import":False}}
     info=inspect_native_module(module)
     try:
@@ -70,7 +79,7 @@ def run_preflight(*,build_dir=None,expected_commit=None,module_name="make_it_sta
         else:
             config={"cmake_cache_missing":True}
     checks={
-      "extension_import":True,
+      "extension_import":True,\n      "selected_module_name":selected_name,
       "required_native_symbols":info["native_api_available"],
       "python_facade_available":facade_info["available"],
       "python_build_enabled":config.get("MAKE_IT_STAND_BUILD_PYTHON")=="ON" if config else None,
@@ -94,7 +103,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("--build-dir")
     p.add_argument("--expected-commit")
-    p.add_argument("--module",default="make_it_stand._make_it_stand")
+    p.add_argument("--module",default="auto",help="module name, or auto for package/top-level layouts")
     p.add_argument("--output",required=True)
     a=p.parse_args()
     report=run_preflight(build_dir=a.build_dir,expected_commit=a.expected_commit,module_name=a.module)
