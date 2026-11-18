@@ -89,3 +89,37 @@ The exact-oracle fixture is deliberately independent of M80. Its merit includes 
 The final seven-test suite also runs the actual M80/S9/M69 KKT proposal through `accept_m80_proposal_with_exact_oracle`. The independent exact callback is invoked once for the base state and once per backtracking trial. In the test fixture the exact merit is deliberately constant, so the neural proposal is rejected and the registered fallback callback is invoked. The test verifies the exact evaluation counter and fallback result. This validates the safety path, not successful physical design improvement.
 
 Final GitHub Actions run `44131474066` passed **7 tests in 1.31 seconds**, with no warnings. The tested code and test revision is `506992cf01b756042f955e3d28ac3d697b943fa6`.
+
+
+## 10. Round 2 — checkpoint contract
+
+Round 2 adds m80_checkpoint_contract_v1.py. It defines a strict tvcg.m80.checkpoint.v1 envelope containing:
+
+- the exact M69TaskConditionedM80 class identifier;
+- the exact PcraftNativeMomentOperator backbone identifier;
+- the 31D M69 conditioning configuration;
+- training run and training commit provenance;
+- deterministic configuration and state-dict SHA256 digests.
+
+The loader refuses missing fields, unsupported format versions, stale configuration/state digests, model-class mismatches, and non-frozen backbones. It also refuses missing checkpoint paths rather than silently falling back to random initialization.
+
+### Current evidence boundary
+
+A repository-wide search of the TVCG branch did not find a trained M80 checkpoint artifact or an existing torch.load/state-dict loader carrying M80 training provenance. Therefore this round does not fabricate or label any model as a trained checkpoint. The new contract is ready to consume a real checkpoint once its artifact and provenance are supplied.
+
+Likewise, the repository's Phase 2.6 integration still exposes the exact M69 material oracle only as a caller-supplied callback; no production arbitrary-512^3 Quadric material integration was found during this audit. The synthetic oracle remains a software-boundary test only.
+
+The next physical milestone is therefore explicit: supply a real M80 checkpoint and a verified native M69 exact material oracle, then run the same integration entrypoint without changing the acceptance contract.
+
+### Round 2 tests
+
+test_m80_checkpoint_contract_v1.py covers:
+1. valid checkpoint round-trip;
+2. checkpoint-format rejection;
+3. stale configuration digest rejection;
+4. stale state-dict digest rejection;
+5. non-frozen-backbone rejection;
+6. model-class mismatch rejection;
+7. missing-checkpoint rejection.
+
+These tests are independent of the unavailable production checkpoint and do not constitute trained-model accuracy evidence.
