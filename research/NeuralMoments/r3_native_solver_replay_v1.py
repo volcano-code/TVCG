@@ -17,6 +17,7 @@ from make_it_stand.spin import (
 from r3_faster_initialization_v1 import FasterInitialization
 from r3_solver_event_ledger_v1 import SCHEMA as LEDGER_SCHEMA, validate_ledger
 from r3_replay_admission_guard_v1 import validate_replay_admission
+from r3_native_result_acceptance_v1 import validate_native_result
 
 def _jsonable(x: Any):
     if dataclasses.is_dataclass(x): return {k:_jsonable(v) for k,v in dataclasses.asdict(x).items()}
@@ -94,6 +95,7 @@ def run_replay(request_path, initialization_path, evaluator_path, output_path, a
     initial=[list(x) for x in init.initial_guesses]
     result=solve_spin_it_faster_fullrank_quadric(request,initial_quadrics=initial,evaluator_settings=evaluator)
     raw=_jsonable(result)
+    result_acceptance=validate_native_result(raw)
     events=raw["events"]
     for e in events:
         e["type"]=str(e["type"]).lower()
@@ -121,7 +123,7 @@ def run_replay(request_path, initialization_path, evaluator_path, output_path, a
       "final_geometry_hash":raw["final_geometry_hash"],
       "quadric_coefficients":raw["quadric_coefficients"],
       "request_sha256":_sha(request_path),"request_envelope_schema":request_envelope.get("schema"),
-      "physical_admission":admission_validation,"initialization_record_sha256":_sha(init_path),
+      "physical_admission":admission_validation,"result_acceptance":result_acceptance,"initialization_record_sha256":_sha(init_path),
       "evaluator_config_sha256":_sha(Path(evaluator_path)),
     }
     validation=validate_ledger(ledger)
@@ -131,6 +133,7 @@ def run_replay(request_path, initialization_path, evaluator_path, output_path, a
     out.write_text(json.dumps(bundle,indent=2,sort_keys=True,allow_nan=False)+"\n")
     return {"output":str(out),"bundle_sha256":_sha(out),"ledger_validation":validation,
             "native_status":raw["status"],"final_geometry_verified":raw["final_geometry_verified"],
+            "physically_accepted":result_acceptance["physically_accepted"],
             "function_evaluations":raw["function_evaluations"],"restart_count":raw["restart_count"]}
 
 def main():
