@@ -83,3 +83,13 @@ This is the local-correction counterpart to the Phase 2.1 Query/Material Jacobia
 An optional `local_correction_regularization` adds coefficient L2 and nearby-center smoothness penalties. These are optimization regularizers, not M69 physical constraints.
 
 Two additional tests check selected columns of both Jacobian blocks against central finite differences and verify regularization gradients.
+
+
+## 9. Round 1 CI evidence
+
+GitHub Actions run `44242728144` passed all stages on the Round 1 code revision:
+- checkpoint contract: 7 passed;
+- Pure Quadric / Hybrid local correction: 9 passed;
+- actual M80 integration regression: 7 passed.
+
+Total: **23 CPU tests passed**. The local correction suite includes finite-difference checks for selected columns of both (J_\beta) and (J_\psi), plus regularization gradient validation. This is software and synthetic quadrature evidence only, not a trained M80 or real 512³ physical result.
