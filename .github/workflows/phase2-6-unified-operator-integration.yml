@@ -14,6 +14,8 @@ on:
       - "research/NeuralMoments/models/pcraft_ufno/spin_pino/native_pcraft.py"
       - "tests/python/test_phase2_6_unified_operator_integration.py"
       - "tests/python/test_phase2_6_local_correction.py"
+      - "research/NeuralMoments/phase2_6_hybrid_unified_optimization.py"
+      - "tests/python/test_phase2_6_hybrid_unified_optimization.py"
       - "tests/python/test_m80_checkpoint_contract_v1.py"
       - ".github/workflows/phase2-6-unified-operator-integration.yml"
   pull_request:
@@ -58,6 +60,13 @@ jobs:
           PYTHONPATH: .
           OMP_NUM_THREADS: "1"
         run: python -m pytest -q tests/python/test_phase2_6_local_correction.py
+      - name: Compile hybrid unified optimization
+        run: python -m py_compile research/NeuralMoments/phase2_6_hybrid_unified_optimization.py
+      - name: Run Phase 2.6 R2 hybrid optimization tests
+        env:
+          PYTHONPATH: .
+          OMP_NUM_THREADS: "1"
+        run: python -m pytest -q tests/python/test_phase2_6_hybrid_unified_optimization.py
       - name: Run actual M80 integration tests
         env:
           PYTHONPATH: .
