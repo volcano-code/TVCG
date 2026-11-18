@@ -35,8 +35,11 @@ def rotation_z(angle: float, *, dtype=torch.float64, device=None) -> Tensor:
 
 def native_coefficients_to_matrix(coefficients: Tensor):
     """Native c order -> polynomial A,b with f(x)=x^T A x+b^T x+c0."""
-    if coefficients.ndim != 2 or coefficients.shape[-1] != 10:
-        raise ValueError("coefficients must be [B,10]")
+    if (coefficients.ndim != 2 or coefficients.shape[-1] != 10
+            or not coefficients.is_floating_point()):
+        raise ValueError("coefficients must be floating [B,10]")
+    if not bool(torch.isfinite(coefficients).all()):
+        raise ValueError("coefficients must be finite")
     c = coefficients
     A = torch.zeros((c.shape[0], 3, 3), dtype=c.dtype, device=c.device)
     A[:, 0, 0], A[:, 1, 1], A[:, 2, 2] = c[:, 4], c[:, 5], c[:, 6]
@@ -47,10 +50,14 @@ def native_coefficients_to_matrix(coefficients: Tensor):
 
 
 def matrix_to_native_coefficients(A: Tensor, b: Tensor, c0: Tensor) -> Tensor:
-    if A.ndim != 3 or A.shape[-2:] != (3, 3) or b.shape != (A.shape[0], 3):
-        raise ValueError("expected A[B,3,3] and b[B,3]")
-    if c0.shape not in ((A.shape[0],), (A.shape[0], 1)):
-        raise ValueError("c0 must be [B] or [B,1]")
+    if (A.ndim != 3 or A.shape[-2:] != (3, 3) or b.shape != (A.shape[0], 3)
+            or not A.is_floating_point() or b.dtype != A.dtype or b.device != A.device):
+        raise ValueError("expected floating A[B,3,3] and matching b[B,3]")
+    if (c0.shape not in ((A.shape[0],), (A.shape[0], 1))
+            or c0.dtype != A.dtype or c0.device != A.device):
+        raise ValueError("c0 must be [B] or [B,1] with matching dtype/device")
+    if not bool(torch.isfinite(A).all() and torch.isfinite(b).all() and torch.isfinite(c0).all()):
+        raise ValueError("quadric matrix coefficients must be finite")
     c0 = c0.reshape(-1, 1)
     return torch.stack(
         (c0[:, 0], b[:, 0], b[:, 1], b[:, 2],
@@ -73,8 +80,10 @@ def transform_native_coefficients(coefficients: Tensor, R: Tensor) -> Tensor:
 def transform_raw_moments(moments: Tensor, R: Tensor) -> Tensor:
     """Transform [mass, first moments, symmetric second moments] under x'=R x."""
     _check_rotation(R)
-    if moments.ndim != 2 or moments.shape[-1] != 10:
-        raise ValueError("moments must be [B,10]")
+    if moments.ndim != 2 or moments.shape[-1] != 10 or not moments.is_floating_point():
+        raise ValueError("moments must be floating [B,10]")
+    if not bool(torch.isfinite(moments).all()):
+        raise ValueError("moments must be finite")
     R = R.to(dtype=moments.dtype, device=moments.device)
     m = moments[:, 0]
     first = torch.einsum("ij,bj->bi", R, moments[:, 1:4])
@@ -111,8 +120,10 @@ def coefficient_rotation_matrix(R: Tensor, *, dtype=None, device=None) -> Tensor
 def transform_native_jacobian(J: Tensor, R: Tensor) -> Tensor:
     """If r'=T_R r and c'=S_R c, then J'=T_R J S_R^{-1}."""
     _check_rotation(R)
-    if J.ndim != 3 or J.shape[-2:] != (10, 10):
-        raise ValueError("J must be [B,10,10]")
+    if J.ndim != 3 or J.shape[-2:] != (10, 10) or not J.is_floating_point():
+        raise ValueError("J must be floating [B,10,10]")
+    if not bool(torch.isfinite(J).all()):
+        raise ValueError("J must be finite")
     T = moment_rotation_matrix(R, dtype=J.dtype, device=J.device)
     S = coefficient_rotation_matrix(R, dtype=J.dtype, device=J.device)
     return T.unsqueeze(0) @ J @ torch.linalg.inv(S).unsqueeze(0)
