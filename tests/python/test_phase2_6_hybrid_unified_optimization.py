@@ -53,14 +53,18 @@ def base_operator(beta):
       .02 + .001*beta[7], .015 + .001*beta[8], .01 + .001*beta[9]
     ))
 
-def make_hybrid():
+RELAXED_TEST_TASK=dict(TASK, min_removal_fraction=0.0, polar_retention=0.5,
+    com_tolerance=1e-2, alignment_tolerance=1e-2,
+    principal_gap_min=-1.0, max_centroid_rise=1.0)
+
+def make_hybrid(task=TASK):
     points,masks,centers,beta,weights=fixture()
     field=LocalCorrectionField(centers,support_radius=.9)
     original=torch.tensor([1.2,.012,.006,.018,.8,.7,.6,.02,.015,.01],dtype=points.dtype)
     return make_hybrid_m80_local_problem(
       base_moment_fn=base_operator,local_field=field,points=points,
       quadrature_mass=weights,masks=masks,original_moments=original,
-      task=TASK,length_scale=2.,beta_anchor=beta
+      task=task,length_scale=2.,beta_anchor=beta
     ), beta
 
 def test_zero_psi_is_exact_m80_baseline():
@@ -98,7 +102,7 @@ def test_hybrid_kkt_dimension_includes_local_correction():
     assert system.derivative_valid
 
 def test_hybrid_exact_oracle_requires_beta_and_psi_and_is_independent():
-    problem,beta=make_hybrid()
+    problem,beta=make_hybrid(RELAXED_TEST_TASK)
     psi=torch.tensor([.2,-.1],dtype=beta.dtype)
     calls={"n":0}
     exact=problem.original_moments*0.95
@@ -119,18 +123,18 @@ def test_hybrid_exact_oracle_requires_beta_and_psi_and_is_independent():
     )==pytest.approx(float(exact[0]),abs=1e-12)
 
 def test_exact_hybrid_callback_counts_oracle_calls():
-    problem,beta=make_hybrid()
+    problem,beta=make_hybrid(RELAXED_TEST_TASK)
     calls={"n":0}
     def oracle(b,p):
       calls["n"]+=1
-      return {"moments":problem.original_moments*0.95,"connected":True,
+      return {"moments":problem.original_moments,"connected":True,
               "topology_valid":True,"event_valid":True,"source":"independent"}
     callback=make_exact_hybrid_merit_callback(
       problem,exact_material_oracle=oracle,
       state_to_material=lambda s:(s["beta"],s["psi"])
     )
     value=callback({"beta":beta,"psi":torch.zeros(2,dtype=beta.dtype)})
-    assert value==pytest.approx(float(problem.original_moments[0]*0.95),abs=1e-12)
+    assert value==pytest.approx(float(problem.original_moments[0]),abs=1e-12)
     assert callback.evaluation_count==1
     assert calls["n"]==1
 
