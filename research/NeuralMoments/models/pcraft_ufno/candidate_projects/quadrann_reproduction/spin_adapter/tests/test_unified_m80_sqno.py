@@ -208,14 +208,14 @@ def test_unified_jacobian_uses_raw_coefficient_coordinates_and_matches_finite_di
             plus=model.evaluate_queries(cache,q+delta)
             minus=model.evaluate_queries(cache,q-delta)
             fd=(plus["moments"]-minus["moments"])/(2*eps)
-            predicted=base["jacobian_coefficients"][:,column]
+            predicted=base["jacobian_coefficients"][:,:,column]
             assert torch.allclose(predicted,fd,rtol=4e-3,atol=3e-5), (
                 f"fused raw-coefficient Jacobian mismatch at column {column}: "
                 f"max_abs={(predicted-fd).abs().max().item()}"
             )
             assert torch.allclose(
-                base["jacobian_coefficients"][:,column],
-                base["jacobian_q"][:,column],rtol=0,atol=0,
+                base["jacobian_coefficients"][:,:,column],
+                base["jacobian_q"][:,:,column],rtol=0,atol=0,
             )
 
 
