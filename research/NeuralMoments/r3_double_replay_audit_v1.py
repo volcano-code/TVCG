@@ -43,7 +43,8 @@ def _signature(bundle):
     ledger=bundle["ledger"];native=bundle["native_result"]
     _require(ledger,("case_id","geometry_hash","task_hash","evaluator_identity",
       "solver_source_commit","initialization_record_hash","equation_profile","moment_metadata",
-      "physical_admission","result_acceptance","run_receipt"),"native ledger")
+      "request_sha256","evaluator_config_sha256",
+      "physical_admission","result_acceptance","run_receipt","request_sha256","evaluator_config_sha256"),"native ledger")
     _require(native,("status","event_hash","trace_hash","input_hash","output_hash",
       "function_evaluations","restart_count","restart_function_evaluations",
       "quadric_coefficients","final_total_raw_moments","final_geometry_hash",
@@ -61,6 +62,7 @@ def _signature(bundle):
       "initialization_record_hash":ledger["initialization_record_hash"],
       "equation_profile":ledger["equation_profile"],"moment_metadata":ledger["moment_metadata"],
       "physical_admission":ledger["physical_admission"],
+      "request_sha256":ledger["request_sha256"],"evaluator_config_sha256":ledger["evaluator_config_sha256"],
       "run_receipt":ledger["run_receipt"],
       "event_hash":native["event_hash"],"trace_hash":native["trace_hash"],
       "input_hash":native["input_hash"],"output_hash":native["output_hash"],
