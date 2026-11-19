@@ -14,11 +14,12 @@ def make_geometry():
         "h":np.array(.25),"side":np.array(512,dtype=np.int32),"density":np.array(1.7)})
 
 def make_unified(*,cross_attention_enabled=False,cross_attention_heads=2,cross_attention_chunk=1024,
-                 cross_scale_attention_enabled=False,cross_scale_heads=2,cross_scale_disabled_ids=()):
+                 cross_scale_attention_enabled=False,cross_scale_heads=2,cross_scale_disabled_ids=(),
+                 gno_enabled=False,interaction_variant="independent"):
     torch.manual_seed(830411)
     cfg=NativePCRAFTConfig(grid_size=8,pino_width=2,pino_modes=1,pino_layers=2,
         interval_width=8,interval_depth=1,chunk_intervals=16,min_native_resolution=1,
-        convex_potential_enabled=True,convex_potential_components=2)
+        convex_potential_enabled=True,convex_potential_components=2,gno_enabled=gno_enabled,gno_neighbors=4)
     shared=PcraftNativeMomentOperator(cfg)
     sqno=SpinQuadrANNV12(pcraft_width=8,hidden_dim=4,final_hidden_dim=16,
         num_layers=2,neighbors=4,temperature=.04,quadrature_order=2,
@@ -26,7 +27,7 @@ def make_unified(*,cross_attention_enabled=False,cross_attention_heads=2,cross_a
     return UnifiedM80SQNO(shared,sqno,cross_attention_enabled=cross_attention_enabled,
         cross_attention_heads=cross_attention_heads,cross_attention_chunk=cross_attention_chunk,
         cross_scale_attention_enabled=cross_scale_attention_enabled,cross_scale_heads=cross_scale_heads,
-        cross_scale_disabled_ids=cross_scale_disabled_ids)
+        cross_scale_disabled_ids=cross_scale_disabled_ids,interaction_variant=interaction_variant)
 
 def queries():
     torch.manual_seed(830412)
@@ -426,3 +427,62 @@ def test_cross_scale_attention_gradients_are_finite_and_disabled_path_is_legacy(
     assert grads and all(torch.isfinite(g).all() for g in grads)
     baseline=make_unified().eval()
     assert baseline.cross_scale_attention is None
+
+
+def test_gno_attention_interaction_variants_validate_execution_contracts():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import NativePCRAFTConfig,PcraftNativeMomentOperator
+    from spin_adapter.spin_quadrann_v12 import SpinQuadrANNV12
+    cfg=NativePCRAFTConfig(grid_size=8,pino_width=2,pino_modes=1,pino_layers=2,
+        interval_width=8,interval_depth=1,chunk_intervals=16,min_native_resolution=1,
+        convex_potential_enabled=True,convex_potential_components=2,gno_enabled=True,gno_neighbors=4)
+    def build(variant,geo=False,scale=False):
+        shared=PcraftNativeMomentOperator(cfg)
+        sq=SpinQuadrANNV12(pcraft_width=8,hidden_dim=4,final_hidden_dim=16,
+            num_layers=2,neighbors=4,temperature=.04,quadrature_order=2,
+            chunk_intervals=2,chunk_nodes=64,query_chunk=2)
+        return UnifiedM80SQNO(shared,sq,cross_attention_enabled=geo,
+            cross_scale_attention_enabled=scale,interaction_variant=variant)
+    gno=build("gno_only")
+    assert gno.geometry_physics_attention is None and gno.cross_scale_attention is None
+    geo=build("geometry_attention_only",geo=True)
+    assert geo.geometry_physics_attention is not None and geo.cross_scale_attention is None
+    scale=build("cross_scale_only",scale=True)
+    assert scale.geometry_physics_attention is None and scale.cross_scale_attention is not None
+    seq=build("gno_then_attention",geo=True,scale=True)
+    assert seq.shared_encoder.config.gno_enabled
+    par=build("parallel_gno_attention",geo=True,scale=True)
+    assert par.parallel_interaction_logit is not None
+    with pytest.raises(ValueError,match="requires shared_encoder"):
+        UnifiedM80SQNO(make_unified().shared_encoder,make_unified().sqno,interaction_variant="gno_only")
+    with pytest.raises(ValueError,match="unsupported"):
+        UnifiedM80SQNO(make_unified().shared_encoder,make_unified().sqno,interaction_variant="attention_then_gno")
+
+
+def test_parallel_gno_attention_variant_has_finite_gate_gradients_and_jacobian():
+    model=make_unified(cross_attention_enabled=True,cross_scale_attention_enabled=True,
+        gno_enabled=True,interaction_variant="parallel_gno_attention").eval()
+    torch.nn.init.normal_(model.geometry_physics_attention.output[-1].weight,std=1e-3)
+    torch.nn.init.normal_(model.cross_scale_attention.out[-1].weight,std=1e-3)
+    q=queries()[:1]
+    with torch.no_grad():
+        cache=model.encode_geometry(make_geometry(),inference=True)
+        base=model.evaluate_queries(cache,q)
+        eps=1e-4
+        delta=torch.zeros_like(q); delta[0,4]=eps
+        plus=model.evaluate_queries(cache,q+delta)
+        minus=model.evaluate_queries(cache,q-delta)
+        fd=(plus["moments"]-minus["moments"])/(2*eps)
+    assert torch.allclose(base["jacobian_coefficients"][:,:,4],fd,rtol=2e-2,atol=5e-6)
+    model.train()
+    train_cache=model.encode_geometry(make_geometry())
+    out=model.evaluate_queries(train_cache,q,create_graph=True)
+    (out["moments"].square().mean()+out["jacobian_coefficients"].square().mean()*.01).backward()
+    assert model.parallel_interaction_logit.grad is not None
+    assert torch.isfinite(model.parallel_interaction_logit.grad)
+
+
+def test_non_parallel_variants_register_no_unused_interaction_gate():
+    model=make_unified()
+    assert model.parallel_interaction_logit is None
+    names=[name for name,_ in model.named_parameters()]
+    assert not any("parallel_interaction_logit" in name for name in names)

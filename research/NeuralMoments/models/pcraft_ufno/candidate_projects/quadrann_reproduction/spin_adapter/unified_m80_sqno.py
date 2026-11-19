@@ -57,7 +57,8 @@ class UnifiedM80SQNO(nn.Module):
                  cross_attention_enabled:bool=False,cross_attention_heads:int=2,
                  cross_attention_chunk:int=1024,cross_attention_output_scale:float=.05,
                  cross_scale_attention_enabled:bool=False,cross_scale_heads:int=2,
-                 cross_scale_max_scales:int=16,cross_scale_disabled_ids:tuple[int,...]=()):
+                 cross_scale_max_scales:int=16,cross_scale_disabled_ids:tuple[int,...]=(),
+                 interaction_variant:str="independent",):
         super().__init__()
         if not isinstance(shared_encoder,PcraftNativeMomentOperator):
             raise TypeError("shared_encoder must be PcraftNativeMomentOperator")
@@ -68,6 +69,22 @@ class UnifiedM80SQNO(nn.Module):
         width=shared_encoder.config.interval_width
         if sqno.pcraft_width!=width: raise ValueError("shared P-CRAFT feature width mismatch")
         if not 0<float(fusion_initial_weight)<1: raise ValueError("fusion weight must be between zero and one")
+        valid_variants={"independent","gno_only","geometry_attention_only","cross_scale_only","gno_then_attention","parallel_gno_attention"}
+        if interaction_variant not in valid_variants:
+            raise ValueError(f"unsupported interaction_variant: {interaction_variant}")
+        if interaction_variant in {"gno_only","gno_then_attention","parallel_gno_attention"} and not shared_encoder.config.gno_enabled:
+            raise ValueError(f"{interaction_variant} requires shared_encoder.config.gno_enabled=True")
+        if interaction_variant=="gno_only" and (cross_attention_enabled or cross_scale_attention_enabled):
+            raise ValueError("gno_only cannot enable attention branches")
+        if interaction_variant=="geometry_attention_only" and (not cross_attention_enabled or cross_scale_attention_enabled):
+            raise ValueError("geometry_attention_only requires only geometry cross-attention")
+        if interaction_variant=="cross_scale_only" and (cross_attention_enabled or not cross_scale_attention_enabled):
+            raise ValueError("cross_scale_only requires only cross-scale attention")
+        if interaction_variant=="gno_then_attention" and not (cross_attention_enabled or cross_scale_attention_enabled):
+            raise ValueError("gno_then_attention requires at least one attention branch")
+        if interaction_variant=="parallel_gno_attention" and not (cross_attention_enabled and cross_scale_attention_enabled):
+            raise ValueError("parallel_gno_attention requires both attention branches")
+        self.interaction_variant=interaction_variant
         self.shared_encoder=shared_encoder
         self.sqno=sqno
         self.fusion_initial_weight=float(fusion_initial_weight)
@@ -79,6 +96,10 @@ class UnifiedM80SQNO(nn.Module):
         self.cross_scale_heads=int(cross_scale_heads)
         self.cross_scale_max_scales=int(cross_scale_max_scales)
         self.cross_scale_disabled_ids=tuple(int(v) for v in cross_scale_disabled_ids)
+        if interaction_variant=="parallel_gno_attention":
+            self.parallel_interaction_logit=nn.Parameter(torch.tensor(0.0,dtype=torch.float64))
+        else:
+            self.register_parameter("parallel_interaction_logit",None)
         self.cross_scale_attention=(QueryConditionedCrossScaleAttention(width,heads=self.cross_scale_heads,
             max_scales=self.cross_scale_max_scales) if self.cross_scale_attention_enabled else None)
         if self.cross_attention_enabled:
@@ -153,38 +174,39 @@ class UnifiedM80SQNO(nn.Module):
         fused_moments=alpha*m80+(1-alpha)*ms
         fused_jacobian=alpha*j80+(1-alpha)*js
         attention_diagnostics={}
+        corrections=[]; correction_jacobians=[]; branch_names=[]
         if self.geometry_physics_attention is not None:
-            # The query-conditioned correction is differentiated with respect
-            # to the raw input coefficients and added to the branch Jacobian.
             with torch.enable_grad():
                 q_attention=qb if qb.requires_grad else qb.detach().requires_grad_(True)
-                correction,attention_diagnostics=self.geometry_physics_attention(
-                    q_attention,cache.shared_cache.interval_features,
-                    cache.shared_cache.interval_mass)
-                correction_jacobian=torch.stack([
-                    torch.autograd.grad(correction[:,out_index].sum(),q_attention,
-                        create_graph=create_graph,retain_graph=True)[0]
-                    for out_index in range(10)
-                ],dim=1)
-            fused_moments=fused_moments+correction.to(dtype=fused_moments.dtype)
-            fused_jacobian=fused_jacobian+correction_jacobian.to(dtype=fused_jacobian.dtype)
-            if cache.inference_only:
-                fused_moments=fused_moments.detach()
-                fused_jacobian=fused_jacobian.detach()
-                attention_diagnostics={k:v.detach() for k,v in attention_diagnostics.items()}
+                correction,diag=self.geometry_physics_attention(q_attention,
+                    cache.shared_cache.interval_features,cache.shared_cache.interval_mass)
+                jac=torch.stack([torch.autograd.grad(correction[:,k].sum(),q_attention,
+                    create_graph=create_graph,retain_graph=True)[0] for k in range(10)],dim=1)
+            corrections.append(correction); correction_jacobians.append(jac); branch_names.append("geometry")
+            attention_diagnostics.update(diag)
         if self.cross_scale_attention is not None:
             with torch.enable_grad():
                 q_scale=qb if qb.requires_grad else qb.detach().requires_grad_(True)
-                correction,scale_diag=self.cross_scale_attention(q_scale,cache.shared_cache.scale_features,
+                correction,diag=self.cross_scale_attention(q_scale,cache.shared_cache.scale_features,
                     cache.shared_cache.scale_ids,disabled_scale_ids=self.cross_scale_disabled_ids)
-                scale_jacobian=torch.stack([torch.autograd.grad(correction[:,k].sum(),q_scale,
+                jac=torch.stack([torch.autograd.grad(correction[:,k].sum(),q_scale,
                     create_graph=create_graph,retain_graph=True)[0] for k in range(10)],dim=1)
-            fused_moments=fused_moments+correction.to(dtype=fused_moments.dtype)
-            fused_jacobian=fused_jacobian+scale_jacobian.to(dtype=fused_jacobian.dtype)
+            corrections.append(correction); correction_jacobians.append(jac); branch_names.append("scale")
+            attention_diagnostics.update(diag)
+        if corrections:
+            if self.interaction_variant=="parallel_gno_attention" and len(corrections)==2:
+                gate=torch.sigmoid(self.parallel_interaction_logit).to(device=qb.device,dtype=qb.dtype)
+                attention_correction=gate*corrections[0]+(1-gate)*corrections[1]
+                attention_jacobian=gate*correction_jacobians[0]+(1-gate)*correction_jacobians[1]
+                attention_diagnostics["parallel_attention_gate"]=gate.detach()
+            else:
+                attention_correction=sum(corrections)
+                attention_jacobian=sum(correction_jacobians)
+            fused_moments=fused_moments+attention_correction.to(dtype=fused_moments.dtype)
+            fused_jacobian=fused_jacobian+attention_jacobian.to(dtype=fused_jacobian.dtype)
             if cache.inference_only:
                 fused_moments=fused_moments.detach(); fused_jacobian=fused_jacobian.detach()
-                scale_diag={k:v.detach() for k,v in scale_diag.items()}
-            attention_diagnostics.update(scale_diag)
+                attention_diagnostics={k:v.detach() if isinstance(v,Tensor) else v for k,v in attention_diagnostics.items()}
         result={
           "moments":fused_moments,
           "jacobian_coefficients":fused_jacobian,
@@ -362,6 +384,7 @@ class UnifiedM80SQNO(nn.Module):
           "cross_scale_attention":{"enabled":self.cross_scale_attention_enabled,
             "heads":self.cross_scale_heads,"max_scales":self.cross_scale_max_scales,
             "disabled_ids":self.cross_scale_disabled_ids},
+          "interaction_variant":self.interaction_variant,
           "metadata":self.architecture_metadata,
         }
 

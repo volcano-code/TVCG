@@ -317,3 +317,47 @@ and extreme but valid temperature bounds. These are synthetic mechanism
 tests only; calibrating the complexity score, minimum temperature, maximum
 temperature and the 0.5/0.5 complexity weighting requires the formal
 multi-geometry dataset and matched GPU profiling.
+
+
+## Phase 2.8.5.4 — GNO / Attention Interaction
+
+The existing GNO is a geometry-stage message-passing update inside the shared
+P-CRAFT encoder. Geometry-Physics and Cross-scale Attention are query-stage
+corrections over cached shared features. These operators therefore occupy
+different points in the execution graph; the implementation does not pretend
+that an attention-before-GNO ordering is available without redesigning and
+recomputing the geometry cache.
+
+The Unified wrapper now declares explicit interaction variants:
+- `independent`: preserve freely selectable legacy ablations;
+- `gno_only`: shared P-CRAFT GNO enabled, both query-attention corrections off;
+- `geometry_attention_only`: geometry cross-attention only;
+- `cross_scale_only`: cross-scale attention only;
+- `gno_then_attention`: geometry-stage GNO followed by one or both query-stage
+  attention corrections;
+- `parallel_gno_attention`: GNO geometry trunk plus both query-attention
+  corrections, combined by a trainable residual gate.
+
+GNO is executed once during the shared geometry encoding and reused by M80
+and SQNO. The attention corrections reuse the same cache; no duplicate
+geometry encoder or voxel pyramid is constructed. The parallel gate parameter
+is registered only for the parallel variant, so default and non-parallel
+checkpoint parameter layouts are not expanded by an unused parameter.
+
+An `attention_then_gno` variant is deliberately not offered: current GNO
+operates before query evaluation in the geometry encoder, whereas both
+attention mechanisms are query-conditioned after geometry encoding. Claiming
+the reverse order would require a query-conditioned GNO redesign and its
+complete raw-coefficient Jacobian, not a naming-only toggle.
+
+The parallel gate combines the two query-stage residual corrections. Its
+query derivative is the same gate-weighted combination of each correction
+Jacobian because the gate is a learned geometry/model scalar independent of
+the query. The M80/SQNO base fusion and both correction Jacobians remain
+explicit in the output contract.
+
+Synthetic tests cover variant validation, no unused gate parameters in
+non-parallel configurations, finite parallel-gate gradients, and finite-
+difference checks of the combined raw-coefficient Jacobian. Fair accuracy,
+runtime, memory and parameter-budget comparisons remain pending matched
+training and GPU profiling on the audited formal dataset.
