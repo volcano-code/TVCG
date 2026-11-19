@@ -312,3 +312,34 @@ adaptive balancing in formal runs.
 No long training is started. Task-balance effectiveness, convergence and
 generalization remain data-dependent and blocked pending the audited
 multi-source corpus and frozen geometry/source-family splits.
+
+
+## Phase 2.9.4.2 — Per-task shared-gradient integration
+
+The native P-CRAFT trainer now exposes an opt-in `--multitask-mode pcgrad`
+path. It computes Moment, Jacobian, Event, UQ and Physics task losses
+separately, preserving the fixed weighted objective as the default
+`fixed` mode.
+
+For PCGrad mode, shared parameters are explicitly partitioned from the
+Event and UQ task-specific heads. Each active weighted task loss is
+differentiated separately with `autograd.grad`. PCGrad projection is
+performed only on the flattened shared-parameter gradients before they are
+combined. Task-specific head gradients are accumulated directly with their
+task weights and are not projected against unrelated heads.
+
+The partition is checked for overlap, duplicates and exhaustive parameter
+coverage. Per-step history records task losses, task label counts, shared
+gradient norms, private-head gradient norms, cosine matrix and projection
+counts. The selected mode is part of the strict training resume contract.
+
+This is the native P-CRAFT trainer integration. It does not yet claim that
+the separate Unified M80+SQNO wrapper training pipeline uses the same
+gradient controller; that needs its own shared-parameter audit and adapter
+integration before claiming end-to-end unified training support.
+
+GradNorm and learned task weighting remain for Phase 2.9.4.3. The current
+PCGrad path does not use predictive aleatoric UQ scales as task weights.
+Default `fixed` mode reconstructs the existing weighted objective exactly.
+No formal training is started; task-balance efficacy remains blocked on the
+audited multi-source dataset.

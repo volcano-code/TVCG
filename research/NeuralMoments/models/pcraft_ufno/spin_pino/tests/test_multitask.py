@@ -71,3 +71,78 @@ def test_gradnorm_rejects_nonfinite_statistics():
     balancer=GradNormBalancer(("moment",))
     with pytest.raises(ValueError,match="invalid GradNorm"):
         balancer.update({"moment":float("nan")},{"moment":1.})
+
+
+def test_pcgrad_assignment_projects_shared_gradients_and_retains_private_head_gradients():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.multitask import pcgrad_assign_gradients
+    shared=torch.nn.Parameter(torch.tensor([1.,0.]))
+    event_head=torch.nn.Parameter(torch.tensor(2.))
+    uq_head=torch.nn.Parameter(torch.tensor(3.))
+    moment=(shared[0]+0*event_head).sum()
+    event=(-shared[0]+2*event_head)
+    uq=(shared[1]+3*uq_head)
+    report=pcgrad_assign_gradients(
+        {"moment":moment,"event":event,"uq":uq},
+        {"moment":1.,"event":1.,"uq":.5},
+        [shared],[event_head,uq_head])
+    assert report["task_names"]==["moment","event","uq"]
+    assert report["projection_counts"][0]>=1
+    assert shared.grad is not None and torch.isfinite(shared.grad).all()
+    assert event_head.grad.item()==pytest.approx(2.)
+    assert uq_head.grad.item()==pytest.approx(1.5)
+
+
+def test_pcgrad_assignment_rejects_overlapping_or_duplicate_parameter_groups():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.multitask import pcgrad_assign_gradients
+    p=torch.nn.Parameter(torch.ones(1))
+    loss=p.sum()
+    with pytest.raises(ValueError,match="overlap"):
+        pcgrad_assign_gradients({"x":loss},{"x":1.},[p],[p])
+    with pytest.raises(ValueError,match="duplicate"):
+        pcgrad_assign_gradients({"x":loss},{"x":1.},[p,p],[])
+
+
+def test_pcgrad_assignment_skips_absent_tasks_and_updates_optimizer():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.multitask import pcgrad_assign_gradients
+    shared=torch.nn.Parameter(torch.tensor([1.,2.]))
+    head=torch.nn.Parameter(torch.tensor(1.))
+    optimizer=torch.optim.SGD([shared,head],lr=.1)
+    optimizer.zero_grad(set_to_none=True)
+    active=(shared.square().sum()+head.square())
+    report=pcgrad_assign_gradients({"moment":active,"event":None},
+        {"moment":1.,"event":1.},[shared],[head])
+    before=shared.detach().clone()
+    optimizer.step()
+    assert report["task_names"]==["moment"]
+    assert not torch.equal(before,shared.detach())
+    assert head.grad is not None
+
+
+def test_pcgrad_assignment_rejects_empty_active_task_set():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.multitask import pcgrad_assign_gradients
+    p=torch.nn.Parameter(torch.ones(1))
+    with pytest.raises(ValueError,match="no active"):
+        pcgrad_assign_gradients({"event":None},{"event":1.},[p],[])
+
+
+def test_native_task_loss_decomposition_reconstructs_fixed_objective():
+    import numpy as np
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_train import loss_for_batch
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import (
+        NativePCRAFTConfig,PcraftNativeMomentOperator)
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.tests.test_native_pcraft import small_geometry
+    cfg=NativePCRAFTConfig(grid_size=8,pino_width=2,pino_modes=1,pino_layers=2,
+        interval_width=8,interval_depth=1,chunk_intervals=16,min_native_resolution=1,
+        event_validity_head_enabled=True)
+    model=PcraftNativeMomentOperator(cfg).train()
+    cache=model.encode(small_geometry(),chunk=16)
+    q=np.asarray([[0.,1.,0,0,0,0,0,0,0,0],[0.,0,1.,0,0,0,0,0,0,0]],dtype=np.float64)
+    labels={"queries":q,"moments":np.zeros((2,10)),"jacobian":np.ones((2,10,10)),
+        "derivative_valid":np.asarray([True,False]),"event_valid":np.asarray([True,False]),
+        "event_label_valid":np.asarray([True,True])}
+    fixed,*_=loss_for_batch(model,cache,labels,np.arange(2),.05,"cpu",event_weight=.1)
+    tasks,counts=loss_for_batch(model,cache,labels,np.arange(2),.05,"cpu",
+        event_weight=.1,return_task_losses=True)
+    reconstructed=tasks["moment"]+.05*tasks["jacobian"]+.1*tasks["event"]
+    assert torch.allclose(fixed,reconstructed,rtol=1e-12,atol=1e-12)
+    assert counts["jacobian"]==1 and counts["event"]==2

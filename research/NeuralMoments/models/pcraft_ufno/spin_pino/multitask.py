@@ -172,3 +172,59 @@ class LearnedTaskWeights(nn.Module):
             term = torch.exp(-s) * loss + s
             total = term if total is None else total + term
         return total
+
+
+def pcgrad_assign_gradients(losses: Mapping[str, Tensor | None],
+                            weights: Mapping[str, float],
+                            shared_parameters: Sequence[nn.Parameter],
+                            private_parameters: Sequence[nn.Parameter],
+                            *, eps: float = 1e-12) -> dict:
+    """Compute per-task grads, PCGrad only shared params, retain weighted private-head grads.
+
+    Each task loss is differentiated separately. Shared gradients are projected
+    before summation; task-private gradients are simply summed with task weights.
+    """
+    shared=[p for p in shared_parameters if p.requires_grad]
+    private=[p for p in private_parameters if p.requires_grad]
+    if not shared: raise ValueError("at least one shared trainable parameter is required")
+    if {id(p) for p in shared}&{id(p) for p in private}:
+        raise ValueError("shared/private parameter groups overlap")
+    if len({id(p) for p in shared+private})!=len(shared)+len(private):
+        raise ValueError("duplicate parameter in gradient partition")
+    active=[]
+    for name,loss in losses.items():
+        if loss is None: continue
+        weight=float(weights.get(name,0.0))
+        if not math.isfinite(weight) or weight<0: raise ValueError(f"invalid task weight for {name}")
+        if weight==0 or not loss.requires_grad: continue
+        active.append((name,loss*weight,weight))
+    if not active: raise ValueError("no active weighted task losses")
+    shared_rows=[]; private_acc={id(p):None for p in private}
+    task_names=[]; norms={}; private_norms={}
+    all_params=shared+private
+    for index,(name,loss,weight) in enumerate(active):
+        grads=torch.autograd.grad(loss,all_params,retain_graph=index<len(active)-1,
+                                  allow_unused=True)
+        sg=grads[:len(shared)]
+        flat=torch.cat([(torch.zeros_like(p) if g is None else g).reshape(-1)
+                        for p,g in zip(shared,sg)])
+        if not torch.isfinite(flat).all(): raise FloatingPointError(f"nonfinite shared gradient for {name}")
+        shared_rows.append(flat);task_names.append(name);norms[name]=float(flat.norm())
+        for p,g in zip(private,grads[len(shared):]):
+            if g is not None:
+                current=private_acc[id(p)]
+                private_acc[id(p)]=g.detach().clone() if current is None else current+g.detach()
+                private_norms.setdefault(name,0.0)
+                private_norms[name]+=float(g.detach().norm().square())
+    combined,diagnostics=pcgrad_project(shared_rows,eps=eps)
+    offset=0
+    for p in shared:
+        count=p.numel()
+        p.grad=combined[offset:offset+count].view_as(p).detach().clone()
+        offset+=count
+    for p in private:
+        value=private_acc[id(p)]
+        p.grad=None if value is None else value
+    return {"task_names":task_names,"shared_gradient_norms":norms,
+            "private_gradient_norms":{k:math.sqrt(v) for k,v in private_norms.items()},
+            **diagnostics}

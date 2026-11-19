@@ -259,7 +259,8 @@ def loss_for_batch(model,cache,labels,indices,jacobian_weight,device,*,
                    min_event_margin=0.0,require_fd_audit=False,
                    max_jacobian_error_bound=None,event_weight=0.05,
                    physics_weight=0.0,uq_weight=0.0,event_pos_weight=1.0,
-                   event_jacobian_weight=0.0,event_regular_jacobian_scale=1.0,event_event_jacobian_scale=0.0):
+                   event_jacobian_weight=0.0,event_regular_jacobian_scale=1.0,event_event_jacobian_scale=0.0,
+                   return_task_losses=False):
     q=torch.tensor(np.array(labels["queries"][indices],copy=True),device=device,dtype=torch.float64)
     target=torch.tensor(np.array(labels["moments"][indices],copy=True),device=device,dtype=torch.float64)
     pred,jac=model.moments_and_jacobian(cache,q,create_graph=True)
@@ -341,6 +342,15 @@ def loss_for_batch(model,cache,labels,indices,jacobian_weight,device,*,
             event_loss=torch.nn.functional.binary_cross_entropy_with_logits(
                 event_logits[mask],selected_target,
                 pos_weight=torch.as_tensor(pos_weight,device=device,dtype=event_logits.dtype))
+    if return_task_losses:
+        return {"moment":moment,"jacobian":derivative if jacobian_weight>0 and valid.any() else None,
+                "event":event_loss if model.config.event_validity_head_enabled and event_weight>0 and "event_mask" in locals() and event_mask.any() else None,
+                "uq":uq_loss if uq_weight>0 else None,
+                "physics":physics_loss if physics_weight>0 else None}, {
+                    "moment":int(len(indices)),"jacobian":int(valid.sum()),
+                    "event":int(event_mask.sum()) if model.config.event_validity_head_enabled and "event_mask" in locals() else 0,
+                    "uq_moment":int(len(indices)) if uq_weight>0 else 0,
+                    "physics":int(len(indices)) if physics_weight>0 else 0}
     return moment+jacobian_weight*derivative+event_weight*event_loss+physics_weight*physics_loss+uq_weight*uq_loss,moment,derivative,event_loss
 
 
@@ -556,10 +566,18 @@ def train(args):
         raise ValueError("formal corpus does not meet configured independent source-group minimums")
     model=PcraftNativeMomentOperator(cfg).to(args.device)
     opt=torch.optim.AdamW(model.parameters(),lr=args.learning_rate,weight_decay=args.weight_decay)
+    from .multitask import pcgrad_assign_gradients
+    named=list(model.named_parameters())
+    private_parameters=[p for name,p in named if name.startswith(("event_validity_head.","uq_head."))]
+    private_ids={id(p) for p in private_parameters}
+    shared_parameters=[p for _,p in named if id(p) not in private_ids]
+    if len({id(p) for p in shared_parameters+private_parameters})!=len(named):
+        raise RuntimeError("multi-task shared/private parameter partition is not exhaustive and unique")
     contract=dict(schema=TRAIN_SCHEMA,config=asdict(cfg),manifest_sha256=corpus.manifest_sha,
         audit_sha256=corpus.audit_sha,corpus_fingerprint=corpus.doc["fingerprint"],source=source_fingerprints(),
         runtime=runtime_info(args.device,args.amp),seed=args.seed,batch_queries=args.batch_queries,
-        chunk=args.chunk,lr=args.learning_rate,weight_decay=args.weight_decay,jacobian_weight=args.jacobian_weight,event_weight=args.event_weight,physics_weight=getattr(args,"physics_weight",0.0),uq_weight=getattr(args,"uq_weight",0.0),event_pos_weight=getattr(args,"event_pos_weight",1.0),event_jacobian_weight=getattr(args,"event_jacobian_weight",0.0),event_regular_jacobian_scale=getattr(args,"event_regular_jacobian_scale",1.0),event_event_jacobian_scale=getattr(args,"event_event_jacobian_scale",0.0),gradient_clip=args.gradient_clip,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound,min_queries=args.min_queries_per_record)
+        chunk=args.chunk,lr=args.learning_rate,weight_decay=args.weight_decay,jacobian_weight=args.jacobian_weight,event_weight=args.event_weight,physics_weight=getattr(args,"physics_weight",0.0),uq_weight=getattr(args,"uq_weight",0.0),event_pos_weight=getattr(args,"event_pos_weight",1.0),event_jacobian_weight=getattr(args,"event_jacobian_weight",0.0),event_regular_jacobian_scale=getattr(args,"event_regular_jacobian_scale",1.0),event_event_jacobian_scale=getattr(args,"event_event_jacobian_scale",0.0),gradient_clip=args.gradient_clip,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound,min_queries=args.min_queries_per_record,
+        multitask_mode=getattr(args,"multitask_mode","fixed"))
     out=Path(args.out); out.mkdir(parents=True,exist_ok=True)
     step=0; best_step=0; best_score=float("inf"); best_state=None; history=[]
     gradient_norms=[]; nonfinite_grad_steps=0
@@ -595,10 +613,20 @@ def train(args):
         opt.zero_grad(set_to_none=True)
         with autocast(args.device,args.amp):
             cache=model.encode(geometry,args.chunk)
-            loss,ml,jl,el=loss_for_batch(model,cache,labels,idx,args.jacobian_weight,args.device,
-                event_weight=args.event_weight,physics_weight=getattr(args,"physics_weight",0.0),uq_weight=getattr(args,"uq_weight",0.0),event_pos_weight=getattr(args,"event_pos_weight",1.0),event_jacobian_weight=getattr(args,"event_jacobian_weight",0.0),event_regular_jacobian_scale=getattr(args,"event_regular_jacobian_scale",1.0),event_event_jacobian_scale=getattr(args,"event_event_jacobian_scale",0.0))
+            task_result=loss_for_batch(model,cache,labels,idx,args.jacobian_weight,args.device,
+                event_weight=args.event_weight,physics_weight=getattr(args,"physics_weight",0.0),uq_weight=getattr(args,"uq_weight",0.0),event_pos_weight=getattr(args,"event_pos_weight",1.0),event_jacobian_weight=getattr(args,"event_jacobian_weight",0.0),event_regular_jacobian_scale=getattr(args,"event_regular_jacobian_scale",1.0),event_event_jacobian_scale=getattr(args,"event_event_jacobian_scale",0.0),return_task_losses=True)
+        task_losses,task_counts=task_result
+        weights={"moment":1.0,"jacobian":args.jacobian_weight,"event":args.event_weight,
+                 "uq":getattr(args,"uq_weight",0.0),"physics":getattr(args,"physics_weight",0.0)}
+        loss=sum((v*weights[k] for k,v in task_losses.items() if v is not None),
+                 torch.zeros((),device=args.device,dtype=torch.float64))
         if not torch.isfinite(loss): raise FloatingPointError(f"nonfinite loss at step {step+1}")
-        loss.backward()
+        if getattr(args,"multitask_mode","fixed")=="pcgrad":
+            multitask_report=pcgrad_assign_gradients(task_losses,weights,shared_parameters,private_parameters)
+        else:
+            loss.backward()
+            multitask_report={"task_names":[k for k,v in task_losses.items() if v is not None],
+                "shared_gradient_norms":{},"private_gradient_norms":{},"projection_counts":[],"cosine_matrix":[]}
         grad_norm=torch.nn.utils.clip_grad_norm_(model.parameters(),args.gradient_clip,error_if_nonfinite=True)
         grad_value=float(grad_norm.detach())
         if not math.isfinite(grad_value):
@@ -607,7 +635,8 @@ def train(args):
         gradient_norms.append(grad_value)
         opt.step(); step+=1
         history.append(dict(step=step,id=row["id"],group=row["group_id"],loss=float(loss.detach()),
-                            moment=float(ml.detach()),jacobian=float(jl.detach()),event=float(el.detach()),gradient_norm=grad_value))
+                            task_losses={k:(None if v is None else float(v.detach())) for k,v in task_losses.items()},
+                            task_counts=task_counts,multitask_report=multitask_report,gradient_norm=grad_value))
         if step%args.val_every==0:
             val=validate(model,corpus,args.device,args.amp,args.chunk,args.val_max_records,args.val_max_queries,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound)
             score=val["moment_scaled_mse"]+args.jacobian_weight*(val["jacobian_scaled_mse"] or 0.)+args.event_weight*(val["event_validity_bce"] or 0.)
@@ -672,6 +701,7 @@ def main():
             q.add_argument("--min-test-groups",type=int,default=10); q.add_argument("--save-every",type=int,default=25)
             q.add_argument("--val-every",type=int,default=20); q.add_argument("--val-max-records",type=int,default=8)
             q.add_argument("--val-max-queries",type=int,default=256); q.add_argument("--resume",type=Path)
+            q.add_argument("--multitask-mode",choices=("fixed","pcgrad"),default="fixed",help="opt-in per-task PCGrad on shared parameters; fixed preserves baseline")
             q.add_argument("--evaluate-test",action="store_true",
                            help="evaluate the selected best checkpoint on test exactly once; never use for tuning")
     args=p.parse_args()
