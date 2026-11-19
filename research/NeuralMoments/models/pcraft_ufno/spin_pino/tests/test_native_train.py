@@ -435,3 +435,49 @@ def test_event_conditioned_jacobian_requires_explicit_event_labels_and_has_finit
     loss.backward()
     grads=[p.grad for p in model.parameters() if p.grad is not None]
     assert grads and all(torch.isfinite(g).all() for g in grads)
+
+
+def test_event_threshold_selection_uses_calibration_mask_and_is_deterministic():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.uq import select_event_threshold
+    logits=np.asarray([-4.,-2.,1.,3.,20.])
+    target=np.asarray([False,False,True,True,False])
+    mask=np.asarray([True,True,True,True,False])
+    a=select_event_threshold(logits,target,mask=mask,objective="f1")
+    b=select_event_threshold(logits,target,mask=mask,objective="f1")
+    assert a==b
+    assert a["calibration_count"]==4
+    assert "locked test" in a["warning"]
+    with pytest.raises(ValueError,match="both event classes"):
+        select_event_threshold(logits,np.ones(5,dtype=bool))
+
+
+def test_grouped_event_bootstrap_is_deterministic_and_clustered():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.uq import grouped_event_bootstrap
+    logits=np.asarray([-3.,-2.,1.,2.,-1.,3.,-2.5,2.5])
+    targets=np.asarray([False,False,True,True,False,True,False,True])
+    groups=np.asarray(["A","A","A","A","B","B","B","B"])
+    a=grouped_event_bootstrap(logits,targets,groups,n_bootstrap=120,seed=41)
+    b=grouped_event_bootstrap(logits,targets,groups,n_bootstrap=120,seed=41)
+    assert a==b
+    assert a["bootstrap_unit"]=="geometry_or_source_group"
+    assert a["group_count"]==2
+    assert 0<=a["intervals"]["brier"]["lower"]<=a["intervals"]["brier"]["upper"]<=1
+
+
+def test_grouped_event_bootstrap_rejects_single_geometry_group():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.uq import grouped_event_bootstrap
+    with pytest.raises(ValueError,match="at least two"):
+        grouped_event_bootstrap([0,1],[False,True],["same","same"],n_bootstrap=100)
+
+
+def test_event_metrics_macro_group_scores_and_tie_correct_auc():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.uq import event_classification_metrics
+    logits=np.asarray([-1.,-1.,1.,1.,0.,0.])
+    target=np.asarray([False,True,True,True,False,False])
+    groups=np.asarray(["A","A","A","B","B","B"])
+    report=event_classification_metrics(logits,target,group_ids=groups,threshold=.6)
+    assert report["auroc"] is not None
+    assert report["group_macro_brier"]==pytest.approx(np.mean([g["brier"] for g in report["groups"]]))
+    assert report["group_macro_ece"]==pytest.approx(np.mean([g["ece"] for g in report["groups"]]))
+    single=event_classification_metrics([0,1],[True,True])
+    assert single["auroc"] is None and single["auprc"] is None

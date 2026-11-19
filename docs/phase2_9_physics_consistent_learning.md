@@ -226,3 +226,34 @@ Formal event-boundary behavior and any near-event categories remain BLOCKED
 until the dataset provides audited event labels with documented semantics.
 Event probabilities do not override exact contact/event checks or physical
 acceptance.
+
+
+## Phase 2.9.3.3 — Event calibration and grouped risk evaluation
+
+The event evaluation toolkit now supports:
+- tie-correct AUROC and average precision/AUPRC, returning null when only
+  one class is present;
+- Brier score, ECE, confusion counts, precision, recall and F1 at an
+  explicitly supplied threshold;
+- per-geometry/source-group metrics and macro Brier/ECE/AUROC;
+- deterministic threshold selection on a calibration mask only, with an
+  explicit warning not to retune on the locked test;
+- percentile bootstrap intervals clustered by geometry/source group, never
+  by individual query rows.
+
+The calibration API accepts teacher `event_valid` targets and an independent
+`event_label_valid` mask. It does not infer event labels from
+`derivative_valid`. Threshold selection requires both classes in the
+calibration subset. Cluster bootstrap requires at least two independent
+geometry/source groups and resamples whole groups with replacement.
+
+These are evaluation primitives. They do not create a dataset split or load
+model predictions automatically. A downstream evaluator must provide
+predictions from a frozen checkpoint and use a pre-declared calibration split;
+validation and locked-test predictions must remain separate. Event
+probabilities are risk indicators only and never replace exact contact/event
+checks or physical acceptance.
+
+Formal event calibration, source-family confidence intervals and risk
+claims remain BLOCKED until Work's multi-source dataset has audited event
+labels and a frozen geometry/source-family split.

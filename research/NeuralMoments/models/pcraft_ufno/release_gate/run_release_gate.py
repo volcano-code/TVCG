@@ -95,6 +95,8 @@ def _architecture_contract_check() -> dict:
         "uq_risk_coverage": (NATIVE / "uq.py").is_file() and "def uncertainty_risk_coverage" in (NATIVE / "uq.py").read_text(),
         "uq_reliability_bins": (NATIVE / "uq.py").is_file() and "def calibration_reliability_bins" in (NATIVE / "uq.py").read_text(),
         "event_classification_metrics": (NATIVE / "uq.py").is_file() and "def event_classification_metrics" in (NATIVE / "uq.py").read_text(),
+        "event_threshold_selection": "def select_event_threshold" in (NATIVE / "uq.py").read_text(),
+        "grouped_event_bootstrap": "def grouped_event_bootstrap" in (NATIVE / "uq.py").read_text(),
         "event_label_mask_contract": "event_label_valid" in (NATIVE / "native_train.py").read_text(),
         "event_conditioned_jacobian_supervision": "event_jacobian_weight" in (NATIVE / "native_train.py").read_text(),
         "learned_moment_jacobian_uq_heads": "def predict_uq" in native and "uq_enabled" in native,
