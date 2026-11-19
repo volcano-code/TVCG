@@ -173,8 +173,6 @@ class UnifiedM80SQNO(nn.Module):
                 fused_jacobian=fused_jacobian.detach()
                 attention_diagnostics={k:v.detach() for k,v in attention_diagnostics.items()}
         if self.cross_scale_attention is not None:
-            correction,scale_diag=self.cross_scale_attention(qb,cache.shared_cache.scale_features,
-                cache.shared_cache.scale_ids,disabled_scale_ids=self.cross_scale_disabled_ids)
             with torch.enable_grad():
                 q_scale=qb if qb.requires_grad else qb.detach().requires_grad_(True)
                 correction,scale_diag=self.cross_scale_attention(q_scale,cache.shared_cache.scale_features,
