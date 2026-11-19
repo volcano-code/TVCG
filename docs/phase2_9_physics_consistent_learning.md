@@ -186,3 +186,43 @@ solver event checks, derivative-validity labels, or physical pass/fail
 acceptance. Dataset-wide event coverage and calibration remain BLOCKED until
 the formal multi-source corpus has audited event labels and source-family
 splits.
+
+
+## Phase 2.9.3.2 — Event-conditioned Jacobian supervision
+
+The first implementation is an opt-in teacher-conditioned Jacobian loss
+policy, not a new predicted-event-conditioned physical mapping. This avoids
+feeding the Event Head's own probability back into the derivative path and
+creating a self-confirming gradient loop.
+
+The policy intersects two independent masks:
+- `derivative_valid`: the teacher Jacobian label is admissible;
+- `event_label_valid`: the teacher event class is known.
+
+Only rows passing both masks contribute. `event_valid=True` is treated as
+the teacher-defined regular regime; `event_valid=False` as the
+teacher-defined event/nonsmooth regime. Unknown event labels are excluded.
+No event class is inferred from derivative validity or predicted event logits.
+
+The opt-in trainer parameters are:
+- `--event-jacobian-weight` (default 0; disabled path is unchanged);
+- `--event-regular-jacobian-scale` (default 1);
+- `--event-event-jacobian-scale` (default 0).
+
+The two scales are relative sample weights inside the Jacobian loss. This
+supports conservative supervision on regular rows while suppressing
+classical-Jacobian regression on teacher-labeled nonsmooth rows. If no
+admissible labeled rows remain, the conditioned Jacobian term is zero.
+These weights must be chosen using training/validation groups only.
+
+This increment does not yet add an event embedding to the forward Moment
+operator. Such a feature would change the mathematical function being
+differentiated and requires a separate design with a well-defined exogenous
+event-state input and complete raw-coefficient chain rule. The current
+teacher-conditioned loss policy preserves the exact derivative of the
+existing Moment mapping.
+
+Formal event-boundary behavior and any near-event categories remain BLOCKED
+until the dataset provides audited event labels with documented semantics.
+Event probabilities do not override exact contact/event checks or physical
+acceptance.

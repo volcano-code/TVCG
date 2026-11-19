@@ -258,7 +258,8 @@ def jacobian_structure_penalty(jacobian:torch.Tensor):
 def loss_for_batch(model,cache,labels,indices,jacobian_weight,device,*,
                    min_event_margin=0.0,require_fd_audit=False,
                    max_jacobian_error_bound=None,event_weight=0.05,
-                   physics_weight=0.0,uq_weight=0.0,event_pos_weight=1.0):
+                   physics_weight=0.0,uq_weight=0.0,event_pos_weight=1.0,
+                   event_jacobian_weight=0.0,event_regular_jacobian_scale=1.0,event_event_jacobian_scale=0.0):
     q=torch.tensor(np.array(labels["queries"][indices],copy=True),device=device,dtype=torch.float64)
     target=torch.tensor(np.array(labels["moments"][indices],copy=True),device=device,dtype=torch.float64)
     pred,jac=model.moments_and_jacobian(cache,q,create_graph=True)
@@ -266,7 +267,29 @@ def loss_for_batch(model,cache,labels,indices,jacobian_weight,device,*,
     valid=derivative_supervision_mask(labels,indices,min_event_margin=min_event_margin,
         require_fd_audit=require_fd_audit,max_jacobian_error_bound=max_jacobian_error_bound)
     derivative=moment*0
-    if valid.any():
+    if event_jacobian_weight<0 or not math.isfinite(float(event_jacobian_weight)):
+        raise ValueError("event_jacobian_weight must be finite and nonnegative")
+    if not (math.isfinite(float(event_regular_jacobian_scale)) and event_regular_jacobian_scale>=0
+            and math.isfinite(float(event_event_jacobian_scale)) and event_event_jacobian_scale>=0):
+        raise ValueError("event Jacobian scales must be finite and nonnegative")
+    if event_jacobian_weight>0:
+        if "event_valid" not in labels:
+            raise ValueError("event-conditioned Jacobian loss requires explicit event_valid labels")
+        event_label_mask=np.asarray(labels.get("event_label_valid",np.ones(len(labels["event_valid"]),dtype=bool))[indices],dtype=bool)
+        if event_label_mask.shape!=(len(indices),):
+            raise ValueError("event_label_valid must be bool [queries]")
+        # event_valid=True is teacher-defined regular regime; False is teacher-defined event/nonsmooth regime.
+        conditioned_valid=valid & event_label_mask
+        event_targets=np.asarray(labels["event_valid"][indices],dtype=bool)
+        sample_weights=np.where(event_targets,event_regular_jacobian_scale,event_event_jacobian_scale)
+        sample_weights=sample_weights*conditioned_valid.astype(np.float64)
+        if sample_weights.sum()>0:
+            jt=torch.tensor(np.array(labels["jacobian"][indices],copy=True),device=device,dtype=torch.float64)
+            scale=cache.moment_scales[:,None]*cache.coordinate_scales[None,:]
+            per_sample=((jac-jt)/scale).square().mean(dim=(-1,-2))
+            weights=torch.as_tensor(sample_weights,device=device,dtype=per_sample.dtype)
+            derivative=(per_sample*weights).sum()/weights.sum()
+    elif valid.any():
         mask=torch.as_tensor(valid,device=device)
         jt=torch.tensor(np.array(labels["jacobian"][indices][valid],copy=True),device=device,dtype=torch.float64)
         scale=cache.moment_scales[:,None]*cache.coordinate_scales[None,:]
@@ -453,7 +476,7 @@ def preflight(args):
     sync(args.device); start=perf_counter()
     with autocast(args.device,args.amp):
         cache=model.encode(geometry,args.chunk)
-        loss,ml,jl,el=loss_for_batch(model,cache,labels,indices,args.jacobian_weight,args.device,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound,event_weight=args.event_weight,physics_weight=getattr(args,"physics_weight",0.0),uq_weight=getattr(args,"uq_weight",0.0),event_pos_weight=getattr(args,"event_pos_weight",1.0))
+        loss,ml,jl,el=loss_for_batch(model,cache,labels,indices,args.jacobian_weight,args.device,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound,event_weight=args.event_weight,physics_weight=getattr(args,"physics_weight",0.0),uq_weight=getattr(args,"uq_weight",0.0),event_pos_weight=getattr(args,"event_pos_weight",1.0),event_jacobian_weight=getattr(args,"event_jacobian_weight",0.0),event_regular_jacobian_scale=getattr(args,"event_regular_jacobian_scale",1.0),event_event_jacobian_scale=getattr(args,"event_event_jacobian_scale",0.0))
     if not torch.isfinite(loss): raise FloatingPointError("nonfinite preflight loss")
     opt.zero_grad(set_to_none=True); loss.backward()
     grad=torch.nn.utils.clip_grad_norm_(model.parameters(),args.gradient_clip,error_if_nonfinite=True)
@@ -536,7 +559,7 @@ def train(args):
     contract=dict(schema=TRAIN_SCHEMA,config=asdict(cfg),manifest_sha256=corpus.manifest_sha,
         audit_sha256=corpus.audit_sha,corpus_fingerprint=corpus.doc["fingerprint"],source=source_fingerprints(),
         runtime=runtime_info(args.device,args.amp),seed=args.seed,batch_queries=args.batch_queries,
-        chunk=args.chunk,lr=args.learning_rate,weight_decay=args.weight_decay,jacobian_weight=args.jacobian_weight,event_weight=args.event_weight,physics_weight=getattr(args,"physics_weight",0.0),uq_weight=getattr(args,"uq_weight",0.0),event_pos_weight=getattr(args,"event_pos_weight",1.0),gradient_clip=args.gradient_clip,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound,min_queries=args.min_queries_per_record)
+        chunk=args.chunk,lr=args.learning_rate,weight_decay=args.weight_decay,jacobian_weight=args.jacobian_weight,event_weight=args.event_weight,physics_weight=getattr(args,"physics_weight",0.0),uq_weight=getattr(args,"uq_weight",0.0),event_pos_weight=getattr(args,"event_pos_weight",1.0),event_jacobian_weight=getattr(args,"event_jacobian_weight",0.0),event_regular_jacobian_scale=getattr(args,"event_regular_jacobian_scale",1.0),event_event_jacobian_scale=getattr(args,"event_event_jacobian_scale",0.0),gradient_clip=args.gradient_clip,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound,min_queries=args.min_queries_per_record)
     out=Path(args.out); out.mkdir(parents=True,exist_ok=True)
     step=0; best_step=0; best_score=float("inf"); best_state=None; history=[]
     gradient_norms=[]; nonfinite_grad_steps=0
@@ -634,6 +657,9 @@ def main():
         q.add_argument("--jacobian-weight",type=float,default=.05); q.add_argument("--gradient-clip",type=float,default=1.)
         q.add_argument("--event-weight",type=float,default=.05,help="BCE weight for optional event-validity head")
         q.add_argument("--event-pos-weight",type=float,default=1.0,help="positive-class BCE weight for teacher event_valid labels")
+        q.add_argument("--event-jacobian-weight",type=float,default=0.0,help="opt-in event-conditioned Jacobian supervision; excludes unknown event labels")
+        q.add_argument("--event-regular-jacobian-scale",type=float,default=1.0,help="relative weight for teacher event_valid=True Jacobian rows")
+        q.add_argument("--event-event-jacobian-scale",type=float,default=0.0,help="relative weight for teacher event_valid=False Jacobian rows")
         q.add_argument("--physics-weight",type=float,default=0.0,help="optional convex Moment-Jacobian symmetry/PSD regularizer weight")
         q.add_argument("--uq-weight",type=float,default=0.0,help="optional Gaussian Moment/Jacobian UQ NLL weight; enables separate UQ heads")
         q.add_argument("--min-event-margin",type=float,default=0.0,help="exclude Jacobian labels with event_margin <= threshold when available")

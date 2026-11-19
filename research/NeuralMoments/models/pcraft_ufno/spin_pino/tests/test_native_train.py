@@ -358,3 +358,68 @@ def test_event_metrics_apply_mask_without_using_derivative_validity():
     assert report["count"]==2
     assert report["positive_count"]==1
     assert report["negative_count"]==1
+
+
+def test_event_conditioned_jacobian_loss_uses_teacher_event_labels_not_derivative_valid_as_event():
+    import torch
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_train import loss_for_batch
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import NativePCRAFTConfig,PcraftNativeMomentOperator
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.tests.test_native_pcraft import small_geometry
+    cfg=NativePCRAFTConfig(grid_size=8,pino_width=2,pino_modes=1,pino_layers=2,
+        interval_width=8,interval_depth=1,chunk_intervals=16,min_native_resolution=1,
+        event_validity_head_enabled=True)
+    model=PcraftNativeMomentOperator(cfg).train()
+    cache=model.encode(small_geometry(),chunk=16)
+    q=np.asarray([[0.,1.,0,0,0,0,0,0,0,0],[0.,0,1.,0,0,0,0,0,0,0]],dtype=np.float64)
+    labels={"queries":q,"moments":np.zeros((2,10)),"jacobian":np.ones((2,10,10)),
+        "derivative_valid":np.asarray([True,True]),
+        "event_valid":np.asarray([True,False]),"event_label_valid":np.asarray([True,True])}
+    _,_,base,_=loss_for_batch(model,cache,labels,np.arange(2),.05,"cpu")
+    _,_,conditioned,_=loss_for_batch(model,cache,labels,np.arange(2),.05,"cpu",
+        event_jacobian_weight=1.,event_regular_jacobian_scale=1.,event_event_jacobian_scale=0.)
+    assert torch.isfinite(conditioned)
+    assert not torch.allclose(base,conditioned)
+
+
+def test_event_conditioned_jacobian_excludes_unknown_and_derivative_invalid_rows():
+    import torch
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_train import loss_for_batch
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import NativePCRAFTConfig,PcraftNativeMomentOperator
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.tests.test_native_pcraft import small_geometry
+    cfg=NativePCRAFTConfig(grid_size=8,pino_width=2,pino_modes=1,pino_layers=2,
+        interval_width=8,interval_depth=1,chunk_intervals=16,min_native_resolution=1)
+    model=PcraftNativeMomentOperator(cfg).train()
+    cache=model.encode(small_geometry(),chunk=16)
+    q=np.asarray([[0.,1.,0,0,0,0,0,0,0,0],[0.,0,1.,0,0,0,0,0,0,0]],dtype=np.float64)
+    labels={"queries":q,"moments":np.zeros((2,10)),"jacobian":np.ones((2,10,10)),
+        "derivative_valid":np.asarray([True,False]),
+        "event_valid":np.asarray([True,False]),"event_label_valid":np.asarray([True,False])}
+    _,_,derivative,_=loss_for_batch(model,cache,labels,np.arange(2),.05,"cpu",
+        event_jacobian_weight=1.)
+    _,_,zero,_=loss_for_batch(model,cache,labels,np.arange(2),.05,"cpu",
+        event_jacobian_weight=1.,event_regular_jacobian_scale=0.,event_event_jacobian_scale=0.)
+    assert torch.isfinite(derivative) and derivative.item()==pytest.approx(0.,abs=1e-12)
+    assert zero.item()==pytest.approx(0.,abs=1e-12)
+
+
+def test_event_conditioned_jacobian_requires_explicit_event_labels_and_has_finite_gradients():
+    import torch
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_train import loss_for_batch
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import NativePCRAFTConfig,PcraftNativeMomentOperator
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.tests.test_native_pcraft import small_geometry
+    cfg=NativePCRAFTConfig(grid_size=8,pino_width=2,pino_modes=1,pino_layers=2,
+        interval_width=8,interval_depth=1,chunk_intervals=16,min_native_resolution=1)
+    model=PcraftNativeMomentOperator(cfg).train()
+    cache=model.encode(small_geometry(),chunk=16)
+    q=np.asarray([[0.,1.,0,0,0,0,0,0,0,0]],dtype=np.float64)
+    labels={"queries":q,"moments":np.zeros((1,10)),"jacobian":np.ones((1,10,10)),
+        "derivative_valid":np.asarray([True])}
+    with pytest.raises(ValueError,match="explicit event_valid"):
+        loss_for_batch(model,cache,labels,np.arange(1),.05,"cpu",event_jacobian_weight=1.)
+    labels["event_valid"]=np.asarray([True])
+    labels["event_label_valid"]=np.asarray([True])
+    loss,*_=loss_for_batch(model,cache,labels,np.arange(1),.05,"cpu",
+        event_jacobian_weight=1.,event_regular_jacobian_scale=1.)
+    loss.backward()
+    grads=[p.grad for p in model.parameters() if p.grad is not None]
+    assert grads and all(torch.isfinite(g).all() for g in grads)
