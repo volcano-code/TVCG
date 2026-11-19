@@ -229,3 +229,17 @@ def test_pcgrad_complex_projection_removes_negative_real_inner_product():
     assert torch.isfinite(combined).all()
     assert torch.allclose(projected_g1,torch.tensor([1.+0j,0.+0j],dtype=torch.complex64)
         - ((torch.tensor(-1.).to(torch.float32)/torch.tensor(6.).to(torch.float32))*g2))
+
+
+def test_pcgrad_assignment_preserves_mixed_real_and_complex_parameter_gradient_dtypes():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.multitask import pcgrad_assign_gradients
+    real=torch.nn.Parameter(torch.tensor([1.,2.],dtype=torch.float64))
+    spectral=torch.nn.Parameter(torch.tensor([1.+1j,2.-1j],dtype=torch.complex128))
+    loss_a=real.square().sum()+spectral.abs().square().sum()
+    loss_b=(real[0]-3).square()+(spectral.real[0]+2).square()
+    pcgrad_assign_gradients({"a":loss_a,"b":loss_b},{"a":1.,"b":1.},[real,spectral],[])
+    assert real.grad.dtype==real.dtype
+    assert spectral.grad.dtype==spectral.dtype
+    assert torch.isfinite(real.grad).all()
+    assert torch.isfinite(spectral.grad.real).all()
+    assert torch.isfinite(spectral.grad.imag).all()
