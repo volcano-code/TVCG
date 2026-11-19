@@ -13,7 +13,8 @@ def make_geometry():
     return geometry_from_columns({"columns":columns,"origin":np.array([-1.,-2.,.5]),
         "h":np.array(.25),"side":np.array(512,dtype=np.int32),"density":np.array(1.7)})
 
-def make_unified(*,cross_attention_enabled=False,cross_attention_heads=2,cross_attention_chunk=1024):
+def make_unified(*,cross_attention_enabled=False,cross_attention_heads=2,cross_attention_chunk=1024,
+                 cross_scale_attention_enabled=False,cross_scale_heads=2,cross_scale_disabled_ids=()):
     torch.manual_seed(830411)
     cfg=NativePCRAFTConfig(grid_size=8,pino_width=2,pino_modes=1,pino_layers=2,
         interval_width=8,interval_depth=1,chunk_intervals=16,min_native_resolution=1,
@@ -23,7 +24,9 @@ def make_unified(*,cross_attention_enabled=False,cross_attention_heads=2,cross_a
         num_layers=2,neighbors=4,temperature=.04,quadrature_order=2,
         chunk_intervals=2,chunk_nodes=64,query_chunk=2)
     return UnifiedM80SQNO(shared,sqno,cross_attention_enabled=cross_attention_enabled,
-        cross_attention_heads=cross_attention_heads,cross_attention_chunk=cross_attention_chunk)
+        cross_attention_heads=cross_attention_heads,cross_attention_chunk=cross_attention_chunk,
+        cross_scale_attention_enabled=cross_scale_attention_enabled,cross_scale_heads=cross_scale_heads,
+        cross_scale_disabled_ids=cross_scale_disabled_ids)
 
 def queries():
     torch.manual_seed(830412)
@@ -363,3 +366,63 @@ def test_legacy_global_fusion_checkpoint_migrates_without_attention(tmp_path):
     restored=make_unified().eval()
     loaded=restored.load_checkpoint(legacy_path,expected_data_fingerprint="legacy-fixture")
     assert loaded["architecture"].get("geometry_physics_attention") is None
+
+
+def test_cross_scale_attention_query_and_scale_permutation_invariance():
+    model=make_unified(cross_scale_attention_enabled=True).eval()
+    torch.nn.init.normal_(model.cross_scale_attention.out[-1].weight,std=1e-3)
+    with torch.no_grad():
+        cache=model.encode_geometry(make_geometry(),inference=True)
+        a=model.evaluate_queries(cache,queries())
+        qp=torch.tensor([2,0,3,1])
+        b=model.evaluate_queries(cache,queries()[qp])
+        perm=torch.arange(cache.shared_cache.scale_features.shape[0]-1,-1,-1)
+        sc=replace(cache.shared_cache,scale_features=cache.shared_cache.scale_features[perm],
+                   scale_ids=cache.shared_cache.scale_ids[perm])
+        c=model.evaluate_queries(replace(cache,shared_cache=sc),queries())
+    assert torch.allclose(a["moments"][qp],b["moments"],rtol=1e-6,atol=1e-8)
+    assert torch.allclose(a["moments"],c["moments"],rtol=1e-6,atol=1e-8)
+    assert torch.allclose(a["cross_scale_weights"],c["cross_scale_weights"][:,perm],rtol=1e-6,atol=1e-7)
+
+
+def test_cross_scale_attention_missing_and_disabled_scales_are_masked():
+    model=make_unified(cross_scale_attention_enabled=True).eval()
+    with torch.no_grad():
+        cache=model.encode_geometry(make_geometry(),inference=True)
+        out=model.evaluate_queries(cache,queries())
+        disabled=make_unified(cross_scale_attention_enabled=True,
+            cross_scale_disabled_ids=tuple(int(v) for v in cache.shared_cache.scale_ids[:-1])).eval()
+        disabled.load_state_dict(model.state_dict(),strict=False)
+        dc=disabled.encode_geometry(make_geometry(),inference=True)
+        dout=disabled.evaluate_queries(dc,queries())
+    assert torch.isfinite(out["cross_scale_weights"]).all()
+    assert torch.allclose(out["cross_scale_weights"].sum(-1),torch.ones(4),atol=1e-6)
+    assert (dout["cross_scale_valid_count"]==1).all()
+
+
+def test_cross_scale_attention_raw_jacobian_finite_difference_and_scale_invariance():
+    model=make_unified(cross_scale_attention_enabled=True).eval()
+    torch.nn.init.normal_(model.cross_scale_attention.out[-1].weight,std=2e-3)
+    q=queries()[:1]
+    with torch.no_grad():
+        cache=model.encode_geometry(make_geometry(),inference=True)
+        a=model.evaluate_queries(cache,q)
+        b=model.evaluate_queries(cache,5.2*q)
+        delta=torch.zeros_like(q); delta[0,4]=1e-4
+        plus=model.evaluate_queries(cache,q+delta)
+        minus=model.evaluate_queries(cache,q-delta)
+        fd=(plus["moments"]-minus["moments"])/2e-4
+    assert torch.allclose(a["moments"],b["moments"],rtol=2e-6,atol=2e-8)
+    assert torch.allclose(a["jacobian_coefficients"][:,:,4],fd,rtol=1e-2,atol=2e-6)
+
+
+def test_cross_scale_attention_gradients_are_finite_and_disabled_path_is_legacy():
+    model=make_unified(cross_scale_attention_enabled=True).train()
+    torch.nn.init.normal_(model.cross_scale_attention.out[-1].weight,std=1e-3)
+    cache=model.encode_geometry(make_geometry())
+    out=model.evaluate_queries(cache,queries(),create_graph=True)
+    (out["moments"].square().mean()+.01*out["jacobian_coefficients"].square().mean()).backward()
+    grads=[p.grad for p in model.cross_scale_attention.parameters() if p.grad is not None]
+    assert grads and all(torch.isfinite(g).all() for g in grads)
+    baseline=make_unified().eval()
+    assert baseline.cross_scale_attention is None

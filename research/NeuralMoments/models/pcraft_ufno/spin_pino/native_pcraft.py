@@ -355,12 +355,14 @@ class EncodedNativeGeometry:
     descriptor: Tensor | None = None
     normalized_xyz: Tensor | None = None
     global_scale_weights: Tensor | None = None
+    scale_features: Tensor | None = None
+    scale_ids: Tensor | None = None
 
     def detached(self):
         names=("latent","statistics","fixed_moments","design_moments","absolute_moments",
                "moment_scales","coordinate_scales","normalized_bounds")
         optional=("interval_features","global_context","interval_mass","descriptor",
-                  "normalized_xyz","global_scale_weights")
+                  "normalized_xyz","global_scale_weights","scale_features","scale_ids")
         values={name:getattr(self,name).detach() for name in names}
         values.update({name:getattr(self,name).detach() for name in optional
                        if getattr(self,name) is not None})
@@ -793,6 +795,8 @@ class PcraftNativeMomentOperator(nn.Module):
         stats=torch.cat((original/scale,fixed/scale,design/scale,(lo+hi)/(2*length),(hi-lo)/length)).to(p.dtype)[None]
         desc=torch.cat((basis/coord[None],extent/length),-1).to(p.dtype)
         weights=(mass/mass.sum()).to(p.dtype)
+        scale_features=None
+        scale_ids=None
         if c.multiscale_enabled:
             scale_grids=[]
             for grid_size in c.multiscale_grids:
@@ -810,6 +814,8 @@ class PcraftNativeMomentOperator(nn.Module):
                 scale_globals.append(self.pino_global(pooled))
                 scale_maps.append(fmap)
             global_stack=torch.stack(scale_globals,dim=1)
+            scale_features=global_stack.squeeze(0)
+            scale_ids=torch.as_tensor(c.multiscale_grids,device=device,dtype=torch.long)
             stats_expanded=stats[:,None,:].expand(-1,len(scale_globals),-1)
             global_scores=self.pino_scale_score(torch.cat((global_stack,stats_expanded),dim=-1))
             global_weights=torch.softmax(global_scores.float(),dim=1).to(global_stack.dtype)
@@ -825,6 +831,8 @@ class PcraftNativeMomentOperator(nn.Module):
             pino_global,pino_map=self.pino_encoder.forward_with_map(grid)
             pino_context=self.pino_global(pino_global)
             global_weights=torch.ones((1,1,1),device=device,dtype=pino_context.dtype)
+            scale_features=pino_context.squeeze(0).unsqueeze(0)
+            scale_ids=torch.as_tensor([c.grid_size],device=device,dtype=torch.long)
         context=(self.statistics_context(stats)+pino_context).squeeze(0)
         origin=torch.as_tensor(np.asarray(geometry["origin"],dtype=np.float64),device=device)
         span=side*float(geometry["h"])
@@ -894,7 +902,8 @@ class PcraftNativeMomentOperator(nn.Module):
             torch.stack((lo/length,hi/length)),geom_hash,side,len(xyz_np),id(self),self._versions(),
             all_features if (c.gno_enabled or c.transolver_enabled or retain_interval_features) else None,
             context,weights,desc,normalized,
-            global_weights.squeeze(0) if global_weights is not None else None)
+            global_weights.squeeze(0) if global_weights is not None else None,
+            scale_features,scale_ids)
 
     def export_shared_geometry_features(self,cache: EncodedNativeGeometry):
         """Export encoded P-CRAFT interval features for a compatible SQNO branch.
@@ -906,7 +915,8 @@ class PcraftNativeMomentOperator(nn.Module):
         if cache.owner!=id(self) or cache.versions!=self._versions():
             raise ValueError("foreign or stale geometry cache")
         required=(cache.interval_features,cache.global_context,cache.interval_mass,
-                  cache.descriptor,cache.normalized_xyz,cache.global_scale_weights)
+                  cache.descriptor,cache.normalized_xyz,cache.global_scale_weights,
+                  cache.scale_features,cache.scale_ids)
         if any(value is None for value in required):
             raise ValueError("geometry cache was not encoded with retain_interval_features=True")
         if cache.interval_features.shape[0]!=cache.native_intervals:
@@ -915,6 +925,8 @@ class PcraftNativeMomentOperator(nn.Module):
             "local_features":cache.interval_features,
             "global_context":cache.global_context,
             "global_scale_weights":cache.global_scale_weights,
+            "scale_features":cache.scale_features,
+            "scale_ids":cache.scale_ids,
             # SQNO consumes physical interval masses; the native cache
             # stores normalized pooling weights.
             "interval_mass":cache.interval_mass * cache.design_moments[0],

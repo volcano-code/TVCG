@@ -13,6 +13,7 @@ from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import (
 )
 from .spin_quadrann_v12 import SpinQuadrANNV12, SQNOGeometryCache
 from .geometry_physics_attention import GeometryPhysicsCrossAttention
+from .cross_scale_attention import QueryConditionedCrossScaleAttention
 
 SCHEMA="tvcg.unified-m80-sqno.v1"
 SEMANTICS="one-shared-pcraft-encoder-m80-and-sqno-query-many"
@@ -37,6 +38,7 @@ def _source_fingerprints():
       "batched_moment_operator.py":here/"batched_moment_operator.py",
       "unified_m80_sqno.py":here/"unified_m80_sqno.py",
       "geometry_physics_attention.py":here/"geometry_physics_attention.py",
+      "cross_scale_attention.py":here/"cross_scale_attention.py",
     }
     out={}
     for name,path in files.items():
@@ -53,7 +55,9 @@ class UnifiedM80SQNO(nn.Module):
     def __init__(self,shared_encoder:PcraftNativeMomentOperator,sqno:SpinQuadrANNV12,
                  *,fusion_initial_weight=.5,architecture_metadata:Mapping[str,Any]|None=None,
                  cross_attention_enabled:bool=False,cross_attention_heads:int=2,
-                 cross_attention_chunk:int=1024,cross_attention_output_scale:float=.05):
+                 cross_attention_chunk:int=1024,cross_attention_output_scale:float=.05,
+                 cross_scale_attention_enabled:bool=False,cross_scale_heads:int=2,
+                 cross_scale_max_scales:int=16,cross_scale_disabled_ids:tuple[int,...]=()):
         super().__init__()
         if not isinstance(shared_encoder,PcraftNativeMomentOperator):
             raise TypeError("shared_encoder must be PcraftNativeMomentOperator")
@@ -71,6 +75,12 @@ class UnifiedM80SQNO(nn.Module):
         self.cross_attention_heads=int(cross_attention_heads)
         self.cross_attention_chunk=int(cross_attention_chunk)
         self.cross_attention_output_scale=float(cross_attention_output_scale)
+        self.cross_scale_attention_enabled=bool(cross_scale_attention_enabled)
+        self.cross_scale_heads=int(cross_scale_heads)
+        self.cross_scale_max_scales=int(cross_scale_max_scales)
+        self.cross_scale_disabled_ids=tuple(int(v) for v in cross_scale_disabled_ids)
+        self.cross_scale_attention=(QueryConditionedCrossScaleAttention(width,heads=self.cross_scale_heads,
+            max_scales=self.cross_scale_max_scales) if self.cross_scale_attention_enabled else None)
         if self.cross_attention_enabled:
             self.geometry_physics_attention=GeometryPhysicsCrossAttention(
                 width,heads=self.cross_attention_heads,
@@ -162,6 +172,21 @@ class UnifiedM80SQNO(nn.Module):
                 fused_moments=fused_moments.detach()
                 fused_jacobian=fused_jacobian.detach()
                 attention_diagnostics={k:v.detach() for k,v in attention_diagnostics.items()}
+        if self.cross_scale_attention is not None:
+            correction,scale_diag=self.cross_scale_attention(qb,cache.shared_cache.scale_features,
+                cache.shared_cache.scale_ids,disabled_scale_ids=self.cross_scale_disabled_ids)
+            with torch.enable_grad():
+                q_scale=qb if qb.requires_grad else qb.detach().requires_grad_(True)
+                correction,scale_diag=self.cross_scale_attention(q_scale,cache.shared_cache.scale_features,
+                    cache.shared_cache.scale_ids,disabled_scale_ids=self.cross_scale_disabled_ids)
+                scale_jacobian=torch.stack([torch.autograd.grad(correction[:,k].sum(),q_scale,
+                    create_graph=create_graph,retain_graph=True)[0] for k in range(10)],dim=1)
+            fused_moments=fused_moments+correction.to(dtype=fused_moments.dtype)
+            fused_jacobian=fused_jacobian+scale_jacobian.to(dtype=fused_jacobian.dtype)
+            if cache.inference_only:
+                fused_moments=fused_moments.detach(); fused_jacobian=fused_jacobian.detach()
+                scale_diag={k:v.detach() for k,v in scale_diag.items()}
+            attention_diagnostics.update(scale_diag)
         result={
           "moments":fused_moments,
           "jacobian_coefficients":fused_jacobian,
@@ -336,6 +361,9 @@ class UnifiedM80SQNO(nn.Module):
           "geometry_physics_attention":{"enabled":self.cross_attention_enabled,
             "heads":self.cross_attention_heads,"chunk_intervals":self.cross_attention_chunk,
             "output_scale":self.cross_attention_output_scale},
+          "cross_scale_attention":{"enabled":self.cross_scale_attention_enabled,
+            "heads":self.cross_scale_heads,"max_scales":self.cross_scale_max_scales,
+            "disabled_ids":self.cross_scale_disabled_ids},
           "metadata":self.architecture_metadata,
         }
 

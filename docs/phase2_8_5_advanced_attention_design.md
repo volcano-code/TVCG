@@ -181,3 +181,32 @@ quadric scale invariance, disabled-path behavior and legacy global-fusion
 checkpoint migration. Passing these tests is a software gate only; real-data
 accuracy and GPU throughput remain unmeasured until the formal dataset is
 approved.
+
+
+## Phase 2.8.5.2 — Query-conditioned Cross-scale Attention
+
+The M80 encoder already computes per-resolution global summaries
+(`global_stack`) and a global scale gate. The new module must consume those
+existing summaries; it must not rebuild or duplicate the voxel pyramid.
+The geometry cache now retains `scale_features` and their native-resolution
+`scale_ids`, including an explicit single-scale token when multiscale mode is
+disabled.
+
+`QueryConditionedCrossScaleAttention` uses normalized quadric query tokens
+to attend over the cached scale summaries. Scale identity is represented by
+a stable logarithmic resolution bucket, while the original native resolution
+remains available for masking and diagnostics. It supports missing-scale
+masks and explicit disabled resolution IDs, reports normalized attention
+weights, entropy and effective support, and fails closed if all scales are
+masked.
+
+The optional module is integrated into `UnifiedM80SQNO` as a selectable
+ablation. Its query-dependent Moment correction is differentiated with
+respect to raw input coefficients and its Jacobian is added to the fused
+Jacobian. The global scalar fusion and Phase 2.8.5.1 geometry cross-attention
+remain separately selectable. No performance or accuracy gain is claimed
+before formal-data and GPU evaluation.
+
+The Mini7/100-TRELLIS/two-paper-benchmark/additional-TRELLIS validation and
+locked-test split policy remains as specified above. Mini7 is a pilot only;
+the additional 100 TRELLIS geometries are pending processing and audit.
