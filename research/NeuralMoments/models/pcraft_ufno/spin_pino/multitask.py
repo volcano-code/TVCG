@@ -117,6 +117,31 @@ class GradNormBalancer:
         if self.initial_losses is None:
             self.initial_losses = {}
 
+    def state_dict(self) -> dict:
+        return {"task_names": list(self.task_names), "alpha": self.alpha,
+                "learning_rate": self.learning_rate, "min_weight": self.min_weight,
+                "max_weight": self.max_weight, "initial_losses": dict(self.initial_losses),
+                "weights": dict(self.weights)}
+
+    def load_state_dict(self, state: Mapping) -> None:
+        expected = tuple(state.get("task_names", ()))
+        if expected != tuple(self.task_names):
+            raise ValueError("GradNorm task-name contract mismatch")
+        for key, current in (("alpha", self.alpha), ("learning_rate", self.learning_rate),
+                             ("min_weight", self.min_weight), ("max_weight", self.max_weight)):
+            if float(state.get(key, float("nan"))) != float(current):
+                raise ValueError(f"GradNorm hyperparameter contract mismatch: {key}")
+        initial = dict(state.get("initial_losses", {}))
+        weights = dict(state.get("weights", {}))
+        if set(weights) != set(self.task_names) or not set(initial).issubset(self.task_names):
+            raise ValueError("GradNorm state task keys mismatch")
+        if any(not math.isfinite(float(v)) or float(v) <= 0 for v in weights.values()):
+            raise ValueError("GradNorm state contains invalid weights")
+        if any(not math.isfinite(float(v)) or float(v) <= 0 for v in initial.values()):
+            raise ValueError("GradNorm state contains invalid initial losses")
+        self.initial_losses = {k: float(v) for k, v in initial.items()}
+        self.weights = {k: float(v) for k, v in weights.items()}
+
     def update(self, losses: Mapping[str, float],
                shared_gradient_norms: Mapping[str, float]) -> dict[str, float]:
         active = [k for k in self.task_names if k in losses and k in shared_gradient_norms]
@@ -228,3 +253,32 @@ def pcgrad_assign_gradients(losses: Mapping[str, Tensor | None],
     return {"task_names":task_names,"shared_gradient_norms":norms,
             "private_gradient_norms":{k:math.sqrt(v) for k,v in private_norms.items()},
             **diagnostics}
+
+
+def event_positive_class_weight(event_valid: Sequence[bool],
+                                event_label_valid: Sequence[bool] | None = None,
+                                *, min_weight: float = 0.25,
+                                max_weight: float = 8.0) -> dict:
+    """Compute bounded negative/positive ratio from labeled training rows only.
+
+    event_valid=True is the positive/regular class according to the current
+    teacher-label contract. Unknown rows are excluded, never treated as negatives.
+    """
+    target = torch.as_tensor(event_valid, dtype=torch.bool).reshape(-1)
+    known = (torch.ones_like(target) if event_label_valid is None else
+             torch.as_tensor(event_label_valid, dtype=torch.bool).reshape(-1))
+    if target.shape != known.shape or not known.any():
+        raise ValueError("event labels and known-mask must match and contain labeled rows")
+    if not (math.isfinite(min_weight) and math.isfinite(max_weight)
+            and 0 < min_weight <= max_weight):
+        raise ValueError("invalid event class-weight bounds")
+    positive = int((target & known).sum())
+    negative = int((~target & known).sum())
+    if positive == 0:
+        raise ValueError("cannot estimate positive class weight without positive event labels")
+    raw = negative / positive if negative else min_weight
+    weight = min(max_weight, max(min_weight, raw))
+    return {"positive_count": positive, "negative_count": negative,
+            "unknown_count": int((~known).sum()), "raw_positive_weight": float(raw),
+            "positive_weight": float(weight), "clipped": bool(weight != raw),
+            "source": "labeled_training_rows_only"}

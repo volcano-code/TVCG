@@ -343,3 +343,39 @@ PCGrad path does not use predictive aleatoric UQ scales as task weights.
 Default `fixed` mode reconstructs the existing weighted objective exactly.
 No formal training is started; task-balance efficacy remains blocked on the
 audited multi-source dataset.
+
+
+## Phase 2.9.4.3 — Adaptive scheduling primitives and safe boundaries
+
+This increment hardens adaptive task-scheduling state without silently
+changing the current native training objective.
+
+GradNorm state now has an explicit, contract-checked `state_dict` /
+`load_state_dict` interface. It persists task names, hyperparameters,
+initial reference losses and current weights; it rejects task-set,
+hyperparameter and non-finite-state mismatches. Missing tasks remain
+untouched by the existing update method.
+
+An event positive-class weighting helper now computes a bounded
+negative/positive ratio using only explicitly labeled rows. It consumes
+`event_valid` and the independent `event_label_valid` mask; unknown rows
+are excluded, and a training split with no positive examples fails closed.
+The report includes class counts, clipping status and provenance. This
+helper must be computed from the training partition only; validation or
+locked-test labels must never be used to estimate training weights.
+
+Learned homoscedastic task weights remain a separate module whose parameters
+and optimizer state can be checkpointed with the normal PyTorch
+`state_dict` interface. They are not the predictive aleatoric UQ scales.
+
+Important implementation boundary: this increment does not yet activate
+GradNorm or LearnedTaskWeights in the native training loop. Doing so safely
+requires a dedicated controller update schedule, a separate optimizer/state
+contract for learned weights, and per-task shared gradient norms that are
+computed before PCGrad projection. The existing fixed and PCGrad training
+modes remain unchanged. The next integration step must be explicit and
+opt-in; these primitives alone are not evidence of adaptive training.
+
+No formal training was started. Event class balance, adaptive-weight
+stability and downstream scientific benefit remain data-dependent and
+blocked pending the audited multi-source dataset and matched experiments.

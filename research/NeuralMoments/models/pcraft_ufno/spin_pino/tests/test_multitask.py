@@ -3,7 +3,7 @@ import torch
 
 from research.NeuralMoments.models.pcraft_ufno.spin_pino.multitask import (
     fixed_weighted_objective, task_gradient_matrix, pcgrad_project,
-    GradNormBalancer, LearnedTaskWeights,
+    GradNormBalancer, LearnedTaskWeights, event_positive_class_weight,
 )
 
 
@@ -146,3 +146,63 @@ def test_native_task_loss_decomposition_reconstructs_fixed_objective():
     reconstructed=tasks["moment"]+.05*tasks["jacobian"]+.1*tasks["event"]
     assert torch.allclose(fixed,reconstructed,rtol=1e-12,atol=1e-12)
     assert counts["jacobian"]==1 and counts["event"]==2
+
+
+def test_gradnorm_state_roundtrip_restores_weights_and_initial_losses():
+    balancer=GradNormBalancer(("moment","event"))
+    balancer.update({"moment":2.,"event":1.},{"moment":3.,"event":2.})
+    state=balancer.state_dict()
+    restored=GradNormBalancer(("moment","event"))
+    restored.load_state_dict(state)
+    assert restored.state_dict()==state
+    with pytest.raises(ValueError,match="task-name contract"):
+        GradNormBalancer(("moment",)).load_state_dict(state)
+
+
+def test_gradnorm_state_rejects_hyperparameter_mismatch_and_nonfinite_weights():
+    balancer=GradNormBalancer(("moment",))
+    state=balancer.state_dict()
+    state["weights"]["moment"]=float("nan")
+    with pytest.raises(ValueError,match="invalid weights"):
+        balancer.load_state_dict(state)
+    state=balancer.state_dict()
+    state["alpha"]=2.0
+    with pytest.raises(ValueError,match="hyperparameter contract"):
+        balancer.load_state_dict(state)
+
+
+def test_event_positive_weight_uses_only_labeled_training_rows_and_is_bounded():
+    report=event_positive_class_weight(
+        [True,False,False,False,True,True],
+        [True,True,True,False,True,True],min_weight=.5,max_weight=2.)
+    assert report["positive_count"]==3
+    assert report["negative_count"]==2
+    assert report["unknown_count"]==1
+    assert report["positive_weight"]==pytest.approx(2/3)
+    assert report["source"]=="labeled_training_rows_only"
+
+
+def test_event_positive_weight_clips_extreme_imbalance_and_rejects_missing_class():
+    report=event_positive_class_weight([True,False,False,False,False],
+        min_weight=.25,max_weight=2.)
+    assert report["positive_weight"]==2.
+    assert report["clipped"] is True
+    with pytest.raises(ValueError,match="without positive"):
+        event_positive_class_weight([False,False])
+    with pytest.raises(ValueError,match="contain labeled"):
+        event_positive_class_weight([True,False],[False,False])
+
+
+def test_learned_task_weight_state_restores_separately_from_predictive_uq():
+    module=LearnedTaskWeights(("moment","jacobian"))
+    optimizer=torch.optim.AdamW(module.parameters(),lr=.01)
+    losses={"moment":torch.tensor(2.,requires_grad=True),
+            "jacobian":torch.tensor(1.,requires_grad=True)}
+    optimizer.zero_grad(set_to_none=True)
+    module(losses).backward()
+    optimizer.step()
+    state=module.state_dict()
+    restored=LearnedTaskWeights(("moment","jacobian"))
+    restored.load_state_dict(state)
+    for key,value in state.items():
+        assert torch.equal(restored.state_dict()[key],value)
