@@ -253,7 +253,7 @@ def pcgrad_assign_gradients(losses: Mapping[str, Tensor | None],
     offset=0
     for p in shared:
         count=p.numel()
-        p.grad=combined[offset:offset+count].view_as(p).detach().clone()
+        p.grad=combined[offset:offset+count].view_as(p).to(dtype=p.dtype).detach().clone()
         offset+=count
     for p in private:
         value=private_acc[id(p)]
