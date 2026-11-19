@@ -100,6 +100,7 @@ def _architecture_contract_check() -> dict:
         "event_label_mask_contract": "event_label_valid" in (NATIVE / "native_train.py").read_text(),
         "event_conditioned_jacobian_supervision": "event_jacobian_weight" in (NATIVE / "native_train.py").read_text(),
         "multitask_gradient_balancing": (NATIVE / "multitask.py").is_file() and "def pcgrad_project" in (NATIVE / "multitask.py").read_text(),
+        "pcgrad_complex_gradient_support": "def _real_inner_product" in (NATIVE / "multitask.py").read_text(),
         "adaptive_task_state_and_event_rarity_primitives": "def event_positive_class_weight" in (NATIVE / "multitask.py").read_text() and "def load_state_dict" in (NATIVE / "multitask.py").read_text(),
         "pcgrad_training_integration": "pcgrad_assign_gradients" in (NATIVE / "native_train.py").read_text() and "multitask_mode" in (NATIVE / "native_train.py").read_text(),
         "unified_m80_sqno_pcgrad_integration": "gradient_mode==\"pcgrad\"" in (ADAPTER / "unified_m80_sqno.py").read_text() and "joint_task_losses" in (ADAPTER / "unified_m80_sqno.py").read_text(),

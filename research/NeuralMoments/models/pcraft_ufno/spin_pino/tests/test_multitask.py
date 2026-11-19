@@ -206,3 +206,26 @@ def test_learned_task_weight_state_restores_separately_from_predictive_uq():
     restored.load_state_dict(state)
     for key,value in state.items():
         assert torch.equal(restored.state_dict()[key],value)
+
+
+def test_pcgrad_supports_complex_spectral_parameter_gradients_with_hermitian_inner_product():
+    g1=torch.tensor([1.+1j,0.+0j],dtype=torch.complex128)
+    g2=torch.tensor([-2.+1j,1.+0j],dtype=torch.complex128)
+    combined,report=pcgrad_project([g1,g2])
+    assert report["cosine_matrix"][0][1]<0
+    assert report["projection_counts"][0]==1
+    assert all(torch.isfinite(x) for x in [combined.real,combined.imag])
+    assert combined.dtype==torch.complex128
+    assert len(report["projection_counts"])==2
+
+
+def test_pcgrad_complex_projection_removes_negative_real_inner_product():
+    g1=torch.tensor([1.+0j,0.+0j],dtype=torch.complex64)
+    g2=torch.tensor([-1.+2j,1.+0j],dtype=torch.complex64)
+    combined,report=pcgrad_project([g1,g2])
+    assert report["projection_counts"][0]==1
+    projected_g1=g1-((torch.sum(torch.conj(g1)*g2).real /
+        torch.sum(torch.conj(g2)*g2).real).to(g1.real.dtype))*g2
+    assert torch.isfinite(combined).all()
+    assert torch.allclose(projected_g1,torch.tensor([1.+0j,0.+0j],dtype=torch.complex64)
+        - ((torch.tensor(-1.).to(torch.float32)/torch.tensor(6.).to(torch.float32))*g2))

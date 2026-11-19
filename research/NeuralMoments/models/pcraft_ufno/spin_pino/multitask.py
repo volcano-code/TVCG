@@ -54,15 +54,22 @@ def task_gradient_matrix(losses: Mapping[str, Tensor],
     return names, rows
 
 
+def _real_inner_product(a: Tensor, b: Tensor) -> Tensor:
+    """Real Euclidean inner product, including complex-valued parameter gradients."""
+    return torch.sum(torch.conj(a) * b).real
+
+
 def pcgrad_project(gradients: Sequence[Tensor], *, eps: float = 1e-12,
                    shuffle: bool = False, generator: torch.Generator | None = None
                    ) -> tuple[Tensor, dict]:
-    """Symmetric PCGrad projection; returns mean projected gradient and diagnostics."""
+    """Symmetric PCGrad projection for real or complex flattened gradients."""
     if not gradients:
         raise ValueError("gradients must not be empty")
     base = [g.clone() for g in gradients]
     if any(g.shape != base[0].shape for g in base):
         raise ValueError("all task gradients must have identical flattened shapes")
+    if any(g.device != base[0].device for g in base):
+        raise ValueError("all task gradients must be on the same device")
     if any(not torch.isfinite(g).all() for g in base):
         raise FloatingPointError("task gradients must be finite")
     projected = []
@@ -75,10 +82,10 @@ def pcgrad_project(gradients: Sequence[Tensor], *, eps: float = 1e-12,
             peers = [peers[k] for k in perm]
         count = 0
         for j in peers:
-            dot = torch.dot(g, base[j])
-            if dot < 0:
-                denom = torch.dot(base[j], base[j]).clamp_min(eps)
-                g = g - (dot / denom) * base[j]
+            dot = _real_inner_product(g, base[j])
+            if dot.item() < 0:
+                denom = _real_inner_product(base[j], base[j]).clamp_min(eps)
+                g = g - (dot / denom).to(dtype=g.real.dtype) * base[j]
                 count += 1
         projected.append(g); order[i] = count
     cosine = []
@@ -86,7 +93,8 @@ def pcgrad_project(gradients: Sequence[Tensor], *, eps: float = 1e-12,
         row = []
         for j in range(len(base)):
             denom = base[i].norm() * base[j].norm()
-            row.append(float(torch.dot(base[i], base[j]) / denom.clamp_min(eps)))
+            value = _real_inner_product(base[i], base[j]) / denom.clamp_min(eps)
+            row.append(float(value))
         cosine.append(row)
     combined = torch.stack(projected).mean(0)
     return combined, {"task_count": len(base), "projection_counts": order,

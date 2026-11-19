@@ -411,3 +411,18 @@ CLI is not silently replaced by an adapter dataset trainer. Formal
 fixed-vs-PCGrad ablation, convergence, runtime overhead and scientific
 benefit require matched data and budgets and remain blocked pending the
 audited multi-source corpus. Default training remains fixed.
+
+
+### PCGrad complex-gradient correction (Unified M80 + SQNO integration)
+
+Unified P-CRAFT contains spectral/operator parameters whose autograd gradients
+may be complex-valued. PCGrad therefore uses the real Euclidean inner product
+on complex vectors, equivalently the real part of the Hermitian product
+`Re(sum(conj(g_i) * g_j))`. Projection coefficients and cosine diagnostics
+are real scalars, while projected gradients retain their complex dtype.
+This is mathematically the real-parameter-space projection under the
+identification of each complex coordinate with its real and imaginary parts.
+
+The unified PCGrad integration exposed this requirement on CPU tests. The
+implementation now supports both real and complex task-gradient vectors;
+the real-valued Native P-CRAFT path remains unchanged.
