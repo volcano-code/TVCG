@@ -69,3 +69,125 @@ def test_joint_uq_report_never_invents_missing_jacobian_calibration():
     assert report["moment_uq"]["status"]=="PASS"
     assert report["jacobian_uq"]["status"]=="BLOCKED"
     assert report["joint_calibration_claim"] is False
+
+
+def _learned_uq_model():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import (
+        NativePCRAFTConfig,PcraftNativeMomentOperator)
+    cfg=NativePCRAFTConfig(grid_size=8,pino_width=2,pino_modes=1,pino_layers=2,
+        interval_width=8,interval_depth=1,chunk_intervals=16,min_native_resolution=1,
+        convex_potential_enabled=True,convex_potential_components=2,
+        uq_enabled=True,uq_hidden=12,uq_min_log_std=-5.,uq_max_log_std=2.)
+    return PcraftNativeMomentOperator(cfg)
+
+
+def test_learned_uq_heads_return_separate_bounded_moment_and_jacobian_scales():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.tests.test_native_pcraft import small_geometry
+    model=_learned_uq_model().eval()
+    cache=model.encode(small_geometry(),chunk=16).detached()
+    q=torch.tensor([[0.,1.,0,0,0,0,0,0,0,0],
+                    [0.,0,1.,0,0,0,0,0,0,0]],dtype=torch.float64)
+    with torch.no_grad():
+        batch=model.predict_uq(cache,q)
+        single=model.predict_uq(cache,q[0])
+    assert batch["moment_log_std"].shape==(2,10)
+    assert batch["jacobian_log_std"].shape==(2,10,10)
+    assert single["moment_log_std"].shape==(10,)
+    assert single["jacobian_log_std"].shape==(10,10)
+    for value in batch.values():
+        assert torch.isfinite(value).all()
+        assert value.min()>=model.config.uq_min_log_std
+        assert value.max()<=model.config.uq_max_log_std
+
+
+def test_learned_uq_heads_are_positive_quadric_scale_invariant_and_deterministic():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.tests.test_native_pcraft import small_geometry
+    model=_learned_uq_model().eval()
+    cache=model.encode(small_geometry(),chunk=16).detached()
+    q=torch.tensor([[0.,1.,.2,0,0,0,0,0,0,0]],dtype=torch.float64)
+    with torch.no_grad():
+        a=model.predict_uq(cache,q)
+        b=model.predict_uq(cache,3.7*q)
+        again=model.predict_uq(cache,q)
+    assert torch.equal(a["moment_log_std"],again["moment_log_std"])
+    assert torch.equal(a["jacobian_log_std"],again["jacobian_log_std"])
+    assert torch.allclose(a["moment_log_std"],b["moment_log_std"],atol=1e-8,rtol=1e-7)
+    assert torch.allclose(a["jacobian_log_std"],b["jacobian_log_std"],atol=1e-8,rtol=1e-7)
+
+
+def test_learned_uq_head_rejects_disabled_foreign_and_stale_cache():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import (
+        NativePCRAFTConfig,PcraftNativeMomentOperator)
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.tests.test_native_pcraft import small_geometry
+    q=torch.tensor([0.,1.,0,0,0,0,0,0,0,0],dtype=torch.float64)
+    disabled=PcraftNativeMomentOperator(NativePCRAFTConfig(grid_size=8,pino_width=2,
+        pino_modes=1,pino_layers=2,interval_width=8,interval_depth=1,
+        chunk_intervals=16,min_native_resolution=1))
+    with pytest.raises(RuntimeError,match="disabled"):
+        disabled.predict_uq(disabled.encode(small_geometry()),q)
+    model=_learned_uq_model()
+    foreign=_learned_uq_model()
+    with pytest.raises(ValueError,match="foreign or stale"):
+        model.predict_uq(foreign.encode(small_geometry()),q)
+    cache=model.encode(small_geometry())
+    with torch.no_grad():
+        next(model.parameters()).add_(.001)
+    with pytest.raises(ValueError,match="foreign or stale"):
+        model.predict_uq(cache,q)
+
+
+def test_uq_training_loss_updates_both_heads_and_masks_invalid_jacobian_labels():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.tests.test_native_pcraft import small_geometry
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_train import loss_for_batch
+    model=_learned_uq_model().train()
+    geometry=small_geometry()
+    cache=model.encode(geometry,chunk=16)
+    q=np.asarray([[0.,1.,0,0,0,0,0,0,0,0],
+                  [0.,0,1.,0,0,0,0,0,0,0],
+                  [0.,1.,1.,0,0,0,0,0,0,0]],dtype=np.float64)
+    labels={"queries":q,"moments":np.zeros((3,10)),"jacobian":np.zeros((3,10,10)),
+        "derivative_valid":np.asarray([True,False,True])}
+    loss,_,_,_=loss_for_batch(model,cache,labels,np.arange(3),.05,"cpu",uq_weight=.2)
+    assert torch.isfinite(loss)
+    loss.backward()
+    grads=[p.grad for p in model.uq_head.parameters()]
+    assert grads and all(g is not None and torch.isfinite(g).all() for g in grads)
+
+
+def test_uq_weight_zero_preserves_disabled_head_and_positive_weight_requires_enabled_head():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.tests.test_native_pcraft import small_geometry
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_train import loss_for_batch
+    model=_learned_uq_model().train()
+    cache=model.encode(small_geometry(),chunk=16)
+    q=np.asarray([[0.,1.,0,0,0,0,0,0,0,0]],dtype=np.float64)
+    labels={"queries":q,"moments":np.zeros((1,10)),"jacobian":np.zeros((1,10,10)),
+        "derivative_valid":np.asarray([False])}
+    loss,*_=loss_for_batch(model,cache,labels,np.arange(1),.05,"cpu",uq_weight=0.)
+    assert torch.isfinite(loss)
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import (
+        NativePCRAFTConfig,PcraftNativeMomentOperator)
+    plain=PcraftNativeMomentOperator(NativePCRAFTConfig(grid_size=8,pino_width=2,
+        pino_modes=1,pino_layers=2,interval_width=8,interval_depth=1,
+        chunk_intervals=16,min_native_resolution=1)).train()
+    plain_cache=plain.encode(small_geometry(),chunk=16)
+    with pytest.raises(ValueError,match="uq_enabled"):
+        loss_for_batch(plain,plain_cache,labels,np.arange(1),.05,"cpu",uq_weight=.1)
+
+
+def test_uq_config_state_dict_roundtrip_and_legacy_defaults(tmp_path):
+    model=_learned_uq_model()
+    restored=_learned_uq_model()
+    restored.load_state_dict(model.state_dict())
+    assert restored.config.uq_enabled
+    assert restored.config.uq_hidden==12
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import load_model,SCHEMA,SEMANTICS,NativePCRAFTConfig,PcraftNativeMomentOperator
+    import dataclasses
+    legacy_config=dataclasses.asdict(model.config)
+    for key in ("uq_enabled","uq_hidden","uq_min_log_std","uq_max_log_std"):
+        legacy_config.pop(key)
+    legacy_path=tmp_path/"legacy-no-uq.pt"
+    torch.save({"schema":SCHEMA,"semantics":SEMANTICS,"config":legacy_config,
+        "model":{k:v.detach().cpu() for k,v in PcraftNativeMomentOperator(
+            NativePCRAFTConfig(**legacy_config)).state_dict().items()}},legacy_path)
+    loaded,_=load_model(legacy_path)
+    assert loaded.config.uq_enabled is False

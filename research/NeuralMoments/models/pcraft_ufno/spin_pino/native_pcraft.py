@@ -173,6 +173,10 @@ class NativePCRAFTConfig:
     convex_potential_components: int = 4
     convex_amplitude_mode: str = "sigmoid"
     event_validity_head_enabled: bool = False
+    uq_enabled: bool = False
+    uq_hidden: int = 64
+    uq_min_log_std: float = -7.0
+    uq_max_log_std: float = 4.0
 
     def __post_init__(self):
         if self.grid_size < 8 or self.grid_size % 4:
@@ -202,6 +206,13 @@ class NativePCRAFTConfig:
             raise ValueError("convex_potential_enabled must be bool")
         if not isinstance(self.event_validity_head_enabled, bool):
             raise ValueError("event_validity_head_enabled must be bool")
+        if not isinstance(self.uq_enabled,bool):
+            raise ValueError("uq_enabled must be bool")
+        if isinstance(self.uq_hidden,bool) or not isinstance(self.uq_hidden,int) or self.uq_hidden<1:
+            raise ValueError("uq_hidden must be a positive integer")
+        if not (math.isfinite(self.uq_min_log_std) and math.isfinite(self.uq_max_log_std)
+                and -20.0<self.uq_min_log_std<self.uq_max_log_std<10.0):
+            raise ValueError("invalid UQ log_std bounds")
         if isinstance(self.convex_potential_components,bool) or not isinstance(self.convex_potential_components,int) or self.convex_potential_components<1:
             raise ValueError("convex_potential_components must be a positive integer")
         if self.convex_amplitude_mode not in ("sigmoid","atan"):
@@ -738,6 +749,13 @@ class PcraftNativeMomentOperator(nn.Module):
                                           nn.Linear(2*w,w),nn.SiLU(),nn.Linear(w,10))
             nn.init.normal_(self.query_head[-1].weight,std=.01)
             nn.init.zeros_(self.query_head[-1].bias)
+        if c.uq_enabled:
+            self.uq_head=nn.Sequential(
+                nn.LayerNorm(w+36+10),nn.Linear(w+36+10,c.uq_hidden),nn.GELU(),
+                nn.Linear(c.uq_hidden,110)
+            )
+            nn.init.zeros_(self.uq_head[-1].weight)
+            nn.init.zeros_(self.uq_head[-1].bias)
         if c.event_validity_head_enabled:
             self.event_validity_head=nn.Sequential(
                 nn.LayerNorm(w+36+10),nn.Linear(w+36+10,w),nn.GELU(),
@@ -1070,6 +1088,36 @@ class PcraftNativeMomentOperator(nn.Module):
             "effective_amplitude":float(effective.detach()),
         }
 
+    def predict_uq(self,cache: EncodedNativeGeometry,q):
+        """Predict separate heteroscedastic log standard deviations for Moment and Jacobian.
+
+        Outputs are predictive scales, not calibrated confidence until
+        evaluated on held-out geometry/source-family groups.
+        """
+        if not self.config.uq_enabled:
+            raise RuntimeError("UQ head is disabled in this checkpoint")
+        if cache.owner!=id(self) or cache.versions!=self._versions():
+            raise ValueError("foreign or stale geometry cache")
+        value=q.to(device=cache.latent.device,dtype=torch.float64) if isinstance(q,Tensor) else torch.tensor(
+            np.asarray(q,dtype=np.float64),device=cache.latent.device)
+        single=value.ndim==1
+        if single:value=value[None]
+        if value.ndim!=2 or value.shape[1]!=10 or not torch.isfinite(value).all():
+            raise ValueError("q must be finite [Q,10]")
+        maxabs=value.abs().amax(-1,keepdim=True)
+        if (maxabs<=0).any():raise ValueError("zero quadric coefficient vector")
+        scaled=(value/maxabs)*cache.coordinate_scales
+        unit=scaled/torch.linalg.vector_norm(scaled,dim=-1,keepdim=True).clamp_min(1e-30)
+        latent=cache.latent.expand(len(value),-1)
+        stats=cache.statistics.expand(len(value),-1)
+        features=torch.cat((latent,stats,unit.to(latent.dtype)),dim=-1)
+        raw=self.uq_head(features.to(dtype=self.uq_head[1].weight.dtype)).to(torch.float64)
+        moment_log_std=raw[:,:10].clamp(self.config.uq_min_log_std,self.config.uq_max_log_std)
+        jacobian_log_std=raw[:,10:].reshape(-1,10,10).clamp(
+            self.config.uq_min_log_std,self.config.uq_max_log_std)
+        result={"moment_log_std":moment_log_std,"jacobian_log_std":jacobian_log_std}
+        return {key:item[0] for key,item in result.items()} if single else result
+
     def predict_event_validity(self,cache: EncodedNativeGeometry,q):
         """Predict whether a query lies in a derivative-valid regular regime.
 
@@ -1126,6 +1174,10 @@ def load_model(path,device="cpu"):
     config.setdefault("convex_potential_components",4)
     config.setdefault("convex_amplitude_mode","sigmoid")
     config.setdefault("event_validity_head_enabled",False)
+    config.setdefault("uq_enabled",False)
+    config.setdefault("uq_hidden",64)
+    config.setdefault("uq_min_log_std",-7.0)
+    config.setdefault("uq_max_log_std",4.0)
     if isinstance(config.get("multiscale_grids"),list):
         config["multiscale_grids"]=tuple(config["multiscale_grids"])
     model=PcraftNativeMomentOperator(NativePCRAFTConfig(**config))

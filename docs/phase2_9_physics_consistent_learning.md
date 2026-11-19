@@ -105,3 +105,36 @@ uncertainty must not be imputed from Moment uncertainty.
 
 Uncertainty is not an optimizer acceptance signal. Event validity, derivative
 validity, and exact solver checks remain separate gates.
+
+
+## Phase 2.9.2.2 — Learned Moment/Jacobian UQ heads
+
+The native P-CRAFT operator now has an opt-in heteroscedastic UQ head.
+Conditioning uses the cached global geometry latent, geometry statistics,
+and the positive-scale-normalized ten-dimensional quadric query.
+
+Outputs are kept separate:
+- `moment_log_std`: `[Q,10]`;
+- `jacobian_log_std`: `[Q,10,10]`.
+
+Log standard deviations are clamped to configured finite bounds. The head
+does not require teacher variance labels: when enabled, Gaussian NLL is
+trained against the existing point-valued Moment labels and only those
+Jacobian labels admitted by the existing derivative-supervision mask.
+Targets are normalized with the same Moment and Moment×coordinate scales as
+the deterministic losses. If a batch contains no valid Jacobian labels, its
+Jacobian UQ likelihood is omitted rather than fabricating supervision.
+
+Training integration is opt-in:
+- `--uq-weight 0` preserves the previous objective and default architecture;
+- positive `--uq-weight` enables the separate UQ head and adds Moment plus
+  valid-Jacobian Gaussian NLL;
+- the UQ configuration and weight are recorded in the strict resume contract;
+- legacy checkpoints without UQ fields load with `uq_enabled=False`.
+
+This implementation establishes learned predictive scales and software
+integration only. It does not establish calibration. Moment and Jacobian
+coverage/NLL must be evaluated independently on held-out geometry/source
+families after formal data admission and training. No uncertainty output may
+override event validity, derivative-validity labels, or exact physical
+acceptance.
