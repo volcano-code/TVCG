@@ -159,3 +159,30 @@ large geometry family cannot hide poor calibration on smaller families.
 Risk/coverage curves quantify selective prediction behavior; they do not
 authorize the optimizer to accept or reject a physical design. The exact
 solver and event/derivative validity checks remain authoritative.
+
+
+## Phase 2.9.3.1 — Event-label semantics and masked event learning
+
+The event-validity target is explicitly teacher-provided and remains distinct
+from `derivative_valid`. The former describes whether the query is in the
+teacher-defined regular/event regime; the latter describes whether a
+Jacobian target is admissible for derivative supervision. Neither label is
+inferred from the other.
+
+The native trainer now supports an independent optional
+`event_label_valid` mask. Unlabeled event rows are excluded from BCE; an
+all-unlabeled batch contributes zero event loss rather than fabricated
+negative labels. Positive-class imbalance can be adjusted through
+`--event-pos-weight`, separately from the overall `--event-weight`.
+Both remain opt-in through the existing event-validity head configuration.
+
+Event classification evaluation reports confusion counts, precision,
+recall, F1, Brier score, ECE, AUROC and AUPRC when both classes exist.
+Single-class subsets report AUROC/AUPRC as null rather than inventing a
+ranking score. Optional geometry/source group summaries are included.
+
+Event probabilities are risk indicators only. They must not change exact
+solver event checks, derivative-validity labels, or physical pass/fail
+acceptance. Dataset-wide event coverage and calibration remain BLOCKED until
+the formal multi-source corpus has audited event labels and source-family
+splits.

@@ -226,3 +226,55 @@ def calibration_reliability_bins(mean: Any, target: Any, std: Any, *,
         table.append({"count":int(len(chunk)),"predicted_rms_std":float(np.sqrt(np.mean(np.square(score[chunk])))),
                       "observed_rms_error":float(np.sqrt(np.mean(error[chunk])))})
     return {"status":"PASS","count":int(len(order)),"bins":table}
+
+
+def event_classification_metrics(logits: Any, targets: Any, *,
+                                 mask: Any | None = None,
+                                 group_ids: Any | None = None,
+                                 bins: int = 10) -> dict[str, Any]:
+    """Event-validity binary metrics; target is teacher event_valid, not derivative_valid."""
+    x=np.asarray(logits,dtype=np.float64).reshape(-1)
+    y=np.asarray(targets,dtype=bool).reshape(-1)
+    if x.shape!=y.shape or not np.isfinite(x).all():
+        raise ValueError("event logits/targets must be finite matching vectors")
+    keep=np.ones(len(y),dtype=bool) if mask is None else np.asarray(mask,dtype=bool)
+    if keep.shape!=y.shape or not keep.any(): raise ValueError("event mask must select samples")
+    x=x[keep]; y=y[keep]
+    p=1.0/(1.0+np.exp(-np.clip(x,-60,60)))
+    pred=p>=.5
+    tp=int(np.sum(pred & y)); fp=int(np.sum(pred & ~y)); fn=int(np.sum(~pred & y)); tn=int(np.sum(~pred & ~y))
+    precision=tp/max(tp+fp,1); recall=tp/max(tp+fn,1)
+    result={"status":"PASS","count":len(y),"positive_count":int(y.sum()),"negative_count":int((~y).sum()),
+        "brier":float(np.mean(np.square(p-y.astype(float)))),
+        "precision":float(precision),"recall":float(recall),
+        "f1":float(2*precision*recall/max(precision+recall,1e-15)),
+        "confusion":{"tp":tp,"fp":fp,"fn":fn,"tn":tn},
+        "auroc":None,"auprc":None,"ece":None}
+    if y.any() and (~y).any():
+        order=np.argsort(p,kind="stable"); ranks=np.empty(len(p),dtype=float);ranks[order]=np.arange(1,len(p)+1)
+        pos_ranks=ranks[y]
+        auc=float((pos_ranks.sum()-len(pos_ranks)*(len(pos_ranks)+1)/2)/(len(pos_ranks)*(len(y)-len(pos_ranks))))
+        result["auroc"]=auc
+        thresholds=np.unique(p)[::-1]
+        precisions=[];recalls=[]
+        for threshold in thresholds:
+            selected=p>=threshold
+            precisions.append(np.sum(selected & y)/max(np.sum(selected),1))
+            recalls.append(np.sum(selected & y)/np.sum(y))
+        result["auprc"]=float(np.sum(np.diff(np.r_[0.,recalls])*np.asarray(precisions)))
+    chunks=np.array_split(np.argsort(p,kind="stable"),min(max(int(bins),1),len(p)))
+    ece=0.
+    for chunk in chunks:
+        if len(chunk):
+            ece+=len(chunk)/len(p)*abs(float(p[chunk].mean())-float(y[chunk].mean()))
+    result["ece"]=float(ece)
+    if group_ids is not None:
+        gids=np.asarray(group_ids)
+        if gids.shape!=(len(keep),):raise ValueError("group_ids must have shape [N]")
+        selected=gids[keep]
+        result["groups"]=[]
+        for gid in sorted(set(selected.tolist()),key=str):
+            idx=selected==gid
+            sub=event_classification_metrics(x[idx],y[idx],bins=bins)
+            result["groups"].append({"group_id":str(gid),**sub})
+    return result

@@ -141,6 +141,8 @@ class M72Corpus:
                 raise ValueError(f"{key}: {name} must be a string array with shape [queries]")
         if "event_valid" in labels and (labels["event_valid"].shape!=(n,) or labels["event_valid"].dtype.kind!="b"):
             raise ValueError(f"{key}: event_valid must be bool [queries] and means teacher-confirmed event regularity")
+        if "event_label_valid" in labels and (labels["event_label_valid"].shape!=(n,) or labels["event_label_valid"].dtype.kind!="b"):
+            raise ValueError(f"{key}: event_label_valid must be bool [queries] and independently masks event labels")
         if "finite_difference_audit" in labels and (labels["finite_difference_audit"].shape!=(n,)
                 or labels["finite_difference_audit"].dtype.kind!="b"):
             raise ValueError(f"{key}: finite_difference_audit must be bool [queries]")
@@ -256,7 +258,7 @@ def jacobian_structure_penalty(jacobian:torch.Tensor):
 def loss_for_batch(model,cache,labels,indices,jacobian_weight,device,*,
                    min_event_margin=0.0,require_fd_audit=False,
                    max_jacobian_error_bound=None,event_weight=0.05,
-                   physics_weight=0.0,uq_weight=0.0):
+                   physics_weight=0.0,uq_weight=0.0,event_pos_weight=1.0):
     q=torch.tensor(np.array(labels["queries"][indices],copy=True),device=device,dtype=torch.float64)
     target=torch.tensor(np.array(labels["moments"][indices],copy=True),device=device,dtype=torch.float64)
     pred,jac=model.moments_and_jacobian(cache,q,create_graph=True)
@@ -299,12 +301,23 @@ def loss_for_batch(model,cache,labels,indices,jacobian_weight,device,*,
     if model.config.event_validity_head_enabled:
         if event_weight<0 or not math.isfinite(float(event_weight)):
             raise ValueError("event_weight must be finite and nonnegative")
-        event_logits=model.predict_event_validity(cache,q)
         if "event_valid" not in labels:
             raise ValueError("event-validity head requires explicit teacher event_valid labels; derivative_valid is not an event class")
+        event_logits=model.predict_event_validity(cache,q)
         event_target=torch.as_tensor(labels["event_valid"][indices].astype(np.float64),
                                      device=device,dtype=event_logits.dtype)
-        event_loss=torch.nn.functional.binary_cross_entropy_with_logits(event_logits,event_target)
+        event_mask=np.asarray(labels.get("event_label_valid",np.ones(len(labels["event_valid"]),dtype=bool))[indices],dtype=bool)
+        if event_mask.shape!=(len(indices),):
+            raise ValueError("event_label_valid must be bool [queries]")
+        if event_mask.any():
+            mask=torch.as_tensor(event_mask,device=device,dtype=torch.bool)
+            selected_target=event_target[mask]
+            pos_weight=float(event_pos_weight)
+            if not math.isfinite(pos_weight) or pos_weight<=0:
+                raise ValueError("event_pos_weight must be finite and positive")
+            event_loss=torch.nn.functional.binary_cross_entropy_with_logits(
+                event_logits[mask],selected_target,
+                pos_weight=torch.as_tensor(pos_weight,device=device,dtype=event_logits.dtype))
     return moment+jacobian_weight*derivative+event_weight*event_loss+physics_weight*physics_loss+uq_weight*uq_loss,moment,derivative,event_loss
 
 
@@ -440,7 +453,7 @@ def preflight(args):
     sync(args.device); start=perf_counter()
     with autocast(args.device,args.amp):
         cache=model.encode(geometry,args.chunk)
-        loss,ml,jl,el=loss_for_batch(model,cache,labels,indices,args.jacobian_weight,args.device,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound,event_weight=args.event_weight,physics_weight=getattr(args,"physics_weight",0.0),uq_weight=getattr(args,"uq_weight",0.0))
+        loss,ml,jl,el=loss_for_batch(model,cache,labels,indices,args.jacobian_weight,args.device,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound,event_weight=args.event_weight,physics_weight=getattr(args,"physics_weight",0.0),uq_weight=getattr(args,"uq_weight",0.0),event_pos_weight=getattr(args,"event_pos_weight",1.0))
     if not torch.isfinite(loss): raise FloatingPointError("nonfinite preflight loss")
     opt.zero_grad(set_to_none=True); loss.backward()
     grad=torch.nn.utils.clip_grad_norm_(model.parameters(),args.gradient_clip,error_if_nonfinite=True)
@@ -523,7 +536,7 @@ def train(args):
     contract=dict(schema=TRAIN_SCHEMA,config=asdict(cfg),manifest_sha256=corpus.manifest_sha,
         audit_sha256=corpus.audit_sha,corpus_fingerprint=corpus.doc["fingerprint"],source=source_fingerprints(),
         runtime=runtime_info(args.device,args.amp),seed=args.seed,batch_queries=args.batch_queries,
-        chunk=args.chunk,lr=args.learning_rate,weight_decay=args.weight_decay,jacobian_weight=args.jacobian_weight,event_weight=args.event_weight,physics_weight=getattr(args,"physics_weight",0.0),uq_weight=getattr(args,"uq_weight",0.0),gradient_clip=args.gradient_clip,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound,min_queries=args.min_queries_per_record)
+        chunk=args.chunk,lr=args.learning_rate,weight_decay=args.weight_decay,jacobian_weight=args.jacobian_weight,event_weight=args.event_weight,physics_weight=getattr(args,"physics_weight",0.0),uq_weight=getattr(args,"uq_weight",0.0),event_pos_weight=getattr(args,"event_pos_weight",1.0),gradient_clip=args.gradient_clip,min_event_margin=args.min_event_margin,require_fd_audit=args.require_fd_audit,max_jacobian_error_bound=args.max_jacobian_error_bound,min_queries=args.min_queries_per_record)
     out=Path(args.out); out.mkdir(parents=True,exist_ok=True)
     step=0; best_step=0; best_score=float("inf"); best_state=None; history=[]
     gradient_norms=[]; nonfinite_grad_steps=0
@@ -620,6 +633,7 @@ def main():
         q.add_argument("--learning-rate",type=float,default=3e-4); q.add_argument("--weight-decay",type=float,default=1e-4)
         q.add_argument("--jacobian-weight",type=float,default=.05); q.add_argument("--gradient-clip",type=float,default=1.)
         q.add_argument("--event-weight",type=float,default=.05,help="BCE weight for optional event-validity head")
+        q.add_argument("--event-pos-weight",type=float,default=1.0,help="positive-class BCE weight for teacher event_valid labels")
         q.add_argument("--physics-weight",type=float,default=0.0,help="optional convex Moment-Jacobian symmetry/PSD regularizer weight")
         q.add_argument("--uq-weight",type=float,default=0.0,help="optional Gaussian Moment/Jacobian UQ NLL weight; enables separate UQ heads")
         q.add_argument("--min-event-margin",type=float,default=0.0,help="exclude Jacobian labels with event_margin <= threshold when available")

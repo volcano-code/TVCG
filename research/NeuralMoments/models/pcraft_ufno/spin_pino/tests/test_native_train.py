@@ -283,3 +283,78 @@ def test_optional_physics_regularizer_integrates_only_with_convex_potential(tmp_
     nonconvex_cache=nonconvex.encode(small_geometry(),chunk=16)
     with pytest.raises(ValueError,match="requires convex_potential_enabled"):
         loss_for_batch(nonconvex,nonconvex_cache,labels,np.arange(2),.05,"cpu",physics_weight=.1)
+
+
+def test_event_label_mask_is_independent_of_derivative_validity_and_class_weighted():
+    import torch
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_train import loss_for_batch
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import (
+        NativePCRAFTConfig,PcraftNativeMomentOperator)
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.tests.test_native_pcraft import small_geometry
+    cfg=NativePCRAFTConfig(grid_size=8,pino_width=2,pino_modes=1,pino_layers=2,
+        interval_width=8,interval_depth=1,chunk_intervals=16,min_native_resolution=1,
+        event_validity_head_enabled=True)
+    model=PcraftNativeMomentOperator(cfg).train()
+    cache=model.encode(small_geometry(),chunk=16)
+    q=np.asarray([[0.,1.,0,0,0,0,0,0,0,0],
+                  [0.,0,1.,0,0,0,0,0,0,0]],dtype=np.float64)
+    labels={"queries":q,"moments":np.zeros((2,10)),"jacobian":np.zeros((2,10,10)),
+        "derivative_valid":np.asarray([True,False]),
+        "event_valid":np.asarray([True,False]),
+        "event_label_valid":np.asarray([True,True])}
+    loss_a=loss_for_batch(model,cache,labels,np.arange(2),.05,"cpu",event_weight=1.,event_pos_weight=1.)[0]
+    loss_b=loss_for_batch(model,cache,labels,np.arange(2),.05,"cpu",event_weight=1.,event_pos_weight=3.)[0]
+    assert torch.isfinite(loss_a) and torch.isfinite(loss_b)
+    assert not torch.allclose(loss_a,loss_b)
+    loss_b.backward()
+    grads=[p.grad for p in model.event_validity_head.parameters() if p.grad is not None]
+    assert grads and all(torch.isfinite(g).all() for g in grads)
+
+
+def test_event_loss_ignores_unlabeled_rows_and_handles_empty_event_mask():
+    import torch
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_train import loss_for_batch
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import (
+        NativePCRAFTConfig,PcraftNativeMomentOperator)
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.tests.test_native_pcraft import small_geometry
+    cfg=NativePCRAFTConfig(grid_size=8,pino_width=2,pino_modes=1,pino_layers=2,
+        interval_width=8,interval_depth=1,chunk_intervals=16,min_native_resolution=1,
+        event_validity_head_enabled=True)
+    model=PcraftNativeMomentOperator(cfg).train()
+    cache=model.encode(small_geometry(),chunk=16)
+    q=np.asarray([[0.,1.,0,0,0,0,0,0,0,0],
+                  [0.,0,1.,0,0,0,0,0,0,0]],dtype=np.float64)
+    base={"queries":q,"moments":np.zeros((2,10)),"jacobian":np.zeros((2,10,10)),
+        "derivative_valid":np.asarray([False,False]),"event_valid":np.asarray([True,False])}
+    full=loss_for_batch(model,cache,base,np.arange(2),.05,"cpu",event_weight=1.)[0]
+    masked=dict(base,event_label_valid=np.asarray([True,False]))
+    partial=loss_for_batch(model,cache,masked,np.arange(2),.05,"cpu",event_weight=1.)[0]
+    empty=dict(base,event_label_valid=np.asarray([False,False]))
+    no_event=loss_for_batch(model,cache,empty,np.arange(2),.05,"cpu",event_weight=1.)[0]
+    assert torch.isfinite(full) and torch.isfinite(partial) and torch.isfinite(no_event)
+    assert partial!=no_event
+
+
+def test_event_metrics_report_auc_only_when_both_classes_exist_and_group_results():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.uq import event_classification_metrics
+    logits=np.asarray([-3.,-2.,2.,3.,-1.,1.])
+    targets=np.asarray([False,False,True,True,False,True])
+    groups=np.asarray(["A","A","A","B","B","B"])
+    report=event_classification_metrics(logits,targets,group_ids=groups)
+    assert report["auroc"]==pytest.approx(1.)
+    assert report["auprc"] is not None
+    assert report["ece"]>=0 and report["brier"]>=0
+    assert len(report["groups"])==2
+    one_class=event_classification_metrics(logits,np.ones(6,dtype=bool))
+    assert one_class["auroc"] is None and one_class["auprc"] is None
+
+
+def test_event_metrics_apply_mask_without_using_derivative_validity():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.uq import event_classification_metrics
+    logits=np.asarray([-5.,5.,0.])
+    event=np.asarray([False,True,True])
+    event_mask=np.asarray([True,True,False])
+    report=event_classification_metrics(logits,event,mask=event_mask)
+    assert report["count"]==2
+    assert report["positive_count"]==1
+    assert report["negative_count"]==1
