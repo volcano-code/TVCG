@@ -285,3 +285,30 @@ python -m pytest -q research/NeuralMoments/models/pcraft_ufno/release_gate/tests
 
 These tests validate software contracts only; they do not claim that event
 labels or calibration are scientifically adequate on the formal dataset.
+
+
+## Phase 2.9.4.1 — Multi-task balancing primitives
+
+The first increment adds independent, opt-in utilities:
+- fixed weighted objective as the baseline;
+- per-task gradient extraction over an explicitly supplied shared-parameter set;
+- symmetric PCGrad projection with pre-projection cosine matrix, task norms,
+  projected norms and projection counts;
+- a stateful GradNorm weight controller that updates only tasks present in
+  the current batch;
+- homoscedastic learned task weighting, kept distinct from predictive
+  aleatoric Moment/Jacobian UQ scales.
+
+These are primitives, not yet a claim that the native training loop uses
+PCGrad or GradNorm end-to-end. In particular, PCGrad must be applied to
+separate task gradients on shared parameters before they are summed; applying
+it to an already aggregated scalar loss is invalid. Task-specific head
+gradients must still be retained. The default native objective and existing
+training CLI remain unchanged in this increment. A later integration step
+must define the shared parameter groups, absent-task semantics, per-task
+gradient extraction cost and checkpointed balancer state before enabling
+adaptive balancing in formal runs.
+
+No long training is started. Task-balance effectiveness, convergence and
+generalization remain data-dependent and blocked pending the audited
+multi-source corpus and frozen geometry/source-family splits.

@@ -99,6 +99,7 @@ def _architecture_contract_check() -> dict:
         "grouped_event_bootstrap": "def grouped_event_bootstrap" in (NATIVE / "uq.py").read_text(),
         "event_label_mask_contract": "event_label_valid" in (NATIVE / "native_train.py").read_text(),
         "event_conditioned_jacobian_supervision": "event_jacobian_weight" in (NATIVE / "native_train.py").read_text(),
+        "multitask_gradient_balancing": (NATIVE / "multitask.py").is_file() and "def pcgrad_project" in (NATIVE / "multitask.py").read_text(),
         "event_release_contract": (Path(__file__).parent / "event_release.py").is_file(),
         "learned_moment_jacobian_uq_heads": "def predict_uq" in native and "uq_enabled" in native,
         "uq_training_loss_integration": "uq_weight" in (NATIVE / "native_train.py").read_text(),
@@ -151,6 +152,7 @@ def main(argv: list[str] | None = None) -> int:
         checks.append(_run("compile_adapter", [sys.executable, "-m", "compileall", "-q", str(ADAPTER)], root, env))
         checks.append(_run("native_pcraft_tests", [sys.executable, "-m", "pytest", "-q", str(NATIVE_TESTS)], root, env))
         checks.append(_run("sqno_adapter_tests", [sys.executable, "-m", "pytest", "-q", str(ADAPTER_TESTS)], root, env))
+        checks.append(_run("multitask_balancing_tests", [sys.executable, "-m", "pytest", "-q", str(NATIVE_TESTS / "test_multitask.py")], root, env))
     software_status = "FAIL" if any(c["status"] == "FAIL" for c in checks) else ("PASS" if not args.skip_tests else "PENDING")
     report = {
         "schema": "tvcg.phase2_8_6.release_gate.v1",
