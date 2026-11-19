@@ -58,7 +58,8 @@ class UnifiedM80SQNO(nn.Module):
                  cross_attention_chunk:int=1024,cross_attention_output_scale:float=.05,
                  cross_scale_attention_enabled:bool=False,cross_scale_heads:int=2,
                  cross_scale_max_scales:int=16,cross_scale_disabled_ids:tuple[int,...]=(),
-                 interaction_variant:str="independent",):
+                 interaction_variant:str="independent",
+                 fusion_mode:str="global_scalar",query_fusion_hidden:int=32):
         super().__init__()
         if not isinstance(shared_encoder,PcraftNativeMomentOperator):
             raise TypeError("shared_encoder must be PcraftNativeMomentOperator")
@@ -84,7 +85,12 @@ class UnifiedM80SQNO(nn.Module):
             raise ValueError("gno_then_attention requires at least one attention branch")
         if interaction_variant=="parallel_gno_attention" and not (cross_attention_enabled and cross_scale_attention_enabled):
             raise ValueError("parallel_gno_attention requires both attention branches")
+        if fusion_mode not in {"global_scalar","query_conditioned"}:
+            raise ValueError("fusion_mode must be global_scalar or query_conditioned")
+        if query_fusion_hidden<1: raise ValueError("query_fusion_hidden must be positive")
         self.interaction_variant=interaction_variant
+        self.fusion_mode=fusion_mode
+        self.query_fusion_hidden=int(query_fusion_hidden)
         self.shared_encoder=shared_encoder
         self.sqno=sqno
         self.fusion_initial_weight=float(fusion_initial_weight)
@@ -110,13 +116,24 @@ class UnifiedM80SQNO(nn.Module):
         else:
             self.geometry_physics_attention=None
         logit=np.log(fusion_initial_weight/(1-fusion_initial_weight))
-        self.fusion_logit=nn.Parameter(torch.tensor(float(logit),dtype=torch.float64))
+        if self.fusion_mode=="global_scalar":
+            self.fusion_logit=nn.Parameter(torch.tensor(float(logit),dtype=torch.float64))
+            self.query_fusion_gate=None
+        else:
+            self.register_parameter("fusion_logit",None)
+            self.query_fusion_gate=nn.Sequential(nn.Linear(10+width,self.query_fusion_hidden),
+                nn.GELU(),nn.Linear(self.query_fusion_hidden,1))
+            nn.init.zeros_(self.query_fusion_gate[-1].weight)
+            nn.init.constant_(self.query_fusion_gate[-1].bias,float(logit))
         self.architecture_metadata=dict(architecture_metadata or {})
         self.geometry_encode_calls=0
         self.query_evaluation_calls=0
 
     @property
-    def fusion_weight(self): return torch.sigmoid(self.fusion_logit)
+    def fusion_weight(self):
+        if self.fusion_logit is None:
+            raise RuntimeError("query-conditioned fusion has no global scalar fusion_weight")
+        return torch.sigmoid(self.fusion_logit)
 
     def _versions(self):
         return tuple(p._version for p in self.parameters())
@@ -170,9 +187,33 @@ class UnifiedM80SQNO(nn.Module):
             # M80 internally enables autograd to obtain dM/dq. Do not retain
             # that temporary graph or parameter gradients in inference mode.
             m80,j80,ms,js=(value.detach() for value in (m80,j80,ms,js))
-        alpha=self.fusion_weight.to(device=m80.device,dtype=m80.dtype)
-        fused_moments=alpha*m80+(1-alpha)*ms
-        fused_jacobian=alpha*j80+(1-alpha)*js
+        alpha_jacobian=None
+        if self.fusion_mode=="global_scalar":
+            alpha=self.fusion_weight.to(device=m80.device,dtype=m80.dtype).expand(len(qb),1)
+        else:
+            # Gate conditions on scale-invariant quadric coefficients and
+            # cached global geometry context. Its complete derivative is
+            # included in the raw-coefficient Moment Jacobian below.
+            with torch.enable_grad():
+                q_gate=qb if qb.requires_grad else qb.detach().requires_grad_(True)
+                qnorm=q_gate/torch.linalg.vector_norm(q_gate,dim=-1,keepdim=True).clamp_min(1e-30)
+                geometry_context=cache.shared_cache.latent.reshape(1,-1).expand(len(qb),-1).to(
+                    device=q_gate.device,dtype=q_gate.dtype)
+                gate_input=torch.cat((qnorm.to(geometry_context.dtype),geometry_context),dim=-1)
+                alpha=torch.sigmoid(self.query_fusion_gate(gate_input))
+                alpha_jacobian=torch.autograd.grad(alpha.sum(),q_gate,create_graph=create_graph,
+                    retain_graph=True)[0].unsqueeze(1)
+        alpha_value=alpha.to(device=m80.device,dtype=m80.dtype)
+        fused_moments=alpha_value*m80+(1-alpha_value)*ms
+        fused_jacobian=alpha_value.unsqueeze(-1)*j80+(1-alpha_value).unsqueeze(-1)*js
+        if alpha_jacobian is not None:
+            fused_jacobian=fused_jacobian+(m80-ms).unsqueeze(-1)*alpha_jacobian.to(
+                device=m80.device,dtype=m80.dtype)
+        if cache.inference_only:
+            fused_moments=fused_moments.detach()
+            fused_jacobian=fused_jacobian.detach()
+            alpha_value=alpha_value.detach()
+            if alpha_jacobian is not None: alpha_jacobian=alpha_jacobian.detach()
         attention_diagnostics={}
         corrections=[]; correction_jacobians=[]; branch_names=[]
         if self.geometry_physics_attention is not None:
@@ -215,7 +256,12 @@ class UnifiedM80SQNO(nn.Module):
           "m80_jacobian_q":j80,
           "sqno_moments":ms,"sqno_jacobian_coefficients":js,
           "sqno_jacobian_q":js,
-          "fusion_weight":alpha,"geometry_id":cache.geometry_id,
+          "fusion_weight":(self.fusion_weight.to(device=m80.device,dtype=m80.dtype)
+            if self.fusion_mode=="global_scalar" else alpha_value.squeeze(-1)),
+          "fusion_mode":self.fusion_mode,
+          "fusion_gate_jacobian_norm":(torch.zeros(len(qb),device=qb.device,dtype=qb.dtype)
+            if alpha_jacobian is None else torch.linalg.vector_norm(alpha_jacobian.squeeze(1),dim=-1)),
+          "geometry_id":cache.geometry_id,
           "native_intervals":torch.as_tensor(cache.native_intervals,device=m80.device),
           "mass_error":sq["total_mass_error"],
           **attention_diagnostics,
@@ -377,7 +423,10 @@ class UnifiedM80SQNO(nn.Module):
             "neighbors":s.neighbors,"quadrature_order":s.quadrature_order,
             "chunk_intervals":s.chunk_intervals,"chunk_nodes":s.chunk_nodes,
             "query_chunk":s.query_chunk,"temperature":s.moment_operator.temperature},
-          "fusion":{"kind":"global_scalar_convex","initial_weight":self.fusion_initial_weight},
+          "fusion":{"kind":"global_scalar_convex" if self.fusion_mode=="global_scalar" else "query_conditioned",
+            "initial_weight":self.fusion_initial_weight,"query_hidden":self.query_fusion_hidden},
+          "fusion_mode":self.fusion_mode,
+          "query_fusion_hidden":self.query_fusion_hidden,
           "geometry_physics_attention":{"enabled":self.cross_attention_enabled,
             "heads":self.cross_attention_heads,"chunk_intervals":self.cross_attention_chunk,
             "output_scale":self.cross_attention_output_scale},
@@ -423,6 +472,13 @@ class UnifiedM80SQNO(nn.Module):
             for key,value in (("transolver_adaptive",False),("transolver_min_slices",4),("transolver_adaptive_temperature",False),("transolver_temperature_min",0.05),("transolver_temperature_max",2.0)):
                 saved_encoder.setdefault(key,value)
             saved_compare["shared_encoder_config"]=saved_encoder
+            saved_compare.setdefault("fusion_mode","global_scalar")
+            saved_compare.setdefault("query_fusion_hidden",32)
+            saved_fusion=dict(saved_compare.get("fusion",{}))
+            if saved_fusion.get("kind")=="global_scalar_convex":
+                saved_fusion["kind"]="global_scalar"
+                saved_fusion.setdefault("query_hidden",32)
+            saved_compare["fusion"]=saved_fusion
             current_compare.pop("geometry_physics_attention",None)
             if not legacy_global or saved_compare!=current_compare:
                 raise ValueError("unified checkpoint architecture contract mismatch")

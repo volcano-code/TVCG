@@ -361,3 +361,37 @@ non-parallel configurations, finite parallel-gate gradients, and finite-
 difference checks of the combined raw-coefficient Jacobian. Fair accuracy,
 runtime, memory and parameter-budget comparisons remain pending matched
 training and GPU profiling on the audited formal dataset.
+
+
+## Phase 2.8.5.5 — Query-conditioned Fusion
+
+The default remains the Phase 2.8.4 global scalar convex fusion. An opt-in
+`fusion_mode="query_conditioned"` adds a bounded sigmoid gate conditioned
+on (i) the positively scale-normalized ten-dimensional quadric coefficient
+vector and (ii) the cached shared global geometry latent.
+
+For each query:
+`alpha(beta,G)=sigmoid(MLP([normalize(beta),global_geometry_latent]))`
+and
+`M=alpha*M_M80+(1-alpha)*M_SQNO+R_attention`.
+
+The raw-input coefficient Jacobian includes the complete gate derivative:
+`J=alpha*J_M80+(1-alpha)*J_SQNO
+ +(M_M80-M_SQNO) outer_product grad_beta(alpha)
+ + J_attention`.
+
+The gate is initialized to the configured global fusion weight, so at
+initialization it reproduces the global scalar fusion value. It has no
+separate unused global fusion-logit parameter in query-conditioned mode.
+Inference outputs detach the temporary gate/Jacobian graph.
+
+Synthetic acceptance includes gate bounds, query dependence, geometry
+conditioning, positive coefficient scale invariance, all ten raw-input
+Jacobian finite differences, combined attention+fusion Jacobian finite
+differences, gradients, and checkpoint round trips. The global scalar mode
+remains the default and old checkpoint migration is retained.
+
+This is an architecture/software result only. Whether query-conditioned
+fusion improves Moment/Jacobian accuracy, optimization feasibility, or
+runtime must be established on the formal multi-source dataset with matched
+GPU experiments.

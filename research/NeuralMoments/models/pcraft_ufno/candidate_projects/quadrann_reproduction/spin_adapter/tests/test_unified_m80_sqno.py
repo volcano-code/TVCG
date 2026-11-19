@@ -486,3 +486,24 @@ def test_non_parallel_variants_register_no_unused_interaction_gate():
     assert model.parallel_interaction_logit is None
     names=[name for name,_ in model.named_parameters()]
     assert not any("parallel_interaction_logit" in name for name in names)
+
+
+def test_query_conditioned_fusion_gate_matches_global_initialization_and_checkpoint_contract(tmp_path):
+    global_model=make_unified().eval()
+    query_model=make_unified(fusion_mode="query_conditioned").eval()
+    query_model.load_state_dict(global_model.state_dict(),strict=False)
+    q=queries()
+    with torch.no_grad():
+        cache=query_model.encode_geometry(make_geometry(),inference=True)
+        out=query_model.evaluate_queries(cache,q)
+    assert torch.allclose(out["fusion_weight"],torch.full((len(q),),.5,dtype=out["fusion_weight"].dtype))
+    path=tmp_path/"query-fusion.pt"
+    query_model.save_checkpoint(path,data_fingerprint="query-fusion")
+    restored=make_unified(fusion_mode="query_conditioned").eval()
+    restored.load_checkpoint(path,expected_data_fingerprint="query-fusion")
+    assert restored.fusion_mode=="query_conditioned"
+
+
+def test_query_conditioned_fusion_rejects_invalid_configuration():
+    with pytest.raises(ValueError,match="fusion_mode"):
+        make_unified(fusion_mode="dynamic_magic")
