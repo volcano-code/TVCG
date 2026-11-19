@@ -871,3 +871,48 @@ def test_adaptive_temperature_requires_adaptive_slicing_and_valid_bounds():
     cfg=NativePCRAFTConfig(transolver_enabled=True,transolver_adaptive=True,
         transolver_adaptive_temperature=True,transolver_min_slices=2)
     assert cfg.transolver_adaptive_temperature
+
+
+def test_adaptive_temperature_complexity_sharpens_assignments_monotonically():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import PhysicsStateSlicing
+    torch.manual_seed(853309)
+    module=PhysicsStateSlicing(width=8,n_slices=8,n_heads=2).eval()
+    features=torch.randn(32,8)
+    uniform=torch.ones(32,dtype=torch.float64)
+    concentrated=torch.full((32,),1e-4,dtype=torch.float64); concentrated[0]=1.0
+    _,uniform_metrics=module(features,uniform,adaptive=True,min_slices=2,
+        adaptive_temperature=True,temperature_min=.05,temperature_max=1.5)
+    _,concentrated_metrics=module(features,concentrated,adaptive=True,min_slices=2,
+        adaptive_temperature=True,temperature_min=.05,temperature_max=1.5)
+    assert uniform_metrics["transolver_complexity_score"]>concentrated_metrics["transolver_complexity_score"]
+    assert uniform_metrics["transolver_temperature_mean"]<=concentrated_metrics["transolver_temperature_mean"]+1e-7
+
+
+def test_adaptive_slice_utilization_metrics_are_bounded_and_per_head_consistent():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import PhysicsStateSlicing
+    torch.manual_seed(853310)
+    module=PhysicsStateSlicing(width=8,n_slices=10,n_heads=2).eval()
+    features=torch.randn(41,8)
+    masses=torch.rand(41,dtype=torch.float64)
+    _,metrics,assignment,slice_mass=module(features,masses,adaptive=True,min_slices=3,
+        adaptive_temperature=True,return_details=True)
+    assert 1.0<=metrics["transolver_per_head_effective_slices_min"]<=metrics["transolver_active_slices"]+1e-5
+    assert metrics["transolver_per_head_effective_slices_min"]<=metrics["transolver_per_head_effective_slices_max"]
+    assert 0<=metrics["transolver_active_slice_utilization"]<=1+1e-6
+    assert metrics["transolver_per_head_occupied_slices_min"]>=1
+    assert torch.allclose(slice_mass.sum(-1),torch.ones(2),atol=1e-6)
+    assert torch.allclose(assignment.sum(-1),torch.ones(41,2),atol=1e-6)
+
+
+def test_adaptive_temperature_extreme_bounds_remain_finite_and_validate_runtime_args():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import PhysicsStateSlicing
+    torch.manual_seed(853311)
+    module=PhysicsStateSlicing(width=8,n_slices=8,n_heads=2).eval()
+    features=torch.randn(17,8)
+    masses=torch.rand(17,dtype=torch.float64)
+    _,metrics=module(features,masses,adaptive=True,min_slices=2,
+        adaptive_temperature=True,temperature_min=.2,temperature_max=.21)
+    assert .2<=metrics["transolver_temperature_min"]<=metrics["transolver_temperature_max"]<=.21
+    with pytest.raises(ValueError,match="temperature bounds"):
+        module(features,masses,adaptive=True,adaptive_temperature=True,
+            temperature_min=0.,temperature_max=1.)

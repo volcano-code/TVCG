@@ -295,3 +295,25 @@ sparse-mass permutation equivariance, finite gradients, effective-slice
 utilization and configuration validation. Empirical superiority, wall-clock
 speedup and memory savings remain unproven until matched GPU profiling and
 formal dataset evaluation.
+
+
+### Phase 2.8.5.3 follow-up — slice utilization and temperature calibration diagnostics
+
+The adaptive-temperature policy remains a deterministic geometry-only heuristic.
+It is not yet a learned or empirically calibrated optimum. Its intended
+monotonic hypothesis is explicit: at fixed learned per-point temperatures,
+higher mass/feature complexity lowers the multiplicative temperature factor
+and sharpens assignments, subject to configured positive bounds.
+
+The implementation now reports per-head effective slice counts, minimum and
+maximum occupied slices per head, near-empty slice counts, and effective
+utilization (mean per-head effective slices divided by the active slice
+budget). These metrics distinguish the selected budget from actual physical
+mass occupancy. A slice may be nominally active but effectively unused.
+
+New tests check the temperature/complexity monotonic relation, bounded
+per-head utilization, assignment normalization, per-head mass conservation,
+and extreme but valid temperature bounds. These are synthetic mechanism
+tests only; calibrating the complexity score, minimum temperature, maximum
+temperature and the 0.5/0.5 complexity weighting requires the formal
+multi-geometry dataset and matched GPU profiling.

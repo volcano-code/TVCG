@@ -504,10 +504,25 @@ class PhysicsStateSlicing(nn.Module):
 
         mean_usage=slice_mass.mean(dim=0)
         entropy=-(mean_usage*mean_usage.clamp_min(1e-30).log()).sum()
+        # Per-head utilization distinguishes a nominally active slice budget
+        # from slices that actually receive meaningful physical mass.
+        head_entropy=-(slice_mass*slice_mass.clamp_min(1e-30).log()).sum(dim=-1)
+        head_effective=torch.exp(head_entropy)
+        occupancy_threshold=1e-6
+        near_empty_threshold=1e-4
+        per_head_occupied=(slice_mass>occupancy_threshold).sum(dim=-1)
+        per_head_near_empty=((slice_mass>0)&(slice_mass<=near_empty_threshold)).sum(dim=-1)
         metrics={
             "transolver_assignment_row_error":float((assignment.sum(-1)-1).abs().max().detach()),
             "transolver_slice_mass_sum_error":float((slice_mass.sum(-1)-1).abs().max().detach()),
             "transolver_effective_slices":float(torch.exp(entropy).detach()),
+            "transolver_per_head_effective_slices_mean":float(head_effective.mean().detach()),
+            "transolver_per_head_effective_slices_min":float(head_effective.min().detach()),
+            "transolver_per_head_effective_slices_max":float(head_effective.max().detach()),
+            "transolver_per_head_occupied_slices_min":float(per_head_occupied.min().detach()),
+            "transolver_per_head_occupied_slices_max":float(per_head_occupied.max().detach()),
+            "transolver_per_head_near_empty_slices_mean":float(per_head_near_empty.float().mean().detach()),
+            "transolver_active_slice_utilization":float((head_effective.mean()/max(1,active_slices)).detach()),
             "transolver_assignment_entropy":float((-(assignment*assignment.clamp_min(1e-30).log()).sum(-1).mean()).detach()),
             "transolver_temperature_mean":float(temperature.mean().detach()),
             "transolver_temperature_min":float(temperature.min().detach()),
