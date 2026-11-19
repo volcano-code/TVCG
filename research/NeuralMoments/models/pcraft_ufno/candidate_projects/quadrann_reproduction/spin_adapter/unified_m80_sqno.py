@@ -393,6 +393,13 @@ class UnifiedM80SQNO(nn.Module):
         if saved_architecture!=current_architecture:
             saved_compare=dict(saved_architecture)
             current_compare=dict(current_architecture)
+            # Phase 2.8.5.3 adds opt-in adaptive slicing config defaults.
+            # Normalize absent fields from older Phase 2.8.4 checkpoints.
+            saved_encoder=dict(saved_compare.get("shared_encoder_config",{}))
+            current_encoder=dict(current_compare.get("shared_encoder_config",{}))
+            for key,value in (("transolver_adaptive",False),("transolver_min_slices",4)):
+                saved_encoder.setdefault(key,value)
+            saved_compare["shared_encoder_config"]=saved_encoder
             current_compare.pop("geometry_physics_attention",None)
             if not legacy_global or saved_compare!=current_compare:
                 raise ValueError("unified checkpoint architecture contract mismatch")

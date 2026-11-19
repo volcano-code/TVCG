@@ -210,3 +210,44 @@ before formal-data and GPU evaluation.
 The Mini7/100-TRELLIS/two-paper-benchmark/additional-TRELLIS validation and
 locked-test split policy remains as specified above. Mini7 is a pilot only;
 the additional 100 TRELLIS geometries are pending processing and audit.
+
+
+## Phase 2.8.5.3 — Adaptive Physical Slicing
+
+The existing `PhysicsStateSlicing` remains the fixed-slice Transolver-style
+baseline. The opt-in adaptive mode does not add a second slicing network or
+change the learned parameter shapes. It selects an active prefix of the
+existing slice slots using geometry-only statistics:
+
+- effective support of normalized physical interval masses;
+- mass-weighted feature variation relative to feature energy.
+
+The deterministic complexity score selects an active slice count bounded by
+`transolver_min_slices` and `transolver_slices`. Inactive logits are masked
+before the assignment softmax. All valid intervals retain normalized
+assignments, and the sum of normalized physical mass over active slice tokens
+is checked. Zero-mass intervals are permitted when total physical mass is
+positive; all-zero mass is rejected.
+
+Configuration:
+- `transolver_adaptive=False` preserves the existing fixed-slice path;
+- `transolver_adaptive=True` enables geometry-adaptive slice budgeting;
+- `transolver_min_slices` controls the lower bound.
+
+This selector is intentionally geometry-conditioned, not query-conditioned,
+so it does not introduce an omitted query derivative into the Moment Jacobian.
+It is a discrete, non-differentiable compute-budget decision; gradients still
+flow through feature projections, assignment logits, pooling, slice attention
+and deslicing for the selected active slices.
+
+Diagnostics include active slice count, feature variation, effective mass
+support, complexity score, assignment entropy, temperature range and mass
+normalization error. Synthetic tests cover deterministic output, permutation
+equivariance, sparse mass, zero-mass intervals, bounded slice count, mass
+conservation, finite gradients and fixed-path equivalence.
+
+Older Unified checkpoints are normalized with defaults for the two new
+configuration fields when loaded through the explicit legacy global-fusion
+migration path. No new parameters are introduced by adaptive slicing.
+Real-data quality and throughput remain unmeasured pending formal dataset
+acceptance and GPU profiling.

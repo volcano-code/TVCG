@@ -162,6 +162,8 @@ class NativePCRAFTConfig:
     transolver_enabled: bool = False
     transolver_slices: int = 32
     transolver_heads: int = 4
+    transolver_adaptive: bool = False
+    transolver_min_slices: int = 4
     multiscale_enabled: bool = False
     multiscale_grids: tuple[int, ...] = (32, 64, 128)
     convex_potential_enabled: bool = False
@@ -181,6 +183,10 @@ class NativePCRAFTConfig:
                 raise ValueError(f"{name} must be a positive integer")
         if not isinstance(self.gno_enabled, bool) or not isinstance(self.transolver_enabled, bool):
             raise ValueError("gno_enabled and transolver_enabled must be bool")
+        if not isinstance(self.transolver_adaptive,bool):
+            raise ValueError("transolver_adaptive must be bool")
+        if isinstance(self.transolver_min_slices,bool) or not isinstance(self.transolver_min_slices,int) or not 1<=self.transolver_min_slices<=self.transolver_slices:
+            raise ValueError("transolver_min_slices must be in [1, transolver_slices]")
         if not isinstance(self.gno_topology_filter, bool):
             raise ValueError("gno_topology_filter must be bool")
         if not isinstance(self.multiscale_enabled, bool):
@@ -417,7 +423,8 @@ class PhysicsStateSlicing(nn.Module):
         self.ffn=nn.Sequential(nn.Linear(width,4*width),nn.GELU(),nn.Linear(4*width,width))
         self.ffn_dropout=nn.Dropout(0.0)
 
-    def forward(self,features:Tensor,mass_weights:Tensor,*,return_details:bool=False):
+    def forward(self,features:Tensor,mass_weights:Tensor,*,return_details:bool=False,
+                adaptive:bool=False,min_slices:int|None=None):
         if features.ndim!=2 or features.shape[1]!=self.width:
             raise ValueError("features must have shape [N,width]")
         if mass_weights.ndim!=1 or len(features)!=len(mass_weights):
@@ -431,6 +438,27 @@ class PhysicsStateSlicing(nn.Module):
         x_mid=self.in_project_x(self.norm(features)).reshape(n,self.n_heads,self.dim_head)
         logits=self.in_project_slice(x_mid)
         temperature=(self.proj_temperature(x_mid)+self.temperature_bias).clamp_min(0.01)
+        active_slices=self.n_slices
+        feature_variation=features.new_zeros(())
+        mass_effective_support=features.new_tensor(float(n))
+        if adaptive:
+            # Deterministic geometry-only budget selector; it uses physical
+            # mass concentration and weighted feature variation.
+            mass64=mass_weights.to(torch.float64).clamp_min(0)
+            mass_prob=mass64/mass64.sum().clamp_min(torch.finfo(torch.float64).tiny)
+            mass_effective_support=1.0/mass_prob.square().sum().clamp_min(1e-15)
+            feature64=features.to(torch.float64)
+            mean=(feature64*mass_prob[:,None]).sum(0)
+            variance=((feature64-mean).square().mean(-1)*mass_prob).sum()
+            energy=(feature64.square().mean(-1)*mass_prob).sum().clamp_min(1e-12)
+            feature_variation=(variance/energy).clamp(0,1)
+            mass_coverage=(mass_effective_support/max(1,n)).clamp(0,1)
+            complexity=(0.5*feature_variation+0.5*mass_coverage).clamp(0,1)
+            minimum=int(min_slices or max(1,self.n_slices//4))
+            if not 1<=minimum<=self.n_slices:
+                raise ValueError("min_slices must be in [1,n_slices]")
+            active_slices=minimum+int(torch.round(complexity*(self.n_slices-minimum)).detach().cpu())
+            logits=logits.masked_fill(torch.arange(self.n_slices,device=logits.device)>=active_slices,-torch.inf)
         # Deterministic soft assignment per interval/head; no stochastic
         # Gumbel noise, so a fixed geometry/query is reproducible.
         assignment=torch.softmax((logits.float()/temperature.float()),dim=-1)
@@ -460,6 +488,11 @@ class PhysicsStateSlicing(nn.Module):
             "transolver_temperature_mean":float(temperature.mean().detach()),
             "transolver_temperature_min":float(temperature.min().detach()),
             "transolver_temperature_max":float(temperature.max().detach()),
+            "transolver_adaptive_enabled":float(bool(adaptive)),
+            "transolver_active_slices":float(active_slices),
+            "transolver_feature_variation":float(feature_variation.detach()),
+            "transolver_mass_effective_support":float(mass_effective_support.detach()),
+            "transolver_complexity_score":float(complexity.detach()) if adaptive else 1.0,
         }
         if return_details:
             return x,metrics,assignment,slice_mass
@@ -883,7 +916,8 @@ class PcraftNativeMomentOperator(nn.Module):
                     updated_chunks.append(updated)
                 all_features=torch.cat(updated_chunks,dim=0)
             if c.transolver_enabled:
-                all_features,tm=self.transolver(all_features,weights)
+                all_features,tm=self.transolver(all_features,weights,
+                    adaptive=c.transolver_adaptive,min_slices=c.transolver_min_slices)
                 self.counters["transolver_calls"]+=1
                 for key,value in tm.items():
                     self.counters[key]=value

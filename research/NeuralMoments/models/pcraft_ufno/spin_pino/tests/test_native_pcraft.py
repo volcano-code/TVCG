@@ -716,3 +716,86 @@ def test_convex_amplitude_mode_is_opt_in_and_old_checkpoint_config_defaults_to_s
     torch.save(dict(schema=SCHEMA,semantics=SEMANTICS,config=config,model=model.state_dict()),path)
     restored,_=load_model(path,"cpu")
     assert restored.config.convex_amplitude_mode=="sigmoid"
+
+
+def test_adaptive_physical_slicing_bounds_slices_and_conserves_mass():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import PhysicsStateSlicing
+    torch.manual_seed(853301)
+    module=PhysicsStateSlicing(width=8,n_slices=12,n_heads=2).eval()
+    features=torch.randn(37,8)
+    masses=torch.rand(37,dtype=torch.float64)
+    updated,metrics,assignment,slice_mass=module(
+        features,masses,adaptive=True,min_slices=3,return_details=True)
+    assert updated.shape==features.shape
+    assert assignment.shape==(37,2,12)
+    assert 3<=metrics["transolver_active_slices"]<=12
+    assert torch.allclose(assignment.sum(-1),torch.ones(37,2),atol=1e-6)
+    assert torch.allclose(slice_mass.sum(-1),torch.ones(2),atol=1e-6)
+    assert metrics["transolver_slice_mass_sum_error"]<1e-6
+
+
+def test_adaptive_physical_slicing_is_deterministic_and_permutation_equivariant():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import PhysicsStateSlicing
+    torch.manual_seed(853302)
+    module=PhysicsStateSlicing(width=8,n_slices=10,n_heads=2).eval()
+    features=torch.randn(29,8)
+    masses=torch.rand(29,dtype=torch.float64)
+    a,ma=module(features,masses,adaptive=True,min_slices=2)
+    b,mb=module(features,masses,adaptive=True,min_slices=2)
+    perm=torch.randperm(len(features))
+    c,mc=module(features[perm],masses[perm],adaptive=True,min_slices=2)
+    assert torch.equal(a,b)
+    assert ma["transolver_active_slices"]==mb["transolver_active_slices"]
+    assert ma["transolver_active_slices"]==mc["transolver_active_slices"]
+    assert torch.allclose(a[perm],c,rtol=1e-6,atol=1e-7)
+
+
+def test_adaptive_physical_slicing_handles_sparse_and_zero_mass_intervals():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import PhysicsStateSlicing
+    torch.manual_seed(853303)
+    module=PhysicsStateSlicing(width=8,n_slices=8,n_heads=2).eval()
+    features=torch.randn(16,8)
+    masses=torch.zeros(16,dtype=torch.float64)
+    masses[3]=1.0
+    updated,metrics,assignment,slice_mass=module(
+        features,masses,adaptive=True,min_slices=2,return_details=True)
+    assert torch.isfinite(updated).all()
+    assert torch.isfinite(assignment).all()
+    assert torch.isfinite(slice_mass).all()
+    assert metrics["transolver_active_slices"]>=2
+    with pytest.raises(ValueError,match="positive sum"):
+        module(features,torch.zeros_like(masses),adaptive=True,min_slices=2)
+
+
+def test_adaptive_physical_slicing_gradients_are_finite():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import PhysicsStateSlicing
+    torch.manual_seed(853304)
+    module=PhysicsStateSlicing(width=8,n_slices=8,n_heads=2).train()
+    features=torch.randn(23,8,requires_grad=True)
+    masses=torch.rand(23,dtype=torch.float64)
+    updated,metrics=module(features,masses,adaptive=True,min_slices=2)
+    (updated.square().mean()).backward()
+    assert features.grad is not None and torch.isfinite(features.grad).all()
+    grads=[p.grad for p in module.parameters() if p.grad is not None]
+    assert grads and all(torch.isfinite(g).all() for g in grads)
+
+
+def test_fixed_physical_slicing_path_is_unchanged_when_adaptive_is_disabled():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import PhysicsStateSlicing
+    torch.manual_seed(853305)
+    module=PhysicsStateSlicing(width=8,n_slices=8,n_heads=2).eval()
+    features=torch.randn(19,8)
+    masses=torch.rand(19,dtype=torch.float64)
+    old,old_metrics=module(features,masses)
+    fixed,fixed_metrics=module(features,masses,adaptive=False)
+    assert torch.equal(old,fixed)
+    assert old_metrics["transolver_active_slices"]==8
+    assert fixed_metrics["transolver_adaptive_enabled"]==0.0
+
+
+def test_native_config_validates_adaptive_slice_bounds():
+    with pytest.raises(ValueError,match="transolver_min_slices"):
+        NativePCRAFTConfig(transolver_slices=8,transolver_min_slices=9)
+    cfg=NativePCRAFTConfig(transolver_enabled=True,transolver_adaptive=True,
+        transolver_slices=8,transolver_min_slices=2)
+    assert cfg.transolver_adaptive is True
