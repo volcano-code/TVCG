@@ -256,3 +256,30 @@ def test_validation_reports_convex_gate_saturation_and_effective_amplitude(tmp_p
     assert report["convex_amplitude"]["bound"]["count"]==1
     assert report["convex_amplitude"]["effective"]["count"]==1
     assert report["details"][0]["convex_amplitude"]["mode"]=="atan"
+
+
+def test_optional_physics_regularizer_integrates_only_with_convex_potential(tmp_path):
+    import torch
+    from dataclasses import replace
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_train import loss_for_batch
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import PcraftNativeMomentOperator,make_config
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.tests.test_native_pcraft import small_geometry
+    q=np.asarray([[0.,1.,0,0,0,0,0,0,0,0],
+                  [0.,0,1.,0,0,0,0,0,0,0]],dtype=np.float64)
+    labels={"queries":q,"moments":np.zeros((2,10)),"jacobian":np.zeros((2,10,10)),
+        "derivative_valid":np.asarray([True,True])}
+    cfg=replace(make_config("smoke",min_native_resolution=1),
+        convex_potential_enabled=True,convex_potential_components=2)
+    model=PcraftNativeMomentOperator(cfg).train()
+    cache=model.encode(small_geometry(),chunk=16)
+    base=loss_for_batch(model,cache,labels,np.arange(2),.05,"cpu")
+    regularized=loss_for_batch(model,cache,labels,np.arange(2),.05,"cpu",physics_weight=.1)
+    assert torch.isfinite(regularized[0])
+    assert regularized[0]>=base[0]-1e-12
+    regularized[0].backward()
+    grads=[p.grad for p in model.parameters() if p.grad is not None]
+    assert grads and all(torch.isfinite(g).all() for g in grads)
+    nonconvex=PcraftNativeMomentOperator(make_config("smoke",min_native_resolution=1)).train()
+    nonconvex_cache=nonconvex.encode(small_geometry(),chunk=16)
+    with pytest.raises(ValueError,match="requires convex_potential_enabled"):
+        loss_for_batch(nonconvex,nonconvex_cache,labels,np.arange(2),.05,"cpu",physics_weight=.1)
