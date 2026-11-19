@@ -78,6 +78,7 @@ def _architecture_contract_check() -> dict:
         ADAPTER / "cross_scale_attention.py",
         ADAPTER / "fusion_ablation.py",
         ADAPTER / "tests/test_unified_m80_sqno.py",
+        NATIVE / "uq.py",
     ]
     missing = [str(p.relative_to(ROOT)) for p in required if not p.is_file()]
     wrapper = (ADAPTER / "unified_m80_sqno.py").read_text() if not missing else ""
@@ -90,6 +91,7 @@ def _architecture_contract_check() -> dict:
         "gno_interaction_variants": "parallel_gno_attention" in wrapper and "gno_then_attention" in wrapper,
         "adaptive_physical_slicing": "transolver_adaptive" in native and "transolver_active_slices" in native,
         "fusion_ablation_harness": (ADAPTER / "fusion_ablation.py").is_file(),
+        "gaussian_uq_primitives": (NATIVE / "uq.py").is_file() and "def gaussian_calibration_metrics" in (NATIVE / "uq.py").read_text(),
     }
     failed = [k for k, ok in markers.items() if not ok]
     return {"status": "PASS" if not missing and not failed else "FAIL",

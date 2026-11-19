@@ -80,3 +80,28 @@ source family, preserving a separate locked test set.
 Formal training, multi-seed stability, 64^3–512^3 evaluation, OOD, RTX 5090 D
 performance and full hybrid optimizer acceptance remain BLOCKED until the
 formal dataset and independent physical verification are available.
+
+
+## Phase 2.9.2.1 — Gaussian UQ contract and calibration primitives
+
+The first UQ increment defines a distributional contract, not a trained
+uncertainty model. It provides:
+- bounded-log-standard-deviation Gaussian NLL for a future heteroscedastic
+  head;
+- calibration metrics for Moment or Jacobian residual tensors;
+- empirical coverage at nominal 50/68/80/90/95/99 percent intervals;
+- mean interval width, Gaussian NLL, calibration error and standardized
+  residual diagnostics;
+- optional macro summaries by held-out geometry/source group;
+- explicit PENDING/BLOCKED reporting when Jacobian UQ predictions or labels
+  are absent.
+
+No teacher variance labels are assumed or fabricated. Gaussian NLL can train
+a predictive scale against point targets once a scale head is implemented,
+but calibration must be evaluated on held-out geometry/source families.
+This utility does not itself create a learned UQ head or establish calibrated
+uncertainty. Moment and Jacobian UQ remain separate outputs; missing Jacobian
+uncertainty must not be imputed from Moment uncertainty.
+
+Uncertainty is not an optimizer acceptance signal. Event validity, derivative
+validity, and exact solver checks remain separate gates.
