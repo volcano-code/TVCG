@@ -200,6 +200,12 @@ class UnifiedM80SQNO(nn.Module):
                 geometry_context=cache.shared_cache.latent.reshape(1,-1).expand(len(qb),-1).to(
                     device=q_gate.device,dtype=q_gate.dtype)
                 gate_input=torch.cat((qnorm.to(geometry_context.dtype),geometry_context),dim=-1)
+                # Neural gate parameters may remain FP32 while the physical
+                # coefficient/Jacobian path uses FP64. Cast only at the MLP
+                # boundary; autograd preserves the chain rule through this cast.
+                gate_dtype=self.query_fusion_gate[0].weight.dtype
+                gate_input=gate_input.to(dtype=gate_dtype,
+                    device=self.query_fusion_gate[0].weight.device)
                 alpha=torch.sigmoid(self.query_fusion_gate(gate_input))
                 alpha_jacobian=torch.autograd.grad(alpha.sum(),q_gate,create_graph=create_graph,
                     retain_graph=True)[0].unsqueeze(1)
