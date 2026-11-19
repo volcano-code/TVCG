@@ -596,7 +596,7 @@ def train(args):
         with autocast(args.device,args.amp):
             cache=model.encode(geometry,args.chunk)
             loss,ml,jl,el=loss_for_batch(model,cache,labels,idx,args.jacobian_weight,args.device,
-                event_weight=args.event_weight,physics_weight=getattr(args,"physics_weight",0.0),uq_weight=getattr(args,"uq_weight",0.0))
+                event_weight=args.event_weight,physics_weight=getattr(args,"physics_weight",0.0),uq_weight=getattr(args,"uq_weight",0.0),event_pos_weight=getattr(args,"event_pos_weight",1.0),event_jacobian_weight=getattr(args,"event_jacobian_weight",0.0),event_regular_jacobian_scale=getattr(args,"event_regular_jacobian_scale",1.0),event_event_jacobian_scale=getattr(args,"event_event_jacobian_scale",0.0))
         if not torch.isfinite(loss): raise FloatingPointError(f"nonfinite loss at step {step+1}")
         loss.backward()
         grad_norm=torch.nn.utils.clip_grad_norm_(model.parameters(),args.gradient_clip,error_if_nonfinite=True)
