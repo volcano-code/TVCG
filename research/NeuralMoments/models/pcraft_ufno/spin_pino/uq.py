@@ -142,3 +142,87 @@ def joint_uq_report(*, moment: dict[str, Any] | None,
         "jacobian_uq": jacobian if jacobian is not None else {"status": jacobian_status, "reason": "Jacobian UQ predictions/labels not supplied"},
         "joint_calibration_claim": False,
     }
+
+
+def uncertainty_risk_coverage(mean: Any, target: Any, std: Any, *,
+                              mask: Any | None = None,
+                              group_ids: Any | None = None,
+                              retained_fractions: tuple[float, ...] = (0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0)) -> dict[str, Any]:
+    """Risk-coverage curve using per-query mean predictive std as abstention score.
+
+    Lower predicted uncertainty is retained first. Risk is RMSE of normalized
+    residual components over retained queries. Group macro results prevent
+    large geometry families dominating the summary.
+    """
+    mu=np.asarray(mean,dtype=np.float64); y=np.asarray(target,dtype=np.float64)
+    sigma=np.asarray(std,dtype=np.float64)
+    if mu.shape!=y.shape or mu.shape!=sigma.shape or mu.ndim<2:
+        raise ValueError("mean, target and std must share [N,...] shape")
+    if not (np.isfinite(mu).all() and np.isfinite(y).all() and np.isfinite(sigma).all()):
+        raise FloatingPointError("risk-coverage inputs must be finite")
+    if (sigma<=0).any(): raise ValueError("std must be strictly positive")
+    keep=np.ones(mu.shape[0],dtype=bool) if mask is None else np.asarray(mask,dtype=bool)
+    if keep.shape!=(mu.shape[0],) or not keep.any():
+        raise ValueError("mask must select at least one sample and have shape [N]")
+    fractions=tuple(float(v) for v in retained_fractions)
+    if not fractions or any(not 0<v<=1 for v in fractions) or tuple(sorted(fractions))!=fractions:
+        raise ValueError("retained_fractions must be sorted values in (0,1]")
+    mu,y,sigma=mu[keep],y[keep],sigma[keep]
+    residual=y-mu
+    score=sigma.reshape(len(sigma),-1).mean(-1)
+    per_query_mse=np.square(residual).reshape(len(residual),-1).mean(-1)
+    order=np.argsort(score,kind="stable")
+    curve=[]
+    for fraction in fractions:
+        count=max(1,int(math.ceil(fraction*len(order))))
+        chosen=order[:count]
+        curve.append({"retained_fraction":fraction,"retained_count":count,
+            "mean_uncertainty":float(score[chosen].mean()),
+            "rmse_risk":float(np.sqrt(per_query_mse[chosen].mean()))})
+    result={"status":"PASS","count":len(order),"curve":curve,
+        "risk_at_full_coverage":curve[-1]["rmse_risk"]}
+    if group_ids is not None:
+        groups=np.asarray(group_ids)
+        if groups.shape!=(len(keep),): raise ValueError("group_ids must have shape [N]")
+        selected=groups[keep]
+        group_curves=[]
+        for gid in sorted(set(selected.tolist()),key=str):
+            idx=selected==gid
+            if idx.sum()<1: continue
+            sub=uncertainty_risk_coverage(mu[idx],y[idx],sigma[idx],
+                retained_fractions=fractions)
+            group_curves.append({"group_id":str(gid),"count":int(idx.sum()),"curve":sub["curve"]})
+        result["groups"]=group_curves
+        result["group_macro_risk_curve"]=[
+            {"retained_fraction":fraction,
+             "rmse_risk":float(np.mean([g["curve"][i]["rmse_risk"] for g in group_curves]))}
+            for i,fraction in enumerate(fractions)]
+    return result
+
+
+def calibration_reliability_bins(mean: Any, target: Any, std: Any, *,
+                                 mask: Any | None = None, bins: int = 10) -> dict[str, Any]:
+    """Quantile-bin predictive std against empirical absolute residual scale.
+
+    Reports predicted RMS std and observed RMS residual per bin. This is a
+    diagnostic reliability table, not a replacement for interval coverage.
+    """
+    mu=np.asarray(mean,dtype=np.float64); y=np.asarray(target,dtype=np.float64)
+    sigma=np.asarray(std,dtype=np.float64)
+    if mu.shape!=y.shape or mu.shape!=sigma.shape or mu.ndim<2:
+        raise ValueError("mean, target and std must share [N,...] shape")
+    if not (np.isfinite(mu).all() and np.isfinite(y).all() and np.isfinite(sigma).all()):
+        raise FloatingPointError("reliability inputs must be finite")
+    if (sigma<=0).any(): raise ValueError("std must be strictly positive")
+    if isinstance(bins,bool) or not isinstance(bins,int) or bins<1: raise ValueError("bins must be positive")
+    keep=np.ones(mu.shape[0],dtype=bool) if mask is None else np.asarray(mask,dtype=bool)
+    if keep.shape!=(len(mu),) or not keep.any(): raise ValueError("mask must select samples")
+    score=sigma[keep].reshape(int(keep.sum()),-1).mean(-1)
+    error=np.square(y[keep]-mu[keep]).reshape(int(keep.sum()),-1).mean(-1)
+    order=np.argsort(score,kind="stable")
+    chunks=np.array_split(order,min(bins,len(order)))
+    table=[]
+    for chunk in chunks:
+        table.append({"count":int(len(chunk)),"predicted_rms_std":float(np.sqrt(np.mean(np.square(score[chunk])))),
+                      "observed_rms_error":float(np.sqrt(np.mean(error[chunk])))})
+    return {"status":"PASS","count":int(len(order)),"bins":table}

@@ -138,3 +138,24 @@ coverage/NLL must be evaluated independently on held-out geometry/source
 families after formal data admission and training. No uncertainty output may
 override event validity, derivative-validity labels, or exact physical
 acceptance.
+
+
+## Phase 2.9.2.3 — Risk/Coverage and reliability diagnostics
+
+The UQ evaluation utilities now include:
+- uncertainty-ranked selective risk/coverage curves, retaining low-uncertainty
+  queries first and reporting residual RMSE at each retained fraction;
+- optional per-geometry/source-group risk curves and macro risk summaries;
+- quantile-binned reliability tables comparing predicted RMS standard
+  deviation with observed RMS residual scale.
+
+These are evaluation primitives only. They do not perform dataset splitting,
+fit a calibration map, or prove that uncertainty is calibrated. Calibration
+must be run separately for Moment and Jacobian predictions on a held-out
+geometry/source-family split. Hyperparameter/model selection must not inspect
+the locked test set. Group macro metrics must accompany pooled metrics so a
+large geometry family cannot hide poor calibration on smaller families.
+
+Risk/coverage curves quantify selective prediction behavior; they do not
+authorize the optimizer to accept or reject a physical design. The exact
+solver and event/derivative validity checks remain authoritative.

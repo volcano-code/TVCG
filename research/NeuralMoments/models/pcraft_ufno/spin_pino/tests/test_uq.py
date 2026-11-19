@@ -6,6 +6,7 @@ import torch
 
 from research.NeuralMoments.models.pcraft_ufno.spin_pino.uq import (
     gaussian_nll, gaussian_calibration_metrics, joint_uq_report,
+    uncertainty_risk_coverage, calibration_reliability_bins,
 )
 
 
@@ -191,3 +192,42 @@ def test_uq_config_state_dict_roundtrip_and_legacy_defaults(tmp_path):
             NativePCRAFTConfig(**legacy_config)).state_dict().items()}},legacy_path)
     loaded,_=load_model(legacy_path)
     assert loaded.config.uq_enabled is False
+
+
+def test_risk_coverage_orders_low_uncertainty_and_reports_monotone_retention():
+    mean=np.zeros((5,2))
+    target=np.array([[.1,.1],[.2,.2],[1.,1.],[2.,2.],[4.,4.]])
+    std=np.array([[.1,.1],[.2,.2],[1.,1.],[2.,2.],[4.,4.]])
+    report=uncertainty_risk_coverage(mean,target,std,retained_fractions=(.2,.4,.6,1.))
+    curve=report["curve"]
+    assert [x["retained_count"] for x in curve]==[1,2,3,5]
+    assert curve[0]["rmse_risk"]<curve[-1]["rmse_risk"]
+    assert report["risk_at_full_coverage"]==pytest.approx(curve[-1]["rmse_risk"])
+
+
+def test_risk_coverage_has_geometry_group_macro_and_respects_mask():
+    mean=np.zeros((6,2)); target=np.arange(12,dtype=float).reshape(6,2)
+    std=np.ones_like(target); mask=np.array([1,1,1,1,0,0],bool)
+    groups=np.array(["A","A","B","B","C","C"])
+    report=uncertainty_risk_coverage(mean,target,std,mask=mask,group_ids=groups,
+        retained_fractions=(.5,1.))
+    assert report["count"]==4
+    assert len(report["groups"])==2
+    assert len(report["group_macro_risk_curve"])==2
+
+
+def test_calibration_reliability_bins_are_finite_and_cover_all_queries():
+    mean=np.zeros((23,3)); target=np.linspace(-1,1,69).reshape(23,3)
+    std=np.linspace(.1,1.,69).reshape(23,3)
+    report=calibration_reliability_bins(mean,target,std,bins=5)
+    assert report["count"]==23
+    assert sum(x["count"] for x in report["bins"])==23
+    assert all(np.isfinite(x["predicted_rms_std"]) and np.isfinite(x["observed_rms_error"])
+        for x in report["bins"])
+
+
+def test_risk_and_reliability_reject_invalid_inputs():
+    with pytest.raises(ValueError,match="retained_fractions"):
+        uncertainty_risk_coverage([ [0,0] ],[[1,1]],[[1,1]],retained_fractions=(1.,.5))
+    with pytest.raises(ValueError,match="bins"):
+        calibration_reliability_bins([[0,0]],[[1,1]],[[1,1]],bins=0)

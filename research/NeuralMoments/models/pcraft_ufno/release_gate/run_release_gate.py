@@ -92,6 +92,8 @@ def _architecture_contract_check() -> dict:
         "adaptive_physical_slicing": "transolver_adaptive" in native and "transolver_active_slices" in native,
         "fusion_ablation_harness": (ADAPTER / "fusion_ablation.py").is_file(),
         "gaussian_uq_primitives": (NATIVE / "uq.py").is_file() and "def gaussian_calibration_metrics" in (NATIVE / "uq.py").read_text(),
+        "uq_risk_coverage": (NATIVE / "uq.py").is_file() and "def uncertainty_risk_coverage" in (NATIVE / "uq.py").read_text(),
+        "uq_reliability_bins": (NATIVE / "uq.py").is_file() and "def calibration_reliability_bins" in (NATIVE / "uq.py").read_text(),
         "learned_moment_jacobian_uq_heads": "def predict_uq" in native and "uq_enabled" in native,
         "uq_training_loss_integration": "uq_weight" in (NATIVE / "native_train.py").read_text(),
     }
