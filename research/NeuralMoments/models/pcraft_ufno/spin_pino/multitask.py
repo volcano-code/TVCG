@@ -262,7 +262,7 @@ def pcgrad_assign_gradients(losses: Mapping[str, Tensor | None],
         count=p.numel()*(2 if p.is_complex() else 1)
         values=combined[offset:offset+count]
         if p.is_complex():
-            values=values.reshape(*p.shape,2).contiguous()
+            values=values.reshape(*p.shape,2).contiguous().clone()
             grad=torch.view_as_complex(values)
         else:
             grad=values.view_as(p)

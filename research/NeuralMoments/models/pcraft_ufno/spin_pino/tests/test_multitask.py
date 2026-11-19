@@ -247,7 +247,7 @@ def test_pcgrad_assignment_preserves_mixed_real_and_complex_parameter_gradient_d
 
 def test_pcgrad_assignment_preserves_imaginary_components_without_dtype_casting():
     from research.NeuralMoments.models.pcraft_ufno.spin_pino.multitask import pcgrad_assign_gradients
-    real=torch.nn.Parameter(torch.tensor([1.,2.],dtype=torch.float64))
+    real=torch.nn.Parameter(torch.tensor([1.,2.,3.],dtype=torch.float64))
     spectral=torch.nn.Parameter(torch.tensor([1.+2j,2.-1j],dtype=torch.complex128))
     loss_a=real.square().sum()+spectral.abs().square().sum()
     loss_b=(real[0]-3).square()+(spectral.imag[0]-4).square()
