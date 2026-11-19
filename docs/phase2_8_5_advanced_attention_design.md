@@ -260,3 +260,38 @@ slice prefix, then pads exact zeros for inactive slots. It does not feed
 negative-infinity masked logits through the softmax backward graph. This
 keeps inactive slice slots exactly empty while avoiding unstable gradients
 through masked softmax branches.
+
+
+### Phase 2.8.5.3 follow-up — adaptive temperature ablation
+
+The next increment adds an independently selectable adaptive-temperature
+policy while retaining fixed temperature as the default. Adaptive temperature
+is enabled only together with adaptive slicing. It derives a bounded scalar
+factor from the same geometry-only complexity score:
+`factor = 1.5 - complexity`. The per-head/per-point learned temperature is
+multiplied by this factor and clamped to explicit positive bounds
+(`transolver_temperature_min`, `transolver_temperature_max`). Higher
+feature/mass complexity therefore sharpens assignments; simpler geometry
+produces smoother assignments. This is a hypothesis to be tested, not an
+established optimum.
+
+The ablation matrix is now:
+1. fixed slice count + fixed learned temperature (legacy baseline);
+2. adaptive slice count + fixed learned temperature;
+3. adaptive slice count + adaptive bounded temperature.
+
+Diagnostics report the configured bounds, observed temperature range,
+active slice budget and effective slice utilization. Effective slice
+utilization is measured from normalized pooled mass entropy and must not be
+confused with the selected active slice budget.
+
+The selector remains geometry-only and deterministic. No query-dependent
+slicing is introduced, so the Moment Jacobian has no additional query path.
+The adaptive policy adds no trainable parameters. The new config fields have
+explicit defaults in the legacy Unified checkpoint migration path.
+
+Synthetic tests cover bounded temperatures, deterministic repeatability,
+sparse-mass permutation equivariance, finite gradients, effective-slice
+utilization and configuration validation. Empirical superiority, wall-clock
+speedup and memory savings remain unproven until matched GPU profiling and
+formal dataset evaluation.

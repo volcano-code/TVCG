@@ -164,6 +164,9 @@ class NativePCRAFTConfig:
     transolver_heads: int = 4
     transolver_adaptive: bool = False
     transolver_min_slices: int = 4
+    transolver_adaptive_temperature: bool = False
+    transolver_temperature_min: float = 0.05
+    transolver_temperature_max: float = 2.0
     multiscale_enabled: bool = False
     multiscale_grids: tuple[int, ...] = (32, 64, 128)
     convex_potential_enabled: bool = False
@@ -183,8 +186,12 @@ class NativePCRAFTConfig:
                 raise ValueError(f"{name} must be a positive integer")
         if not isinstance(self.gno_enabled, bool) or not isinstance(self.transolver_enabled, bool):
             raise ValueError("gno_enabled and transolver_enabled must be bool")
-        if not isinstance(self.transolver_adaptive,bool):
-            raise ValueError("transolver_adaptive must be bool")
+        if not isinstance(self.transolver_adaptive,bool) or not isinstance(self.transolver_adaptive_temperature,bool):
+            raise ValueError("adaptive slicing flags must be bool")
+        if self.transolver_adaptive_temperature and not self.transolver_adaptive:
+            raise ValueError("adaptive temperature requires transolver_adaptive=True")
+        if not (0.0 < self.transolver_temperature_min < self.transolver_temperature_max):
+            raise ValueError("transolver temperature bounds must be positive and ordered")
         if isinstance(self.transolver_min_slices,bool) or not isinstance(self.transolver_min_slices,int) or not 1<=self.transolver_min_slices<=self.transolver_slices:
             raise ValueError("transolver_min_slices must be in [1, transolver_slices]")
         if not isinstance(self.gno_topology_filter, bool):
@@ -424,7 +431,9 @@ class PhysicsStateSlicing(nn.Module):
         self.ffn_dropout=nn.Dropout(0.0)
 
     def forward(self,features:Tensor,mass_weights:Tensor,*,return_details:bool=False,
-                adaptive:bool=False,min_slices:int|None=None):
+                adaptive:bool=False,min_slices:int|None=None,
+                adaptive_temperature:bool=False,temperature_min:float=0.05,
+                temperature_max:float=2.0):
         if features.ndim!=2 or features.shape[1]!=self.width:
             raise ValueError("features must have shape [N,width]")
         if mass_weights.ndim!=1 or len(features)!=len(mass_weights):
@@ -441,7 +450,8 @@ class PhysicsStateSlicing(nn.Module):
         active_slices=self.n_slices
         feature_variation=features.new_zeros(())
         mass_effective_support=features.new_tensor(float(n))
-        if adaptive:
+        complexity=features.new_tensor(1.0)
+        if adaptive or adaptive_temperature:
             # Deterministic geometry-only budget selector; it uses physical
             # mass concentration and weighted feature variation.
             mass64=mass_weights.to(torch.float64).clamp_min(0)
@@ -457,7 +467,15 @@ class PhysicsStateSlicing(nn.Module):
             minimum=int(min_slices or max(1,self.n_slices//4))
             if not 1<=minimum<=self.n_slices:
                 raise ValueError("min_slices must be in [1,n_slices]")
-            active_slices=minimum+int(torch.round(complexity*(self.n_slices-minimum)).detach().cpu())
+            if adaptive:
+                active_slices=minimum+int(torch.round(complexity*(self.n_slices-minimum)).detach().cpu())
+            if adaptive_temperature:
+                if not (0.0 < temperature_min < temperature_max):
+                    raise ValueError("adaptive temperature bounds must be positive and ordered")
+                # More heterogeneous feature fields receive sharper (lower)
+                # assignments; diffuse/simple fields receive smoother ones.
+                factor=1.5-complexity
+                temperature=(temperature*factor).clamp(min=temperature_min,max=temperature_max)
         # Deterministic soft assignment per interval/head; compute softmax
         # only over active slots. Avoid all-masked/-inf branches in the
         # autograd graph, then pad exact zeros for inactive slice slots.
@@ -495,6 +513,9 @@ class PhysicsStateSlicing(nn.Module):
             "transolver_temperature_min":float(temperature.min().detach()),
             "transolver_temperature_max":float(temperature.max().detach()),
             "transolver_adaptive_enabled":float(bool(adaptive)),
+            "transolver_adaptive_temperature_enabled":float(bool(adaptive_temperature)),
+            "transolver_temperature_bound_min":float(temperature_min),
+            "transolver_temperature_bound_max":float(temperature_max),
             "transolver_active_slices":float(active_slices),
             "transolver_feature_variation":float(feature_variation.detach()),
             "transolver_mass_effective_support":float(mass_effective_support.detach()),
@@ -923,7 +944,10 @@ class PcraftNativeMomentOperator(nn.Module):
                 all_features=torch.cat(updated_chunks,dim=0)
             if c.transolver_enabled:
                 all_features,tm=self.transolver(all_features,weights,
-                    adaptive=c.transolver_adaptive,min_slices=c.transolver_min_slices)
+                    adaptive=c.transolver_adaptive,min_slices=c.transolver_min_slices,
+                    adaptive_temperature=c.transolver_adaptive_temperature,
+                    temperature_min=c.transolver_temperature_min,
+                    temperature_max=c.transolver_temperature_max)
                 self.counters["transolver_calls"]+=1
                 for key,value in tm.items():
                     self.counters[key]=value

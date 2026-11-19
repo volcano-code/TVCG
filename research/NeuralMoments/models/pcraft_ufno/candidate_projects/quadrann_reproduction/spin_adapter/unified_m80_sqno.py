@@ -397,7 +397,7 @@ class UnifiedM80SQNO(nn.Module):
             # Normalize absent fields from older Phase 2.8.4 checkpoints.
             saved_encoder=dict(saved_compare.get("shared_encoder_config",{}))
             current_encoder=dict(current_compare.get("shared_encoder_config",{}))
-            for key,value in (("transolver_adaptive",False),("transolver_min_slices",4)):
+            for key,value in (("transolver_adaptive",False),("transolver_min_slices",4),("transolver_adaptive_temperature",False),("transolver_temperature_min",0.05),("transolver_temperature_max",2.0)):
                 saved_encoder.setdefault(key,value)
             saved_compare["shared_encoder_config"]=saved_encoder
             current_compare.pop("geometry_physics_attention",None)

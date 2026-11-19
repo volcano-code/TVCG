@@ -809,3 +809,65 @@ def test_native_config_validates_adaptive_slice_bounds():
     cfg=NativePCRAFTConfig(transolver_enabled=True,transolver_adaptive=True,
         transolver_slices=8,transolver_min_slices=2)
     assert cfg.transolver_adaptive is True
+
+
+def test_adaptive_temperature_is_bounded_deterministic_and_reports_utilization():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import PhysicsStateSlicing
+    torch.manual_seed(853306)
+    module=PhysicsStateSlicing(width=8,n_slices=10,n_heads=2).eval()
+    features=torch.randn(31,8)
+    masses=torch.rand(31,dtype=torch.float64)
+    a,ma,assignment_a,slice_mass_a=module(features,masses,adaptive=True,min_slices=2,
+        adaptive_temperature=True,temperature_min=.08,temperature_max=.7,return_details=True)
+    b,mb,assignment_b,slice_mass_b=module(features,masses,adaptive=True,min_slices=2,
+        adaptive_temperature=True,temperature_min=.08,temperature_max=.7,return_details=True)
+    assert torch.equal(a,b)
+    assert torch.equal(assignment_a,assignment_b)
+    assert .08<=ma["transolver_temperature_min"]<=ma["transolver_temperature_max"]<=.7
+    assert ma["transolver_adaptive_temperature_enabled"]==1.0
+    assert ma["transolver_active_slices"]==mb["transolver_active_slices"]
+    assert torch.allclose(slice_mass_a.sum(-1),torch.ones(2),atol=1e-6)
+    assert torch.isfinite(torch.tensor(ma["transolver_effective_slices"]))
+    assert 1.0<=ma["transolver_effective_slices"]<=ma["transolver_active_slices"]+1e-5
+
+
+def test_adaptive_temperature_is_permutation_equivariant_and_sparse_mass_safe():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import PhysicsStateSlicing
+    torch.manual_seed(853307)
+    module=PhysicsStateSlicing(width=8,n_slices=9,n_heads=2).eval()
+    features=torch.randn(27,8)
+    masses=torch.zeros(27,dtype=torch.float64); masses[::4]=torch.rand(7,dtype=torch.float64)+.1
+    a,ma=module(features,masses,adaptive=True,min_slices=2,adaptive_temperature=True)
+    perm=torch.randperm(27)
+    b,mb=module(features[perm],masses[perm],adaptive=True,min_slices=2,adaptive_temperature=True)
+    assert torch.allclose(a[perm],b,rtol=1e-6,atol=1e-7)
+    assert ma["transolver_active_slices"]==mb["transolver_active_slices"]
+    assert ma["transolver_temperature_min"]>=.05
+    assert torch.isfinite(b).all()
+
+
+def test_adaptive_temperature_gradients_are_finite_and_fixed_temperature_is_unchanged():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import PhysicsStateSlicing
+    torch.manual_seed(853308)
+    module=PhysicsStateSlicing(width=8,n_slices=8,n_heads=2).train()
+    features=torch.randn(23,8,requires_grad=True)
+    masses=torch.rand(23,dtype=torch.float64)
+    updated,metrics=module(features,masses,adaptive=True,min_slices=2,adaptive_temperature=True)
+    updated.square().mean().backward()
+    assert features.grad is not None and torch.isfinite(features.grad).all()
+    assert all(p.grad is None or torch.isfinite(p.grad).all() for p in module.parameters())
+    module.eval()
+    fixed_a,_=module(features.detach(),masses,adaptive=True,min_slices=2,adaptive_temperature=False)
+    fixed_b,_=module(features.detach(),masses,adaptive=True,min_slices=2,adaptive_temperature=False)
+    assert torch.equal(fixed_a,fixed_b)
+
+
+def test_adaptive_temperature_requires_adaptive_slicing_and_valid_bounds():
+    with pytest.raises(ValueError,match="requires transolver_adaptive"):
+        NativePCRAFTConfig(transolver_adaptive_temperature=True)
+    with pytest.raises(ValueError,match="temperature bounds"):
+        NativePCRAFTConfig(transolver_adaptive=True,
+            transolver_temperature_min=1.0,transolver_temperature_max=.5)
+    cfg=NativePCRAFTConfig(transolver_enabled=True,transolver_adaptive=True,
+        transolver_adaptive_temperature=True,transolver_min_slices=2)
+    assert cfg.transolver_adaptive_temperature
