@@ -1,4 +1,5 @@
 from __future__ import annotations
+from dataclasses import replace
 import numpy as np
 import pytest
 import torch
@@ -276,9 +277,13 @@ def test_geometry_physics_attention_is_query_order_and_interval_permutation_inva
         reordered=model.evaluate_queries(cache,queries()[qperm])
         n=len(cache.shared_cache.interval_features)
         perm=torch.randperm(n)
-        cache.shared_cache.interval_features=cache.shared_cache.interval_features[perm]
-        cache.shared_cache.interval_mass=cache.shared_cache.interval_mass[perm]
-        interval_reordered=model.evaluate_queries(cache,queries())
+        permuted_shared_cache=replace(
+            cache.shared_cache,
+            interval_features=cache.shared_cache.interval_features[perm],
+            interval_mass=cache.shared_cache.interval_mass[perm],
+        )
+        permuted_cache=replace(cache,shared_cache=permuted_shared_cache)
+        interval_reordered=model.evaluate_queries(permuted_cache,queries())
     assert torch.allclose(first["moments"][qperm],reordered["moments"],rtol=1e-6,atol=1e-8)
     assert torch.allclose(first["moments"],interval_reordered["moments"],rtol=1e-6,atol=1e-8)
     assert torch.allclose(first["attention_entropy"],interval_reordered["attention_entropy"],rtol=1e-6,atol=1e-7)
