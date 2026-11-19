@@ -251,3 +251,12 @@ configuration fields when loaded through the explicit legacy global-fusion
 migration path. No new parameters are introduced by adaptive slicing.
 Real-data quality and throughput remain unmeasured pending formal dataset
 acceptance and GPU profiling.
+
+
+### Adaptive softmax numerical safeguard
+
+The adaptive implementation computes softmax only over the selected active
+slice prefix, then pads exact zeros for inactive slots. It does not feed
+negative-infinity masked logits through the softmax backward graph. This
+keeps inactive slice slots exactly empty while avoiding unstable gradients
+through masked softmax branches.

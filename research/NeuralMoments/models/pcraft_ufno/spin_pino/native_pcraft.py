@@ -458,10 +458,16 @@ class PhysicsStateSlicing(nn.Module):
             if not 1<=minimum<=self.n_slices:
                 raise ValueError("min_slices must be in [1,n_slices]")
             active_slices=minimum+int(torch.round(complexity*(self.n_slices-minimum)).detach().cpu())
-            logits=logits.masked_fill(torch.arange(self.n_slices,device=logits.device)>=active_slices,-torch.inf)
-        # Deterministic soft assignment per interval/head; no stochastic
-        # Gumbel noise, so a fixed geometry/query is reproducible.
-        assignment=torch.softmax((logits.float()/temperature.float()),dim=-1)
+        # Deterministic soft assignment per interval/head; compute softmax
+        # only over active slots. Avoid all-masked/-inf branches in the
+        # autograd graph, then pad exact zeros for inactive slice slots.
+        active_logits=logits[...,:active_slices].float()
+        active_temperature=temperature.float()
+        active_assignment=torch.softmax(active_logits/active_temperature,dim=-1)
+        if active_slices<self.n_slices:
+            assignment=F.pad(active_assignment,(0,self.n_slices-active_slices))
+        else:
+            assignment=active_assignment
         mass=mass_weights.float()
         mass=mass/mass.sum().clamp_min(1e-30)
         weighted_assignment=assignment*mass[:,None,None]

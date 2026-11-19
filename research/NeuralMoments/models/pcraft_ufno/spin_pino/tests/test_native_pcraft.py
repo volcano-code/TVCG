@@ -778,6 +778,16 @@ def test_adaptive_physical_slicing_gradients_are_finite():
     assert features.grad is not None and torch.isfinite(features.grad).all()
     grads=[p.grad for p in module.parameters() if p.grad is not None]
     assert grads and all(torch.isfinite(g).all() for g in grads)
+    # Inactive slots are exact zeros, while active assignment rows remain
+    # normalized; this guards the adaptive softmax boundary.
+    _,_,assignment,slice_mass=module(features.detach(),masses,adaptive=True,
+        min_slices=2,return_details=True)
+    assert torch.isfinite(assignment).all()
+    assert torch.allclose(assignment.sum(-1),torch.ones(23,2),atol=1e-6)
+    active=int(module(features.detach(),masses,adaptive=True,min_slices=2)[1]["transolver_active_slices"])
+    if active<8:
+        assert torch.count_nonzero(assignment[...,active:])==0
+        assert torch.count_nonzero(slice_mass[:,active:])==0
 
 
 def test_fixed_physical_slicing_path_is_unchanged_when_adaptive_is_disabled():
