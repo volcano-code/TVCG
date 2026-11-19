@@ -2,7 +2,7 @@
 from __future__ import annotations
 from dataclasses import asdict, dataclass
 from contextlib import nullcontext
-import hashlib, os, random, tempfile
+import hashlib, math, os, random, tempfile
 from pathlib import Path
 from typing import Any, Mapping
 import numpy as np
@@ -14,6 +14,10 @@ from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import (
 from .spin_quadrann_v12 import SpinQuadrANNV12, SQNOGeometryCache
 from .geometry_physics_attention import GeometryPhysicsCrossAttention
 from .cross_scale_attention import QueryConditionedCrossScaleAttention
+from .unified_training_state import (
+    parameter_partition, make_training_contract, optimizer_contract,
+    checkpoint_training_metadata, validate_resume,
+)
 
 SCHEMA="tvcg.unified-m80-sqno.v1"
 SEMANTICS="one-shared-pcraft-encoder-m80-and-sqno-query-many"
@@ -49,8 +53,8 @@ def _source_fingerprints():
 class UnifiedM80SQNO(nn.Module):
     """Single geometry trunk, M80 Moment head, SQNO query-many branch.
 
-    A trainable global scalar convex fusion is used as a simple auditable
-    baseline. Query-conditioned fusion is reserved for Phase 2.8.5.
+    Global scalar and query-conditioned convex fusion share the same raw
+    coefficient Jacobian and training/checkpoint contracts.
     """
     def __init__(self,shared_encoder:PcraftNativeMomentOperator,sqno:SpinQuadrANNV12,
                  *,fusion_initial_weight=.5,architecture_metadata:Mapping[str,Any]|None=None,
@@ -292,16 +296,18 @@ class UnifiedM80SQNO(nn.Module):
             raise ValueError(f"{name} mask contains no valid queries")
         return values[mask].mean()
 
-    def joint_task_losses(
+    def _joint_task_losses_and_metadata(
         self,cache:UnifiedGeometryCache,coefficients:Tensor,target_moments:Tensor,target_jacobian:Tensor,*,
         moment_scale:Tensor|float=1.0,jacobian_scale:Tensor|float=1.0,
         valid_mask:Tensor|None=None,jacobian_valid_mask:Tensor|None=None,
         jacobian_weight:float=0.1,branch_aux_weight:float=0.25,
-    )->dict[str,Tensor]:
-        """Return differentiable task losses for fixed or PCGrad optimization."""
-        if jacobian_weight<0 or branch_aux_weight<0:
-            raise ValueError("loss weights must be nonnegative")
+    )->tuple[dict[str,Tensor],dict[str,Tensor]]:
+        if any(not math.isfinite(float(value)) or value<0
+               for value in (jacobian_weight,branch_aux_weight)):
+            raise ValueError("loss weights must be finite and nonnegative")
         q=torch.as_tensor(coefficients,device=cache.shared_cache.latent.device,dtype=torch.float64)
+        if q.ndim not in {1,2} or q.shape[-1]!=10 or not q.numel():
+            raise ValueError("coefficients must be [10] or nonempty [Q,10]")
         qn=1 if q.ndim==1 else q.shape[0]
         target_m=torch.as_tensor(target_moments,device=q.device,dtype=torch.float64)
         target_j=torch.as_tensor(target_jacobian,device=q.device,dtype=torch.float64)
@@ -318,6 +324,8 @@ class UnifiedM80SQNO(nn.Module):
             raise ValueError("moment/jacobian scales must be finite and positive")
         try: target_m_norm=target_m/ms;target_j_norm=target_j/js
         except RuntimeError as exc: raise ValueError("normalization scales are not broadcastable") from exc
+        if target_m_norm.shape!=target_m.shape or target_j_norm.shape!=target_j.shape:
+            raise ValueError("normalization scales must preserve target shapes")
         result=self.evaluate_queries(cache,q,create_graph=True,with_jacobian=True)
         def norm_m(key):
             value=result[key]
@@ -335,15 +343,34 @@ class UnifiedM80SQNO(nn.Module):
         m80j=self._masked_mean_square(norm_j("m80_jacobian_q")-target_j_norm,jmask,name="M80 Jacobian")
         sqnoj=self._masked_mean_square(norm_j("sqno_jacobian_q")-target_j_norm,jmask,name="SQNO Jacobian")
         branch=(m80m+sqnom+jacobian_weight*(m80j+sqnoj))*0.5
-        return {"moment":fm,"jacobian":fj,"branch_aux":branch,
+        tasks={"moment":fm,"jacobian":fj,"branch_aux":branch,
             "m80_moment":m80m,"sqno_moment":sqnom,"m80_jacobian":m80j,"sqno_jacobian":sqnoj}
+        def valid_count(value):
+            return (torch.tensor(qn,device=q.device,dtype=torch.int64) if value is None
+                    else torch.as_tensor(value,device=q.device,dtype=torch.bool).sum())
+        metadata={"fusion_weight":result["fusion_weight"].detach(),
+            "valid_queries":valid_count(mask),"valid_jacobian_queries":valid_count(jmask)}
+        return tasks,metadata
+
+    def joint_task_losses(
+        self,cache:UnifiedGeometryCache,coefficients:Tensor,target_moments:Tensor,target_jacobian:Tensor,*,
+        moment_scale:Tensor|float=1.0,jacobian_scale:Tensor|float=1.0,
+        valid_mask:Tensor|None=None,jacobian_valid_mask:Tensor|None=None,
+        jacobian_weight:float=0.1,branch_aux_weight:float=0.25,
+    )->dict[str,Tensor]:
+        """Return the three differentiable objectives and four branch diagnostics."""
+        tasks,_=self._joint_task_losses_and_metadata(cache,coefficients,target_moments,target_jacobian,
+            moment_scale=moment_scale,jacobian_scale=jacobian_scale,valid_mask=valid_mask,
+            jacobian_valid_mask=jacobian_valid_mask,jacobian_weight=jacobian_weight,
+            branch_aux_weight=branch_aux_weight)
+        return tasks
 
     def joint_training_loss(self,cache:UnifiedGeometryCache,coefficients:Tensor,
         target_moments:Tensor,target_jacobian:Tensor,*,moment_scale:Tensor|float=1.0,
         jacobian_scale:Tensor|float=1.0,valid_mask:Tensor|None=None,
         jacobian_valid_mask:Tensor|None=None,jacobian_weight:float=0.1,
         branch_aux_weight:float=0.25)->dict[str,Tensor]:
-        tasks=self.joint_task_losses(cache,coefficients,target_moments,target_jacobian,
+        tasks,metadata=self._joint_task_losses_and_metadata(cache,coefficients,target_moments,target_jacobian,
             moment_scale=moment_scale,jacobian_scale=jacobian_scale,valid_mask=valid_mask,
             jacobian_valid_mask=jacobian_valid_mask,jacobian_weight=jacobian_weight,
             branch_aux_weight=branch_aux_weight)
@@ -352,8 +379,7 @@ class UnifiedM80SQNO(nn.Module):
             "jacobian_loss":tasks["jacobian"].detach(),"branch_aux_loss":tasks["branch_aux"].detach(),
             "m80_moment_loss":tasks["m80_moment"].detach(),"sqno_moment_loss":tasks["sqno_moment"].detach(),
             "m80_jacobian_loss":tasks["m80_jacobian"].detach(),"sqno_jacobian_loss":tasks["sqno_jacobian"].detach(),
-            "fusion_weight":self.fusion_weight.detach() if self.fusion_mode=="global_scalar" else torch.tensor(0.,device=tasks["moment"].device),
-            "valid_queries":torch.tensor(1 if torch.as_tensor(coefficients).ndim==1 else torch.as_tensor(coefficients).shape[0],device=tasks["moment"].device,dtype=torch.int64)}
+            **metadata}
 
     def train_step(
         self,optimizer,cache:UnifiedGeometryCache,coefficients:Tensor,
@@ -363,44 +389,72 @@ class UnifiedM80SQNO(nn.Module):
         jacobian_weight:float=0.1,branch_aux_weight:float=0.25,
         gradient_clip:float=1.0,
         gradient_mode:str="fixed",
+        pcgrad_reduction:str="sum",
     )->dict[str,Any]:
         """One explicit joint update; caller must re-encode after optimizer.step."""
         if not self.training:
             raise RuntimeError("train_step requires model.train()")
         if cache.inference_only:
             raise ValueError("train_step cannot consume an inference-only cache")
-        if gradient_clip<=0:
-            raise ValueError("gradient_clip must be positive")
-        if gradient_mode not in {"fixed","pcgrad"}:
-            raise ValueError("gradient_mode must be fixed or pcgrad")
+        contract=self.training_contract(gradient_mode=gradient_mode,pcgrad_reduction=pcgrad_reduction,
+            jacobian_weight=jacobian_weight,branch_aux_weight=branch_aux_weight,gradient_clip=gradient_clip,
+            moment_scale=moment_scale,jacobian_scale=jacobian_scale)
+        resumed=getattr(self,"_resume_training_contract",None)
+        if resumed is not None and resumed!=contract:
+            raise ValueError("train_step differs from the resumed training contract")
+        optimizer_contract(self,optimizer)
         optimizer.zero_grad(set_to_none=True)
-        task_losses=self.joint_task_losses(cache,coefficients,target_moments,target_jacobian,
+        task_losses,metadata=self._joint_task_losses_and_metadata(cache,coefficients,target_moments,target_jacobian,
             moment_scale=moment_scale,jacobian_scale=jacobian_scale,valid_mask=valid_mask,
             jacobian_valid_mask=jacobian_valid_mask,jacobian_weight=jacobian_weight,
             branch_aux_weight=branch_aux_weight)
         weights={"moment":1.0,"jacobian":float(jacobian_weight),"branch_aux":float(branch_aux_weight)}
-        total=sum((task_losses[k]*weights[k] for k in weights),
+        active=[name for name in weights if weights[name]>0 and task_losses[name].requires_grad]
+        total=sum((task_losses[k]*weights[k] for k in active),
                   torch.zeros((),device=task_losses["moment"].device,dtype=task_losses["moment"].dtype))
         parameters=[p for p in self.parameters() if p.requires_grad]
         if gradient_mode=="pcgrad":
             from research.NeuralMoments.models.pcraft_ufno.spin_pino.multitask import pcgrad_assign_gradients
-            multitask_report=pcgrad_assign_gradients(task_losses,weights,parameters,[])
+            named=dict(self.named_parameters())
+            partition=contract["parameter_partition"]
+            shared=[named[name] for name in partition["shared"]]
+            private=[named[name] for name in partition["private"]]
+            multitask_report=pcgrad_assign_gradients(task_losses,weights,shared,private,reduction=pcgrad_reduction)
+            multitask_report["diagnostics_available"]=True
         else:
             total.backward()
-            multitask_report={"task_names":list(task_losses),"projection_counts":[0]*len(task_losses),
-                "cosine_matrix":[],"shared_gradient_norms":{},"private_gradient_norms":{}}
+            multitask_report={"task_names":active,"task_count":len(active),
+                "projection_counts":[0]*len(active),"cosine_matrix":[],
+                "shared_gradient_norms":{},"private_gradient_norms":{},
+                "reduction":"sum","diagnostics_available":False}
         grad_norm=torch.nn.utils.clip_grad_norm_(parameters,gradient_clip,error_if_nonfinite=True)
         if not torch.isfinite(grad_norm):
             optimizer.zero_grad(set_to_none=True)
             raise FloatingPointError("nonfinite unified gradient norm")
         optimizer.step()
+        self._last_training_contract=contract
         out={key:float(value.detach()) for key,value in task_losses.items()}
+        out.update({key+"_loss":value for key,value in list(out.items())})
+        out.update({"fusion_weight":float(metadata["fusion_weight"].mean()),
+            "valid_queries":int(metadata["valid_queries"]),
+            "valid_jacobian_queries":int(metadata["valid_jacobian_queries"])})
         out["loss"]=float(total.detach())
         out["gradient_norm"]=float(grad_norm.detach())
         out["gradient_mode"]=gradient_mode
+        out["gradient_reduction"]=contract["pcgrad_reduction"]
         out["multitask_report"]=multitask_report
         out["cache_invalidated"]=1.0
         return out
+
+    def training_parameter_partition(self):
+        """Return ordered, exhaustive shared/private/inactive parameter names."""
+        return parameter_partition(self)
+
+    def training_contract(self,*,gradient_mode="fixed",pcgrad_reduction="sum",jacobian_weight=.1,
+                          branch_aux_weight=.25,gradient_clip=1.,moment_scale=1.,jacobian_scale=1.):
+        return make_training_contract(self,gradient_mode=gradient_mode,pcgrad_reduction=pcgrad_reduction,
+            jacobian_weight=jacobian_weight,branch_aux_weight=branch_aux_weight,gradient_clip=gradient_clip,
+            moment_scale=moment_scale,jacobian_scale=jacobian_scale)
 
     def unique_trainable_parameters(self):
         seen=set()
@@ -409,7 +463,8 @@ class UnifiedM80SQNO(nn.Module):
                 seen.add(id(p)); yield p
 
     def build_optimizer(self,*,learning_rate=3e-4,weight_decay=1e-4):
-        if learning_rate<=0 or weight_decay<0: raise ValueError("invalid optimizer parameters")
+        if (not math.isfinite(float(learning_rate)) or not math.isfinite(float(weight_decay))
+            or learning_rate<=0 or weight_decay<0): raise ValueError("invalid optimizer parameters")
         params=list(self.unique_trainable_parameters())
         if not params: raise ValueError("no trainable parameters")
         if len({id(p) for p in params})!=len(params): raise RuntimeError("duplicate optimizer parameters")
@@ -439,14 +494,17 @@ class UnifiedM80SQNO(nn.Module):
           "metadata":self.architecture_metadata,
         }
 
-    def save_checkpoint(self,path,*,optimizer=None,scheduler=None,data_fingerprint=None,extra=None):
+    def save_checkpoint(self,path,*,optimizer=None,scheduler=None,data_fingerprint=None,extra=None,
+                        training_contract=None):
+        training_metadata=checkpoint_training_metadata(self,optimizer,scheduler,data_fingerprint,training_contract)
         target=Path(path); target.parent.mkdir(parents=True,exist_ok=True)
         payload={"schema":SCHEMA,"semantics":SEMANTICS,"architecture":self.architecture_contract(),
           "source_fingerprints":_source_fingerprints(),"data_fingerprint":data_fingerprint,
           "model":self.state_dict(),"optimizer":None if optimizer is None else optimizer.state_dict(),
           "scheduler":None if scheduler is None else scheduler.state_dict(),
           "torch_rng":torch.get_rng_state(),"cuda_rng":torch.cuda.get_rng_state_all() if torch.cuda.is_available() else [],
-          "numpy_rng":np.random.get_state(),"python_rng":random.getstate(),"extra":dict(extra or {})}
+          "numpy_rng":np.random.get_state(),"python_rng":random.getstate(),"extra":dict(extra or {}),
+          **training_metadata}
         tmp=None
         try:
             with tempfile.NamedTemporaryFile("wb",dir=target.parent,prefix=target.name+".",suffix=".tmp",delete=False) as f:
@@ -456,7 +514,7 @@ class UnifiedM80SQNO(nn.Module):
             if tmp is not None: tmp.unlink(missing_ok=True)
 
     def load_checkpoint(self,path,*,optimizer=None,scheduler=None,expected_data_fingerprint=None,
-                        restore_rng=False,map_location="cpu"):
+                        restore_rng=False,map_location="cpu",expected_training_contract=None):
         payload=torch.load(path,map_location=map_location,weights_only=False)
         if payload.get("schema")!=SCHEMA or payload.get("semantics")!=SEMANTICS:
             raise ValueError("incompatible unified checkpoint schema")
@@ -497,15 +555,18 @@ class UnifiedM80SQNO(nn.Module):
                 raise ValueError("unified checkpoint source fingerprint mismatch")
         if expected_data_fingerprint is not None and payload.get("data_fingerprint")!=expected_data_fingerprint:
             raise ValueError("unified checkpoint data fingerprint mismatch")
+        resumed_contract=validate_resume(self,payload,optimizer,scheduler,expected_training_contract,
+            expected_data_fingerprint,restore_rng)
         self.load_state_dict(payload["model"],strict=True)
         if optimizer is not None:
-            if payload.get("optimizer") is None: raise ValueError("checkpoint has no optimizer state")
             optimizer.load_state_dict(payload["optimizer"])
         if scheduler is not None:
-            if payload.get("scheduler") is None: raise ValueError("checkpoint has no scheduler state")
             scheduler.load_state_dict(payload["scheduler"])
         if restore_rng:
-            torch.set_rng_state(payload["torch_rng"])
-            if torch.cuda.is_available() and payload.get("cuda_rng"): torch.cuda.set_rng_state_all(payload["cuda_rng"])
+            torch.set_rng_state(payload["torch_rng"].cpu())
+            if torch.cuda.is_available() and payload.get("cuda_rng"):
+                torch.cuda.set_rng_state_all([state.cpu() for state in payload["cuda_rng"]])
             np.random.set_state(payload["numpy_rng"]); random.setstate(payload["python_rng"])
+        self._resume_training_contract=resumed_contract
+        self._last_training_contract=resumed_contract
         return payload

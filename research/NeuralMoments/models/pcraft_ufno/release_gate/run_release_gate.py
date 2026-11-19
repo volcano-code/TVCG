@@ -77,7 +77,11 @@ def _architecture_contract_check() -> dict:
         ADAPTER / "geometry_physics_attention.py",
         ADAPTER / "cross_scale_attention.py",
         ADAPTER / "fusion_ablation.py",
+        ADAPTER / "unified_training_state.py",
+        ADAPTER / "unified_training_ablation.py",
         ADAPTER / "tests/test_unified_m80_sqno.py",
+        ADAPTER / "tests/test_unified_training_state.py",
+        ADAPTER / "tests/test_unified_training_ablation.py",
         NATIVE / "uq.py",
     ]
     missing = [str(p.relative_to(ROOT)) for p in required if not p.is_file()]
@@ -104,6 +108,9 @@ def _architecture_contract_check() -> dict:
         "adaptive_task_state_and_event_rarity_primitives": "def event_positive_class_weight" in (NATIVE / "multitask.py").read_text() and "def load_state_dict" in (NATIVE / "multitask.py").read_text(),
         "pcgrad_training_integration": "pcgrad_assign_gradients" in (NATIVE / "native_train.py").read_text() and "multitask_mode" in (NATIVE / "native_train.py").read_text(),
         "unified_m80_sqno_pcgrad_integration": "gradient_mode==\"pcgrad\"" in (ADAPTER / "unified_m80_sqno.py").read_text() and "joint_task_losses" in (ADAPTER / "unified_m80_sqno.py").read_text(),
+        "unified_named_training_partition": "def training_parameter_partition" in wrapper,
+        "unified_training_resume_contract": "expected_training_contract" in wrapper and (ADAPTER / "unified_training_state.py").is_file(),
+        "unified_paired_training_ablation": (ADAPTER / "unified_training_ablation.py").is_file(),
         "event_release_contract": (Path(__file__).parent / "event_release.py").is_file(),
         "learned_moment_jacobian_uq_heads": "def predict_uq" in native and "uq_enabled" in native,
         "uq_training_loss_integration": "uq_weight" in (NATIVE / "native_train.py").read_text(),
@@ -157,6 +164,8 @@ def main(argv: list[str] | None = None) -> int:
         checks.append(_run("native_pcraft_tests", [sys.executable, "-m", "pytest", "-q", str(NATIVE_TESTS)], root, env))
         checks.append(_run("sqno_adapter_tests", [sys.executable, "-m", "pytest", "-q", str(ADAPTER_TESTS)], root, env))
         checks.append(_run("multitask_balancing_tests", [sys.executable, "-m", "pytest", "-q", str(NATIVE_TESTS / "test_multitask.py")], root, env))
+        checks.append(_run("release_gate_contract_tests", [sys.executable, "-m", "pytest", "-q",
+            str(Path(__file__).parent / "tests")], root, env))
     software_status = "FAIL" if any(c["status"] == "FAIL" for c in checks) else ("PASS" if not args.skip_tests else "PENDING")
     report = {
         "schema": "tvcg.phase2_8_6.release_gate.v1",
@@ -172,7 +181,7 @@ def main(argv: list[str] | None = None) -> int:
             "split_unit": "geometry_and_source_family",
             "locked_test": "separate_and_unseen_during_model_selection",
         },
-        "notes": ["No training was started by this release gate.",
+        "notes": ["Software tests include bounded synthetic training updates; no formal dataset training was started.",
                   "A software PASS is not a scientific/model freeze.",
                   "CUDA profiling and formal-data accuracy remain blocked."],
     }

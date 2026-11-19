@@ -211,12 +211,17 @@ def pcgrad_assign_gradients(losses: Mapping[str, Tensor | None],
                             weights: Mapping[str, float],
                             shared_parameters: Sequence[nn.Parameter],
                             private_parameters: Sequence[nn.Parameter],
-                            *, eps: float = 1e-12) -> dict:
+                            *, eps: float = 1e-12, reduction: str = "mean") -> dict:
     """Compute per-task grads, PCGrad only shared params, retain weighted private-head grads.
 
     Each task loss is differentiated separately. Shared gradients are projected
-    before summation; task-private gradients are simply summed with task weights.
+    and reduced with ``mean`` (the historical default) or ``sum``. The latter
+    matches the fixed weighted objective when there are no task conflicts.
+    Task-private gradients always retain their weighted sum. Parameters unused
+    by every active task keep ``grad=None``, including under AdamW weight decay.
     """
+    if reduction not in {"mean", "sum"}:
+        raise ValueError("PCGrad reduction must be mean or sum")
     shared=[p for p in shared_parameters if p.requires_grad]
     private=[p for p in private_parameters if p.requires_grad]
     if not shared: raise ValueError("at least one shared trainable parameter is required")
@@ -233,6 +238,7 @@ def pcgrad_assign_gradients(losses: Mapping[str, Tensor | None],
         active.append((name,loss*weight,weight))
     if not active: raise ValueError("no active weighted task losses")
     shared_rows=[]; private_acc={id(p):None for p in private}
+    shared_used=[False]*len(shared)
     task_names=[]; norms={}; private_norms={}
     all_params=shared+private
     for index,(name,loss,weight) in enumerate(active):
@@ -243,9 +249,10 @@ def pcgrad_assign_gradients(losses: Mapping[str, Tensor | None],
         # This keeps the PCGrad vector real-valued without discarding imaginary
         # components when writing gradients back to real-valued parameters.
         pieces=[]
-        for p,g in zip(shared,sg):
+        for param_index,(p,g) in enumerate(zip(shared,sg)):
+            shared_used[param_index] |= g is not None
             value=torch.zeros_like(p) if g is None else g
-            pieces.append(torch.view_as_real(value).reshape(-1) if p.is_complex()
+            pieces.append(torch.view_as_real(value.resolve_conj()).reshape(-1) if p.is_complex()
                           else value.reshape(-1))
         flat=torch.cat(pieces)
         if not torch.isfinite(flat).all(): raise FloatingPointError(f"nonfinite shared gradient for {name}")
@@ -257,9 +264,15 @@ def pcgrad_assign_gradients(losses: Mapping[str, Tensor | None],
                 private_norms.setdefault(name,0.0)
                 private_norms[name]+=float(g.detach().norm().square())
     combined,diagnostics=pcgrad_project(shared_rows,eps=eps)
+    if reduction=="sum":
+        combined=combined*len(active)
     offset=0
-    for p in shared:
+    for p,used in zip(shared,shared_used):
         count=p.numel()*(2 if p.is_complex() else 1)
+        if not used:
+            p.grad=None
+            offset+=count
+            continue
         values=combined[offset:offset+count]
         if p.is_complex():
             values=values.reshape(*p.shape,2).contiguous().clone()
@@ -272,6 +285,7 @@ def pcgrad_assign_gradients(losses: Mapping[str, Tensor | None],
         value=private_acc[id(p)]
         p.grad=None if value is None else value
     return {"task_names":task_names,"shared_gradient_norms":norms,
+            "reduction":reduction,"private_reduction":"sum",
             "private_gradient_norms":{k:math.sqrt(v) for k,v in private_norms.items()},
             **diagnostics}
 

@@ -384,6 +384,7 @@ blocked pending the audited multi-source dataset and matched experiments.
 ## Phase 2.9.4.4 — Unified M80 + SQNO task-level PCGrad
 
 The unified adapter now exposes differentiable task decomposition:
+
 - fused Moment loss;
 - fused raw-coefficient Jacobian loss;
 - branch auxiliary loss (M80 and SQNO branch Moment/Jacobian supervision).
@@ -392,25 +393,38 @@ The existing fixed objective is reconstructed exactly as
 `moment + jacobian_weight * jacobian + branch_aux_weight * branch_aux`.
 The `train_step` API accepts `gradient_mode="fixed"` (default) or
 `gradient_mode="pcgrad"`. PCGrad computes the three task gradients
-separately over the complete unique trainable parameter set of the unified
-M80+SQNO model, projects conflicts before combination, clips the resulting
-gradient, and reports task names, cosine matrix, projection counts and
-gradient norms. Optimizer construction is checked for unique complete
-parameter coverage.
+separately over the audited shared parameter group, projects conflicts,
+combines and clips the resulting gradient, and reports active task names,
+cosine matrix, projection counts and gradient norms. Optimizer construction
+and every training step check unique, complete trainable parameter coverage.
 
-Important scope: in this adapter integration, all trainable parameters are
-treated as the joint optimization parameter space; this is not a claim that
-M80-only and SQNO-only private parameter groups have been separately
-projected/retained. The branch auxiliary loss supplies branch-specific
-supervision while the fused Moment/Jacobian losses train the combined
-mapping. A finer shared-trunk/private-head partition remains a follow-up
-design item if required by the final ablation.
+`training_parameter_partition()` returns ordered parameter names:
 
-The adapter exposes a one-step API; the existing native dataset training
-CLI is not silently replaced by an adapter dataset trainer. Formal
-fixed-vs-PCGrad ablation, convergence, runtime overhead and scientific
-benefit require matched data and budgets and remain blocked pending the
-audited multi-source corpus. Default training remains fixed.
+| Group | Members | Reason |
+|---|---|---|
+| shared | P-CRAFT geometry encoder, M80 query/convex head, SQNO decoder, fusion and enabled attention | Both branch decoders affect multiple objectives; fusion/attention affect the fused Moment and Jacobian objectives. |
+| private | Empty for the current three-task objective | Branch ownership alone does not make a decoder task-private. |
+| inactive | Optional native Event and UQ heads | Unified losses do not call these heads. They remain in the optimizer's complete parameter inventory but keep `grad=None`. |
+
+The general PCGrad assignment also preserves `grad=None` for shared parameters
+unused by every active task, including parameters with existing AdamW state.
+Weight decay and historical momentum therefore cannot update an unused head.
+Task-private gradients retain their weighted sum.
+
+Unified PCGrad now defaults to `pcgrad_reduction="sum"`. With no gradient
+conflicts, this agrees with the fixed weighted-sum objective rather than
+introducing a factor of `1 / active_task_count`. Explicit `"mean"` remains
+available and is recorded in the training contract. The low-level assignment
+and existing native trainer retain their historical `"mean"` default. These
+are explicit choices, not interchangeable experiment settings.
+
+Training metrics retain the component names and their `*_loss` aliases.
+`valid_queries` and `valid_jacobian_queries` count their respective masks;
+`joint_training_loss` returns the actual fusion tensor, including
+query-conditioned weights. `train_step` reports its mean as a scalar.
+Fixed-mode reports list only active weighted objectives and explicitly mark
+task-gradient diagnostics as unavailable; branch diagnostic terms are not
+misreported as additional optimization tasks.
 
 
 ### PCGrad complex-gradient correction (Unified M80 + SQNO integration)
@@ -419,10 +433,132 @@ Unified P-CRAFT contains spectral/operator parameters whose autograd gradients
 may be complex-valued. PCGrad therefore uses the real Euclidean inner product
 on complex vectors, equivalently the real part of the Hermitian product
 `Re(sum(conj(g_i) * g_j))`. Projection coefficients and cosine diagnostics
-are real scalars, while projected gradients retain their complex dtype.
+are real scalars, while assigned gradients retain each parameter's dtype.
 This is mathematically the real-parameter-space projection under the
 identification of each complex coordinate with its real and imaginary parts.
 
-The unified PCGrad integration exposed this requirement on CPU tests. The
-implementation now supports both real and complex task-gradient vectors;
-the real-valued Native P-CRAFT path remains unchanged.
+Assignment packs complex gradients into adjacent real/imaginary coordinates,
+resolves lazy conjugate views, and allocates aligned storage before rebuilding
+complex tensors. This handles an odd number of preceding real coordinates
+without discarding imaginary gradients or relying on `contiguous()` to reset
+a storage offset. Regression tests exercise actual optimizer updates with
+mixed real/complex dtypes, not just successful assignment.
+
+### Training checkpoint and resume contract
+
+`training_contract(...)` records the mode, reduction, task weights, clipping,
+normalization scales, named partition, parameter shapes and dtypes. Checkpoints
+also store ordered optimizer parameter names and state IDs, optimizer settings,
+scheduler configuration/state, model state, CPU/NumPy/Python/CUDA RNG state,
+data fingerprint and training source hashes (including `multitask.py`).
+
+After a successful `train_step`, `save_checkpoint(..., optimizer=...)`
+automatically saves its training contract. A nonempty data fingerprint is
+required; it must identify the actual batch/label/mask provenance and split.
+An explicit contract can also be saved before the first update. A contract
+different from the last successful training step is rejected.
+
+Example API usage within a caller-owned training loop:
+
+```python
+settings = dict(gradient_mode="pcgrad", pcgrad_reduction="sum",
+                jacobian_weight=.1, branch_aux_weight=.25, gradient_clip=1.,
+                moment_scale=moment_scale, jacobian_scale=jacobian_scale)
+contract = model.training_contract(**settings)
+optimizer = model.build_optimizer(learning_rate=1e-5, weight_decay=1e-4)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=.7)
+
+cache = model.encode_geometry(geometry)
+metrics = model.train_step(optimizer, cache, q, target_m, target_j,
+                          valid_mask=moment_mask, jacobian_valid_mask=jacobian_mask,
+                          **settings)
+scheduler.step()
+model.save_checkpoint(path, optimizer=optimizer, scheduler=scheduler,
+                      data_fingerprint=data_fingerprint, extra={"completed_steps": 1})
+
+# Construct the same architecture, optimizer and scheduler for `restored`.
+restored.load_checkpoint(path, optimizer=restored_optimizer,
+                        scheduler=restored_scheduler,
+                        expected_training_contract=restored.training_contract(**settings),
+                        expected_data_fingerprint=data_fingerprint, restore_rng=True)
+# Re-encode geometry before the next update. Never reuse an old training cache.
+```
+
+Resume checks the expected contract and actual serialized state before loading
+live parameters, optimizer, scheduler or RNG state. Parameter order changes,
+missing AdamW moments, altered runtime LR/scheduler settings, and incompatible
+mode/weights/normalization fail before mutation. The resumed model also rejects
+a subsequent `train_step` that silently changes the contract. Deterministic
+RNG restoration requires a compatible CPU/CUDA runtime and CUDA device count;
+cross-backend bitwise parity is not claimed.
+
+StepLR is exercised by the end-to-end resume tests. Scheduler contracts include
+the configuration and types of nested data-driven schedules. Callable schedules
+such as LambdaLR and MultiplicativeLR, including nested uses, are rejected:
+their state dictionaries do not identify the callback implementation, so a
+different callback could otherwise silently alter the resumed learning rate.
+
+Normal fixed and PCGrad resume tests first create real AdamW state, save, then
+compare the next uninterrupted and resumed update exactly, including complex
+moment buffers, scheduler and RNG. Separate tests check raw Jacobian finite
+differences and positive coefficient-scale invariance after an optimizer step.
+
+Inference-only checkpoint loading does not require a training contract, but
+it still enforces the existing architecture and source-fingerprint checks.
+The narrowly defined historical global-fusion migration remains supported;
+arbitrary checkpoints from changed source versions are not silently accepted.
+Legacy trained optimizer state without a training contract is rejected for
+resume. The historical empty-optimizer roundtrip remains supported.
+
+### Paired short training diagnostic
+
+`spin_adapter.unified_training_ablation.run_training_ablation` accepts a model
+and an ordered sequence of caller-supplied geometry/query/target/mask batches.
+It trains two independent clones from the identical complete state. Both arms
+use the same batch order, normalization, per-step random seeds, AdamW settings,
+clipping threshold and number of optimizer updates. The caller's model, inputs,
+existing gradients and RNG streams are preserved, including on failure.
+
+Each update encodes geometry again. Reports contain source hashes, architecture
+and training/optimizer contracts, initial/input/final state hashes, normalized
+losses before and after training, per-step losses and gradient norms, PCGrad
+cosines/projection counts, real/imaginary parameter changes and synchronized
+step timing. Fixed-mode task cosines are not collected. Timing includes fresh
+encoding and training, excludes evaluation, and has no benchmark warmup.
+
+The built-in CLI is bounded to 1--100 steps per arm. Its synthetic fixture has
+five geometry columns and four queries with artificial zero targets; its
+nominal `side=512` metadata is not a 512-cubed resolution experiment. Two
+Fourier modes exercise nonzero imaginary spectral updates. The fixture model
+initialization seed is fixed and recorded; `--seed` selects replayed per-step
+RNG seeds, not independent model-initialization replicates.
+
+From the repository root:
+
+```bash
+export ADAPTER="$PWD/research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter"
+export PYTHONPATH="$PWD:$(dirname "$ADAPTER")${PYTHONPATH:+:$PYTHONPATH}"
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
+
+python -m pytest -q \
+  research/NeuralMoments/models/pcraft_ufno/spin_pino/tests/test_multitask.py \
+  "$ADAPTER/tests/test_unified_m80_sqno.py" \
+  "$ADAPTER/tests/test_unified_training_state.py" \
+  "$ADAPTER/tests/test_unified_training_ablation.py"
+
+python -m spin_adapter.unified_training_ablation \
+  --steps 3 --device cpu \
+  --output runs/phase2_9_4_4/unified_training_smoke.json
+
+python -m research.NeuralMoments.models.pcraft_ufno.release_gate.run_release_gate \
+  --profile full --output runs/phase2_9_4_4/release
+```
+
+Equal optimizer-step budgets do not imply equal FLOPs, memory or wall time:
+PCGrad differentiates each task separately. The report explicitly marks compute
+budgets as unmatched, timings as diagnostic, and PCGrad superiority as
+unestablished. This software increment provides a repeatable short-run harness,
+not a formal unified dataset trainer or scientific fixed-vs-PCGrad ablation.
+Formal convergence, accuracy, runtime tradeoffs and downstream hybrid acceptance
+remain pending the audited multi-source corpus and matched experiments. Default
+training remains fixed; GradNorm and learned task weighting remain unintegrated.

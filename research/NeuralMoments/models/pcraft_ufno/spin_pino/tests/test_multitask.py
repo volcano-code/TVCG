@@ -260,3 +260,101 @@ def test_pcgrad_assignment_preserves_imaginary_components_without_dtype_casting(
     # The imaginary coordinate must survive the real-coordinate packing/unpacking.
     assert spectral.grad.imag.abs().sum()>0
     assert report["task_names"]==["a","b"]
+
+
+@pytest.mark.parametrize("reduction", ["mean", "sum"])
+def test_pcgrad_mixed_real_complex_reduction_matches_fixed_gradients_and_sgd_updates(reduction):
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.multitask import pcgrad_assign_gradients
+
+    # The leading real scalar puts the complex block at an odd storage offset.
+    # Different precisions also exercise promotion and per-parameter restoration.
+    initial=[torch.tensor(1.,dtype=torch.float64),
+             torch.tensor([1.+2j,2.-1j],dtype=torch.complex64),
+             torch.tensor(2.,dtype=torch.float32)]
+    params=[torch.nn.Parameter(value.clone()) for value in initial]
+    baseline=[torch.nn.Parameter(value.clone()) for value in initial]
+
+    def losses(values):
+        real,spectral,head=values
+        return {"a":real.square()+spectral.abs().square().sum()+head.square(),
+                "b":2*real.square()+3*spectral.abs().square().sum()+4*head.square()}
+
+    weights={"a":.75,"b":.25}
+    fixed_weighted_objective(losses(baseline),weights).backward()
+    options={} if reduction=="mean" else {"reduction":reduction}
+    report=pcgrad_assign_gradients(losses(params),weights,params[:2],params[2:],**options)
+    assert report["reduction"]==reduction
+    assert report["private_reduction"]=="sum"
+    assert report["projection_counts"]==[0,0]
+    for i,(actual,expected) in enumerate(zip(params,baseline)):
+        scale=.5 if reduction=="mean" and i<2 else 1.
+        assert actual.grad.dtype==actual.dtype
+        torch.testing.assert_close(actual.grad,expected.grad*scale)
+        # Apply the historical mean only to shared parameters in the reference.
+        expected.grad.mul_(scale)
+    torch.optim.SGD(params,lr=.05).step()
+    torch.optim.SGD(baseline,lr=.05).step()
+    for actual,expected,start in zip(params,baseline,initial):
+        torch.testing.assert_close(actual,expected)
+        assert not torch.equal(actual,start)
+    assert not torch.equal(params[1].imag,initial[1].imag)
+
+
+def test_pcgrad_complex_assignment_accepts_lazy_conjugate_autograd_gradients():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.multitask import pcgrad_assign_gradients
+
+    spectral=torch.nn.Parameter(torch.tensor([1.+2j,3.-4j],dtype=torch.complex128))
+    before=spectral.detach().clone()
+    # Autograd may return a lazy conjugate view through this backward path.
+    loss=(spectral.conj()*torch.tensor(2.+3j,dtype=torch.complex128)).real.sum()
+    report=pcgrad_assign_gradients({"a":loss},{"a":1.},[spectral],[],reduction="sum")
+    torch.testing.assert_close(spectral.grad,torch.full_like(spectral,2.+3j))
+    torch.optim.SGD([spectral],lr=.1).step()
+    torch.testing.assert_close(spectral,before-.1*(2.+3j))
+    assert report["projection_counts"]==[0]
+
+
+@pytest.mark.parametrize("reduction", ["mean", "sum"])
+def test_pcgrad_leaves_all_unused_parameters_unchanged_under_adamw(reduction):
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.multitask import pcgrad_assign_gradients
+
+    active=torch.nn.Parameter(torch.tensor(1.,dtype=torch.float64))
+    inactive_real=torch.nn.Parameter(torch.tensor([2.,3.],dtype=torch.float64))
+    inactive_complex=torch.nn.Parameter(torch.tensor(1.+2j,dtype=torch.complex128))
+    inactive_private=torch.nn.Parameter(torch.tensor(4.,dtype=torch.float64))
+    inactive=[inactive_real,inactive_complex,inactive_private]
+    params=[active]+inactive
+    optimizer=torch.optim.AdamW(params,lr=.1,weight_decay=.2)
+    # Initialize optimizer moments for all parameters so None must suppress both
+    # momentum updates and decoupled weight decay on the following step.
+    sum(value.abs().square().sum() for value in params).backward()
+    optimizer.step()
+    optimizer.zero_grad(set_to_none=True)
+    before=[value.detach().clone() for value in inactive]
+    state_before=[{key:value.clone() for key,value in optimizer.state[p].items()}
+                  for p in inactive]
+    active_before=active.detach().clone()
+    report=pcgrad_assign_gradients(
+        {"moment":active.square(),"disabled":inactive_real.square().sum(),"absent":None},
+        {"moment":1.,"disabled":0.,"absent":1.},
+        [active,inactive_real,inactive_complex],[inactive_private],reduction=reduction)
+    assert report["task_names"]==["moment"]
+    assert all(p.grad is None for p in inactive)
+    optimizer.step()
+    assert not torch.equal(active,active_before)
+    for p,expected,state in zip(inactive,before,state_before):
+        assert torch.equal(p,expected)
+        for key,value in state.items():
+            assert torch.equal(optimizer.state[p][key],value)
+
+
+def test_pcgrad_assignment_rejects_unknown_reduction_before_consuming_graph():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.multitask import pcgrad_assign_gradients
+
+    p=torch.nn.Parameter(torch.tensor(2.))
+    loss=p.square()
+    with pytest.raises(ValueError,match="reduction must be mean or sum"):
+        pcgrad_assign_gradients({"a":loss},{"a":1.},[p],[],reduction="median")
+    assert p.grad is None
+    loss.backward()
+    assert p.grad.item()==4.
