@@ -431,7 +431,7 @@ def test_cross_scale_attention_gradients_are_finite_and_disabled_path_is_legacy(
 
 def test_gno_attention_interaction_variants_validate_execution_contracts():
     from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import NativePCRAFTConfig,PcraftNativeMomentOperator
-    from spin_adapter.spin_quadrann_v12 import SpinQuadrANNV12
+    from research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.spin_quadrann_v12 import SpinQuadrANNV12
     cfg=NativePCRAFTConfig(grid_size=8,pino_width=2,pino_modes=1,pino_layers=2,
         interval_width=8,interval_depth=1,chunk_intervals=16,min_native_resolution=1,
         convex_potential_enabled=True,convex_potential_components=2,gno_enabled=True,gno_neighbors=4)
