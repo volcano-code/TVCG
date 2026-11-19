@@ -257,3 +257,31 @@ checks or physical acceptance.
 Formal event calibration, source-family confidence intervals and risk
 claims remain BLOCKED until Work's multi-source dataset has audited event
 labels and a frozen geometry/source-family split.
+
+
+## Phase 2.9.3.4 — Event-aware release contracts
+
+A dedicated release contract module and CPU tests now verify:
+- `event_valid`, `event_label_valid`, and `derivative_valid` are
+  independently supplied boolean vectors with the query axis shape;
+- event-label coverage is reported separately from derivative-validity
+  coverage, without deriving one mask from another;
+- software contract readiness is separated from scientific readiness;
+- event label coverage, event-boundary calibration and source-family
+  generalization remain BLOCKED until audited formal data and trained
+  checkpoints exist;
+- learned event probabilities cannot serve as physical solver acceptance;
+- Mini7 remains pilot-only, the additional 100 TRELLIS models remain
+  candidates pending audit, and validation includes eligible geometries
+  from both papers plus additional TRELLIS artifacts;
+- split unit is geometry/source family and locked test remains unseen during
+  threshold selection.
+
+Run the focused release contract tests with:
+
+```bash
+python -m pytest -q research/NeuralMoments/models/pcraft_ufno/release_gate/tests/
+```
+
+These tests validate software contracts only; they do not claim that event
+labels or calibration are scientifically adequate on the formal dataset.
