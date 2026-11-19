@@ -102,6 +102,7 @@ def _architecture_contract_check() -> dict:
         "multitask_gradient_balancing": (NATIVE / "multitask.py").is_file() and "def pcgrad_project" in (NATIVE / "multitask.py").read_text(),
         "adaptive_task_state_and_event_rarity_primitives": "def event_positive_class_weight" in (NATIVE / "multitask.py").read_text() and "def load_state_dict" in (NATIVE / "multitask.py").read_text(),
         "pcgrad_training_integration": "pcgrad_assign_gradients" in (NATIVE / "native_train.py").read_text() and "multitask_mode" in (NATIVE / "native_train.py").read_text(),
+        "unified_m80_sqno_pcgrad_integration": "gradient_mode==\"pcgrad\"" in (ADAPTER / "unified_m80_sqno.py").read_text() and "joint_task_losses" in (ADAPTER / "unified_m80_sqno.py").read_text(),
         "event_release_contract": (Path(__file__).parent / "event_release.py").is_file(),
         "learned_moment_jacobian_uq_heads": "def predict_uq" in native and "uq_enabled" in native,
         "uq_training_loss_integration": "uq_weight" in (NATIVE / "native_train.py").read_text(),

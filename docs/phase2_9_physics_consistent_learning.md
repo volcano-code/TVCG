@@ -379,3 +379,35 @@ opt-in; these primitives alone are not evidence of adaptive training.
 No formal training was started. Event class balance, adaptive-weight
 stability and downstream scientific benefit remain data-dependent and
 blocked pending the audited multi-source dataset and matched experiments.
+
+
+## Phase 2.9.4.4 — Unified M80 + SQNO task-level PCGrad
+
+The unified adapter now exposes differentiable task decomposition:
+- fused Moment loss;
+- fused raw-coefficient Jacobian loss;
+- branch auxiliary loss (M80 and SQNO branch Moment/Jacobian supervision).
+
+The existing fixed objective is reconstructed exactly as
+`moment + jacobian_weight * jacobian + branch_aux_weight * branch_aux`.
+The `train_step` API accepts `gradient_mode="fixed"` (default) or
+`gradient_mode="pcgrad"`. PCGrad computes the three task gradients
+separately over the complete unique trainable parameter set of the unified
+M80+SQNO model, projects conflicts before combination, clips the resulting
+gradient, and reports task names, cosine matrix, projection counts and
+gradient norms. Optimizer construction is checked for unique complete
+parameter coverage.
+
+Important scope: in this adapter integration, all trainable parameters are
+treated as the joint optimization parameter space; this is not a claim that
+M80-only and SQNO-only private parameter groups have been separately
+projected/retained. The branch auxiliary loss supplies branch-specific
+supervision while the fused Moment/Jacobian losses train the combined
+mapping. A finer shared-trunk/private-head partition remains a follow-up
+design item if required by the final ablation.
+
+The adapter exposes a one-step API; the existing native dataset training
+CLI is not silently replaced by an adapter dataset trainer. Formal
+fixed-vs-PCGrad ablation, convergence, runtime overhead and scientific
+benefit require matched data and budgets and remain blocked pending the
+audited multi-source corpus. Default training remains fixed.

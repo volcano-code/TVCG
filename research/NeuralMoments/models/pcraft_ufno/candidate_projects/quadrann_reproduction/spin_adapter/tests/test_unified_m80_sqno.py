@@ -610,3 +610,58 @@ def test_fusion_ablation_harness_requires_positive_timed_runs():
     model=make_unified().eval()
     with pytest.raises(ValueError,match="timed_runs"):
         run_fusion_ablation({"base":model},make_geometry(),queries(),timed_runs=0)
+
+
+def test_unified_task_decomposition_reconstructs_fixed_joint_objective():
+    model=make_unified().train()
+    cache=model.encode_geometry(make_geometry())
+    q=queries();tm=torch.zeros(4,10,dtype=torch.float64);tj=torch.zeros(4,10,10,dtype=torch.float64)
+    weights={"jacobian_weight":.2,"branch_aux_weight":.3}
+    fixed=model.joint_training_loss(cache,q,tm,tj,**weights)
+    tasks=model.joint_task_losses(cache,q,tm,tj,**weights)
+    reconstructed=tasks["moment"]+.2*tasks["jacobian"]+.3*tasks["branch_aux"]
+    assert torch.allclose(fixed["loss"],reconstructed,rtol=1e-12,atol=1e-12)
+    assert all(torch.isfinite(v) for v in tasks.values())
+
+
+def test_unified_pcgrad_train_step_updates_parameters_and_reports_task_conflicts():
+    model=make_unified().train()
+    optimizer=model.build_optimizer(learning_rate=1e-5)
+    cache=model.encode_geometry(make_geometry())
+    before=model.fusion_logit.detach().clone()
+    metrics=model.train_step(optimizer,cache,queries(),
+        torch.zeros(4,10,dtype=torch.float64),torch.zeros(4,10,10,dtype=torch.float64),
+        gradient_clip=1.,gradient_mode="pcgrad")
+    report=metrics["multitask_report"]
+    assert metrics["gradient_mode"]=="pcgrad"
+    assert set(report["task_names"])=={"moment","jacobian","branch_aux"}
+    assert len(report["cosine_matrix"])==3
+    assert len(report["projection_counts"])==3
+    assert torch.isfinite(torch.tensor(metrics["gradient_norm"]))
+    assert not torch.equal(before,model.fusion_logit.detach())
+
+
+def test_unified_fixed_train_step_remains_default_and_rejects_unknown_gradient_mode():
+    model=make_unified().train()
+    optimizer=model.build_optimizer(learning_rate=1e-5)
+    cache=model.encode_geometry(make_geometry())
+    metrics=model.train_step(optimizer,cache,queries(),
+        torch.zeros(4,10,dtype=torch.float64),torch.zeros(4,10,10,dtype=torch.float64))
+    assert metrics["gradient_mode"]=="fixed"
+    model=make_unified().train()
+    optimizer=model.build_optimizer()
+    cache=model.encode_geometry(make_geometry())
+    with pytest.raises(ValueError,match="gradient_mode"):
+        model.train_step(optimizer,cache,queries(),torch.zeros(4,10),torch.zeros(4,10,10),
+            gradient_mode="gradnorm")
+
+
+def test_unified_optimizer_has_unique_complete_parameter_coverage():
+    model=make_unified()
+    params=list(model.unique_trainable_parameters())
+    optimizer=model.build_optimizer()
+    ids=[id(p) for group in optimizer.param_groups for p in group["params"]]
+    expected={id(p) for p in model.parameters() if p.requires_grad}
+    assert len(ids)==len(set(ids))
+    assert set(ids)==expected
+    assert len(params)==len(expected)
