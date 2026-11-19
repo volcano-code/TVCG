@@ -529,8 +529,8 @@ def test_fusion_ablation_harness_pairs_frozen_weights_and_reports_components():
     assert report["query_count"]==len(q)
     for item in report["variants"].values():
         assert item["total_parameters"]>=item["trainable_parameters"]>0
-        assert item["geometry_encode_seconds"]>=0
-        assert item["query_evaluation_seconds"]>=0
+        assert item["geometry_encode_seconds_mean"]>=0
+        assert item["query_evaluation_seconds_mean"]>=0
         assert item["moment_relative_l2"] is not None
         assert item["jacobian_relative_l2"] is not None
     assert report["variants"]["global"]["moment_relative_l2"]<1e-10
@@ -544,3 +544,69 @@ def test_fusion_ablation_harness_rejects_different_shared_weights():
         next(b.shared_encoder.parameters()).add_(1.)
     with pytest.raises(ValueError,match="shared encoder weights differ"):
         run_fusion_ablation({"a":a,"b":b},make_geometry(),queries())
+
+
+def test_joint_attention_fusion_ablation_matrix_reports_fairness_and_branch_flags():
+    from spin_adapter.fusion_ablation import run_fusion_ablation
+    base=make_unified().eval()
+    specs={
+        "global":dict(fusion_mode="global_scalar"),
+        "query":dict(fusion_mode="query_conditioned"),
+        "geometry_attention":dict(cross_attention_enabled=True,fusion_mode="global_scalar"),
+        "cross_scale_attention":dict(cross_scale_attention_enabled=True,fusion_mode="global_scalar"),
+        "joint_attention":dict(cross_attention_enabled=True,cross_scale_attention_enabled=True,
+            fusion_mode="global_scalar"),
+        "joint_query_fusion":dict(cross_attention_enabled=True,cross_scale_attention_enabled=True,
+            fusion_mode="query_conditioned"),
+    }
+    variants={}
+    for name,kwargs in specs.items():
+        model=make_unified(**kwargs).eval()
+        model.shared_encoder.load_state_dict(base.shared_encoder.state_dict())
+        model.sqno.load_state_dict(base.sqno.state_dict())
+        variants[name]=model
+    q=queries()
+    with torch.no_grad():
+        cache=base.encode_geometry(make_geometry(),inference=True)
+        ref=base.evaluate_queries(cache,q)
+    report=run_fusion_ablation(variants,make_geometry(),q,
+        reference_moments=ref["moments"].cpu(),
+        reference_jacobian=ref["jacobian_coefficients"].cpu(),
+        warmup_runs=0,timed_runs=2)
+    assert report["fairness_contract"]["shared_encoder_weights_identical"]
+    assert report["fairness_contract"]["sqno_weights_identical"]
+    assert report["fairness_contract"]["geometry_identity_identical"]
+    assert report["fairness_contract"]["query_tensor_identical"]
+    assert report["fairness_contract"]["timed_runs"]==2
+    assert set(report["variants"])==set(specs)
+    assert report["variants"]["global"]["geometry_attention_enabled"] is False
+    assert report["variants"]["global"]["cross_scale_attention_enabled"] is False
+    assert report["variants"]["geometry_attention"]["geometry_attention_enabled"] is True
+    assert report["variants"]["cross_scale_attention"]["cross_scale_attention_enabled"] is True
+    assert report["variants"]["joint_attention"]["geometry_attention_enabled"] is True
+    assert report["variants"]["joint_attention"]["cross_scale_attention_enabled"] is True
+    assert report["variants"]["query"]["fusion_mode"]=="query_conditioned"
+    assert report["variants"]["joint_query_fusion"]["fusion_mode"]=="query_conditioned"
+    for item in report["variants"].values():
+        assert item["total_parameters"]>=item["trainable_parameters"]>0
+        assert item["geometry_encode_seconds_mean"]>=0
+        assert item["query_evaluation_seconds_mean"]>=0
+        assert item["moment_relative_l2"] is not None
+        assert item["jacobian_relative_l2"] is not None
+        assert 0<=item["fusion_weight_mean"]<=1
+        assert item["timed_runs"]==2
+
+
+def test_fusion_ablation_harness_rejects_invalid_reference_shapes():
+    from spin_adapter.fusion_ablation import run_fusion_ablation
+    model=make_unified().eval()
+    with pytest.raises(ValueError,match="reference_moments"):
+        run_fusion_ablation({"base":model},make_geometry(),queries(),
+            reference_moments=torch.zeros(2,10))
+
+
+def test_fusion_ablation_harness_requires_positive_timed_runs():
+    from spin_adapter.fusion_ablation import run_fusion_ablation
+    model=make_unified().eval()
+    with pytest.raises(ValueError,match="timed_runs"):
+        run_fusion_ablation({"base":model},make_geometry(),queries(),timed_runs=0)

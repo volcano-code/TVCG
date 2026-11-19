@@ -419,3 +419,34 @@ added as separate named variants only after their weights are frozen and the
 same geometry/query/reference protocol is used. Compare Moment and Jacobian
 errors independently; do not collapse them into a single score without a
 predeclared weighting rule.
+
+
+### Phase 2.8.5.5.2 — Joint Attention × Fusion ablation matrix
+
+The paired ablation harness now supports repeatable warm-up and timed runs.
+It reports mean/min geometry-encoding time separately from mean/min
+Query-many evaluation time, total mean time, parameter counts, peak CUDA
+memory (when available), GNO/attention branch flags, fusion gate statistics,
+parallel-attention gate and attention diagnostics. The harness uses
+`torch.no_grad()`, not `torch.inference_mode()`, because the inference
+evaluator internally enables autograd to construct exact raw-coefficient
+Jacobians. Wrapping it in inference mode would disable that derivative path.
+
+The synthetic paired matrix includes:
+- global scalar fusion baseline;
+- query-conditioned fusion;
+- geometry cross-attention with global fusion;
+- cross-scale attention with global fusion;
+- both attention branches with global fusion;
+- both attention branches with query-conditioned fusion.
+
+All variants use identical shared-encoder and SQNO weights, identical
+geometry and query tensors, and the same timing protocol. Reference-relative
+Moment and Jacobian errors are reported independently. The harness rejects
+mismatched shared weights and invalid reference shapes. It is a measurement
+harness, not a training or winner-selection procedure.
+
+Ablation conclusions are intentionally deferred: random/synthetic fixtures
+verify execution and reporting only. Scientific comparison requires frozen
+trained variants, independent teacher labels, the audited multi-source
+training/validation/test split, and repeated matched RTX 5090 D profiling.
