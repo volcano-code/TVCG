@@ -481,9 +481,11 @@ class UnifiedM80SQNO(nn.Module):
             saved_compare.setdefault("fusion_mode","global_scalar")
             saved_compare.setdefault("query_fusion_hidden",32)
             saved_fusion=dict(saved_compare.get("fusion",{}))
-            if saved_fusion.get("kind")=="global_scalar_convex":
-                saved_fusion["kind"]="global_scalar"
-                saved_fusion.setdefault("query_hidden",32)
+            # Preserve the historical fusion-kind token. The top-level
+            # fusion_mode is normalized separately; rewriting this token
+            # would make a current global-scalar checkpoint fail migration
+            # against its own architecture contract.
+            saved_fusion.setdefault("query_hidden",32)
             saved_compare["fusion"]=saved_fusion
             current_compare.pop("geometry_physics_attention",None)
             if not legacy_global or saved_compare!=current_compare:
