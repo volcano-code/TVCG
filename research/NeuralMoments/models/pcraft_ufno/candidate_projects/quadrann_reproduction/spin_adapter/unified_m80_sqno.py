@@ -353,7 +353,7 @@ class UnifiedM80SQNO(nn.Module):
             "m80_moment_loss":tasks["m80_moment"].detach(),"sqno_moment_loss":tasks["sqno_moment"].detach(),
             "m80_jacobian_loss":tasks["m80_jacobian"].detach(),"sqno_jacobian_loss":tasks["sqno_jacobian"].detach(),
             "fusion_weight":self.fusion_weight.detach() if self.fusion_mode=="global_scalar" else torch.tensor(0.,device=tasks["moment"].device),
-            "valid_queries":int(1 if torch.as_tensor(coefficients).ndim==1 else torch.as_tensor(coefficients).shape[0])}
+            "valid_queries":torch.tensor(1 if torch.as_tensor(coefficients).ndim==1 else torch.as_tensor(coefficients).shape[0],device=tasks["moment"].device,dtype=torch.int64)}
 
     def train_step(
         self,optimizer,cache:UnifiedGeometryCache,coefficients:Tensor,

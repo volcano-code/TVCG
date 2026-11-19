@@ -239,8 +239,15 @@ def pcgrad_assign_gradients(losses: Mapping[str, Tensor | None],
         grads=torch.autograd.grad(loss,all_params,retain_graph=index<len(active)-1,
                                   allow_unused=True)
         sg=grads[:len(shared)]
-        flat=torch.cat([(torch.zeros_like(p) if g is None else g).reshape(-1)
-                        for p,g in zip(shared,sg)])
+        # Represent each complex gradient as adjacent real/imaginary coordinates.
+        # This keeps the PCGrad vector real-valued without discarding imaginary
+        # components when writing gradients back to real-valued parameters.
+        pieces=[]
+        for p,g in zip(shared,sg):
+            value=torch.zeros_like(p) if g is None else g
+            pieces.append(torch.view_as_real(value).reshape(-1) if p.is_complex()
+                          else value.reshape(-1))
+        flat=torch.cat(pieces)
         if not torch.isfinite(flat).all(): raise FloatingPointError(f"nonfinite shared gradient for {name}")
         shared_rows.append(flat);task_names.append(name);norms[name]=float(flat.norm())
         for p,g in zip(private,grads[len(shared):]):
@@ -252,8 +259,14 @@ def pcgrad_assign_gradients(losses: Mapping[str, Tensor | None],
     combined,diagnostics=pcgrad_project(shared_rows,eps=eps)
     offset=0
     for p in shared:
-        count=p.numel()
-        p.grad=combined[offset:offset+count].view_as(p).to(dtype=p.dtype).detach().clone()
+        count=p.numel()*(2 if p.is_complex() else 1)
+        values=combined[offset:offset+count]
+        if p.is_complex():
+            values=values.reshape(*p.shape,2).contiguous()
+            grad=torch.view_as_complex(values)
+        else:
+            grad=values.view_as(p)
+        p.grad=grad.to(dtype=p.dtype).detach().clone()
         offset+=count
     for p in private:
         value=private_acc[id(p)]

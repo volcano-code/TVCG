@@ -243,3 +243,20 @@ def test_pcgrad_assignment_preserves_mixed_real_and_complex_parameter_gradient_d
     assert torch.isfinite(real.grad).all()
     assert torch.isfinite(spectral.grad.real).all()
     assert torch.isfinite(spectral.grad.imag).all()
+
+
+def test_pcgrad_assignment_preserves_imaginary_components_without_dtype_casting():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.multitask import pcgrad_assign_gradients
+    real=torch.nn.Parameter(torch.tensor([1.,2.],dtype=torch.float64))
+    spectral=torch.nn.Parameter(torch.tensor([1.+2j,2.-1j],dtype=torch.complex128))
+    loss_a=real.square().sum()+spectral.abs().square().sum()
+    loss_b=(real[0]-3).square()+(spectral.imag[0]-4).square()
+    report=pcgrad_assign_gradients({"a":loss_a,"b":loss_b},{"a":1.,"b":1.},[real,spectral],[])
+    assert real.grad.dtype==torch.float64
+    assert spectral.grad.dtype==torch.complex128
+    assert torch.isfinite(real.grad).all()
+    assert torch.isfinite(spectral.grad.real).all()
+    assert torch.isfinite(spectral.grad.imag).all()
+    # The imaginary coordinate must survive the real-coordinate packing/unpacking.
+    assert spectral.grad.imag.abs().sum()>0
+    assert report["task_names"]==["a","b"]
