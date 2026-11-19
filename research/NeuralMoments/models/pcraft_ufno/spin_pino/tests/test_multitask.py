@@ -214,7 +214,7 @@ def test_pcgrad_supports_complex_spectral_parameter_gradients_with_hermitian_inn
     combined,report=pcgrad_project([g1,g2])
     assert report["cosine_matrix"][0][1]<0
     assert report["projection_counts"][0]==1
-    assert all(torch.isfinite(x) for x in [combined.real,combined.imag])
+    assert torch.isfinite(combined.real).all() and torch.isfinite(combined.imag).all()
     assert combined.dtype==torch.complex128
     assert len(report["projection_counts"])==2
 
