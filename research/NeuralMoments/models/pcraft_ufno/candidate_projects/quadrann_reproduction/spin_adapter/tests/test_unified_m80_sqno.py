@@ -15,7 +15,8 @@ def make_geometry():
 
 def make_unified(*,cross_attention_enabled=False,cross_attention_heads=2,cross_attention_chunk=1024,
                  cross_scale_attention_enabled=False,cross_scale_heads=2,cross_scale_disabled_ids=(),
-                 gno_enabled=False,interaction_variant="independent"):
+                 gno_enabled=False,interaction_variant="independent",
+                 fusion_mode="global_scalar",query_fusion_hidden=32):
     torch.manual_seed(830411)
     cfg=NativePCRAFTConfig(grid_size=8,pino_width=2,pino_modes=1,pino_layers=2,
         interval_width=8,interval_depth=1,chunk_intervals=16,min_native_resolution=1,
@@ -27,7 +28,8 @@ def make_unified(*,cross_attention_enabled=False,cross_attention_heads=2,cross_a
     return UnifiedM80SQNO(shared,sqno,cross_attention_enabled=cross_attention_enabled,
         cross_attention_heads=cross_attention_heads,cross_attention_chunk=cross_attention_chunk,
         cross_scale_attention_enabled=cross_scale_attention_enabled,cross_scale_heads=cross_scale_heads,
-        cross_scale_disabled_ids=cross_scale_disabled_ids,interaction_variant=interaction_variant)
+        cross_scale_disabled_ids=cross_scale_disabled_ids,interaction_variant=interaction_variant,
+        fusion_mode=fusion_mode,query_fusion_hidden=query_fusion_hidden)
 
 def queries():
     torch.manual_seed(830412)
