@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/volcano-code/TVCG/blob/main/research/NeuralMoments/models/pcraft_ufno/release_gate/schemas/release_report.schema.json",
+  "title": "TVCG Phase 2.8.6 Release Gate Report",
+  "type": "object",
+  "required": ["schema", "generated_at", "commit", "software_gate", "checks", "scientific_gates", "environment", "data_strategy"],
+  "properties": {
+    "schema": {"const": "tvcg.phase2_8_6.release_gate.v1"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "commit": {"type": "string"},
+    "profile": {"enum": ["quick", "full"]},
+    "software_gate": {"enum": ["PASS", "FAIL", "PENDING"]},
+    "checks": {"type": "array", "items": {"type": "object", "required": ["name", "status"], "properties": {"name": {"type": "string"}, "status": {"enum": ["PASS", "FAIL", "BLOCKED", "PENDING"]}}}},
+    "scientific_gates": {"type": "array", "items": {"type": "object", "required": ["name", "status", "reason"], "properties": {"name": {"type": "string"}, "status": {"enum": ["PASS", "FAIL", "BLOCKED", "PENDING"]}, "reason": {"type": "string"}}}},
+    "environment": {"type": "object"},
+    "data_strategy": {"type": "object"}
+  }
+}
