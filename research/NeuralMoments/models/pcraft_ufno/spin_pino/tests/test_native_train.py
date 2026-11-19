@@ -396,9 +396,21 @@ def test_event_conditioned_jacobian_excludes_unknown_and_derivative_invalid_rows
         "event_valid":np.asarray([True,False]),"event_label_valid":np.asarray([True,False])}
     _,_,derivative,_=loss_for_batch(model,cache,labels,np.arange(2),.05,"cpu",
         event_jacobian_weight=1.)
+    # Exactly one row is eligible: derivative_valid AND event_label_valid.
+    # Its event_valid=True class receives the regular scale (default 1.0).
+    q_tensor=torch.as_tensor(q,dtype=torch.float64)
+    _,predicted_jac=model.moments_and_jacobian(cache,q_tensor,create_graph=False)
+    scale=cache.moment_scales[:,None]*cache.coordinate_scales[None,:]
+    expected=((predicted_jac[0]-torch.ones_like(predicted_jac[0]))/scale).square().mean()
+    assert torch.isfinite(derivative)
+    assert derivative.item()==pytest.approx(expected.item(),rel=1e-10,abs=1e-12)
+    changed=dict(labels,jacobian=np.asarray(labels["jacobian"]).copy())
+    changed["jacobian"][1]=1e6  # derivative-invalid and event-label-unknown row
+    _,_,unchanged,_=loss_for_batch(model,cache,changed,np.arange(2),.05,"cpu",
+        event_jacobian_weight=1.)
+    assert torch.allclose(derivative,unchanged,rtol=1e-10,atol=1e-12)
     _,_,zero,_=loss_for_batch(model,cache,labels,np.arange(2),.05,"cpu",
         event_jacobian_weight=1.,event_regular_jacobian_scale=0.,event_event_jacobian_scale=0.)
-    assert torch.isfinite(derivative) and derivative.item()==pytest.approx(0.,abs=1e-12)
     assert zero.item()==pytest.approx(0.,abs=1e-12)
 
 
