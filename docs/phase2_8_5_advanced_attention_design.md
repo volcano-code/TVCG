@@ -395,3 +395,27 @@ This is an architecture/software result only. Whether query-conditioned
 fusion improves Moment/Jacobian accuracy, optimization feasibility, or
 runtime must be established on the formal multi-source dataset with matched
 GPU experiments.
+
+
+## Phase 2.8.5.5.1 — Paired fusion ablation protocol
+
+`spin_adapter/fusion_ablation.py` provides an inference-only paired evaluation
+harness. It accepts already-constructed Unified variants and rejects
+comparisons unless their shared P-CRAFT encoder and SQNO state dictionaries
+are byte-identical. It evaluates the same geometry and query tensor for each
+variant, checks the resulting geometry identity, and reports geometry encoding
+time separately from Query-many evaluation time.
+
+Per variant it reports total/trainable parameter counts, encode/query/total
+wall time, fusion weight mean and standard deviation, gate-Jacobian norm, and
+optional relative L2 errors for Moment and raw-input Jacobian when independent
+reference labels are supplied. Timing is descriptive and should be repeated
+with warmups and multiple runs on the target GPU before making speed claims.
+The harness does not train, select a winner, or manufacture reference labels.
+
+The global-fusion baseline and query-conditioned gate must use identical
+frozen shared-encoder and SQNO weights. Attention configurations should be
+added as separate named variants only after their weights are frozen and the
+same geometry/query/reference protocol is used. Compare Moment and Jacobian
+errors independently; do not collapse them into a single score without a
+predeclared weighting rule.

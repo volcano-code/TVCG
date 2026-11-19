@@ -509,3 +509,38 @@ def test_query_conditioned_fusion_gate_matches_global_initialization_and_checkpo
 def test_query_conditioned_fusion_rejects_invalid_configuration():
     with pytest.raises(ValueError,match="fusion_mode"):
         make_unified(fusion_mode="dynamic_magic")
+
+
+def test_fusion_ablation_harness_pairs_frozen_weights_and_reports_components():
+    from spin_adapter.fusion_ablation import run_fusion_ablation
+    global_model=make_unified().eval()
+    query_model=make_unified(fusion_mode="query_conditioned").eval()
+    query_model.shared_encoder.load_state_dict(global_model.shared_encoder.state_dict())
+    query_model.sqno.load_state_dict(global_model.sqno.state_dict())
+    q=queries()
+    with torch.no_grad():
+        ref_cache=global_model.encode_geometry(make_geometry(),inference=True)
+        reference=global_model.evaluate_queries(ref_cache,q)
+    report=run_fusion_ablation(
+        {"global":global_model,"query":query_model},make_geometry(),q,
+        reference_moments=reference["moments"].cpu(),
+        reference_jacobian=reference["jacobian_coefficients"].cpu())
+    assert report["protocol"]=="paired_frozen_weights_same_geometry_same_queries"
+    assert report["query_count"]==len(q)
+    for item in report["variants"].values():
+        assert item["total_parameters"]>=item["trainable_parameters"]>0
+        assert item["geometry_encode_seconds"]>=0
+        assert item["query_evaluation_seconds"]>=0
+        assert item["moment_relative_l2"] is not None
+        assert item["jacobian_relative_l2"] is not None
+    assert report["variants"]["global"]["moment_relative_l2"]<1e-10
+
+
+def test_fusion_ablation_harness_rejects_different_shared_weights():
+    from spin_adapter.fusion_ablation import run_fusion_ablation
+    a=make_unified().eval()
+    b=make_unified(fusion_mode="query_conditioned").eval()
+    with torch.no_grad():
+        next(b.shared_encoder.parameters()).add_(1.)
+    with pytest.raises(ValueError,match="shared encoder weights differ"):
+        run_fusion_ablation({"a":a,"b":b},make_geometry(),queries())
