@@ -231,6 +231,7 @@ class UnifiedCorpusTests(unittest.TestCase):
             # corpora; permit a split-scoped validation invocation explicitly.
             manifest = json.loads(path.read_text())
             manifest["records"] = [manifest["records"][0]]
+            manifest.pop("schema", None)  # portable Work sample ZIP format
             path.write_text(json.dumps(manifest))
             corpus = UnifiedOperatorCorpus(
                 path, grid_size=2, required_splits=("train",)
