@@ -240,6 +240,14 @@ class UnifiedOperatorCorpus:
         # conditioning-grid moment identity from fixed + editable RLE cells.
         # Mesh-teacher full_moments remain a separate label/provenance field.
         geometry = geometry_from_columns(raw_geometry)
+        if "native_resolution" in row and int(geometry["side"]) != int(row["native_resolution"]):
+            raise ValueError(f"{row['id']}: manifest native_resolution disagrees with RLE")
+        if "fixed_moments" in row:
+            manifest_fixed = np.asarray(row["fixed_moments"], dtype=np.float64)
+            if manifest_fixed.shape != (10,) or not np.array_equal(
+                geometry["fixed_moments"], manifest_fixed
+            ):
+                raise ValueError(f"{row['id']}: manifest fixed_moments disagree with RLE")
         if self.grid_size > geometry["side"] or geometry["side"] % self.grid_size:
             raise ValueError(f"{row['id']}: native side must be divisible by grid_size")
         geometry["pcraft_grid"] = conservative_coarse_grid(geometry, self.grid_size)
@@ -254,6 +262,8 @@ class UnifiedOperatorCorpus:
             raise ValueError(f"{row['id']}: queries must be nonempty [Q,10]")
         if moments.shape != (len(q), 10):
             raise ValueError(f"{row['id']}: moments must have shape [Q,10]")
+        if "queries" in row and int(row["queries"]) != len(q):
+            raise ValueError(f"{row['id']}: manifest query count disagrees with labels")
         if not np.isfinite(q).all() or not np.isfinite(moments).all():
             raise ValueError(f"{row['id']}: queries and moments must be finite")
         if (np.linalg.norm(q.astype(np.float64), axis=1) <= 0).any():
