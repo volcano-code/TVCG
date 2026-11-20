@@ -19,6 +19,8 @@ from research.NeuralMoments.phase2_4_neural_newton import (
     NewtonDirection,
     S9Chart,
     StepAcceptance,
+ )
+from research.NeuralMoments.phase2_5_end_to_end_solver import (
     accept_m69_neural_newton_step,
     propose_m69_neural_newton_step,
 )
