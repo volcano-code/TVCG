@@ -136,13 +136,13 @@ class FeaturePropagationLayer(MessagePassing):
             global_context_i,
         ), dim=-1))
 
-    def forward_chunk(self, x_source, x_target, global_context_target,
-                      edge_index, *, source_count):
+    def forward_chunk(self, x_source, x_target, global_context_source,
+                      global_context_target, edge_index, *, source_count):
         """Bipartite message pass with all source states and local targets."""
         return self.propagate(
             edge_index,
             x=(x_source, x_target),
-            global_context=(global_context_target, global_context_target),
+            global_context=(global_context_source, global_context_target),
             size=(source_count, len(x_target)),
         )
 
