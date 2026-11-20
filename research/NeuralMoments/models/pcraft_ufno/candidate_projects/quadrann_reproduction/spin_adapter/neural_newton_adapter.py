@@ -23,6 +23,7 @@ class ProposalPolicy:
     max_event_probability: float = 0.25
     armijo: float = 1e-4
     minimum_objective_decrease: float = 0.0
+    feasibility_tolerance: float = 1e-8
 
     def __post_init__(self) -> None:
         if self.damping <= 0 or self.trust_radius <= 0 or self.max_step_norm <= 0:
@@ -31,6 +32,8 @@ class ProposalPolicy:
             raise ValueError("max_event_probability must be in [0,1]")
         if not 0.0 <= self.armijo < 1.0:
             raise ValueError("armijo must be in [0,1)")
+        if self.feasibility_tolerance < 0:
+            raise ValueError("feasibility_tolerance must be nonnegative")
 
 
 @dataclass
@@ -171,7 +174,7 @@ def exact_correction_and_accept(
         policy.minimum_objective_decrease,
         policy.armijo * float(proposal.predicted_residual_norm) * float(proposal.predicted_step_norm),
     )
-    accepted = violation <= 0.0 and after <= before - required_decrease
+    accepted = violation <= policy.feasibility_tolerance and after <= before - required_decrease
     return ExactCorrectionResult(
         accepted,
         proposal.candidate_coefficients if accepted else proposal.current_coefficients,
