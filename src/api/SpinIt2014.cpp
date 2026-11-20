@@ -105,9 +105,11 @@ physics::RawMassMoments10 sourceGeometricMoments(
         MassMoments box;
         box.mass = volume;
         box.firstMoment = volume * center;
+        Eigen::Matrix3d withinCellCovariance = Eigen::Matrix3d::Zero();
+        withinCellCovariance.diagonal() =
+            spacing.array().square().matrix() / 12.0;
         box.secondMoment = volume * (
-            center * center.transpose() +
-            (spacing.array().square() / 12.0).matrix().asDiagonal()
+            center * center.transpose() + withinCellCovariance
         );
         total += physics::RawMassMoments10::fromMassMoments(box);
     }
