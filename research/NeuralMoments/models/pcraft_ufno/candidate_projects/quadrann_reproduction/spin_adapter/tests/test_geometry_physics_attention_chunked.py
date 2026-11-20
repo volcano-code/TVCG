@@ -22,10 +22,10 @@ def reference_attention(module, coefficients, features, mass):
     log_mass = torch.log((mass / mass.sum()).to(dtype=dtype).clamp_min(1e-30))
     scores = torch.einsum("qhd,nhd->qhn", q, keys) / math.sqrt(module.dim)
     scores = scores + log_mass.view(1, 1, -1)
-    weights = torch.softmax(scores.float(), dim=-1).to(dtype)
+    weights = torch.softmax(scores, dim=-1)
     context = torch.einsum("qhn,nhd->qhd", weights, values).reshape(-1, module.width)
     correction = module.output(torch.cat((qtoken, context), dim=-1)) * module.output_scale
-    entropy = -(weights.float().clamp_min(1e-30) * weights.float().clamp_min(1e-30).log()).sum(-1).mean(-1)
+    entropy = -(weights.clamp_min(1e-30) * weights.clamp_min(1e-30).log()).sum(-1).mean(-1)
     return correction, entropy
 
 
