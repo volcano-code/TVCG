@@ -138,10 +138,11 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
             raise ValueError("component_ids shape mismatch")
 
         # QuadrANN branch: exactly one topology/GNN encoding.
-        q_features, final_features = self._gnn_features(
+        q_feature_layers, final_features = self._gnn_features(
             xyz,
             interval_mass,
             component_ids,
+            return_layer_features=True,
         )
 
         _, inverse_np = np.unique(
@@ -186,33 +187,38 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
         # million-interval resolution. Evaluate the exact same pointwise
         # fusion MLP in chunks and checkpoint each chunk during training.
         logit_chunks = []
+        n_gnn_layers = len(q_feature_layers)
         for start in range(0, len(xyz), self.fusion_chunk_size):
             stop = min(start + self.fusion_chunk_size, len(xyz))
-            q_chunk = q_features[start:stop]
-            final_chunk = final_features[start:stop]
+            layer_chunks = [layer[start:stop] for layer in q_feature_layers]
             p_chunk = p_local[start:stop]
             inverse_chunk = inverse[start:stop]
 
-            def fusion_chunk_fn(qf, ff, pf, inv,
+            def fusion_chunk_fn(*inputs,
+                                n_layers=n_gnn_layers,
                                 fusion_module=self.fusion,
                                 weight_module=self.weight_head,
-                                global_context=p_global):
-                component_local = component_context[inv]
+                                global_context=p_global,
+                                component_summary=component_context):
+                layer_inputs = inputs[:n_layers]
+                local_p = inputs[n_layers]
+                inv = inputs[n_layers + 1]
+                qf = torch.cat(layer_inputs, dim=-1)
+                ff = layer_inputs[-1]
+                component_local = component_summary[inv]
                 global_local = global_context.unsqueeze(0).expand(len(qf), -1)
                 fused_chunk = fusion_module(torch.cat(
-                    (qf, ff, pf, global_local, component_local), dim=-1
+                    (qf, ff, local_p, global_local, component_local), dim=-1
                 ))
                 return weight_module(fused_chunk).squeeze(-1)
 
+            checkpoint_inputs = (*layer_chunks, p_chunk, inverse_chunk)
             if self.training and torch.is_grad_enabled():
                 chunk_logits = checkpoint(
-                    fusion_chunk_fn, q_chunk, final_chunk, p_chunk,
-                    inverse_chunk, use_reentrant=False,
+                    fusion_chunk_fn, *checkpoint_inputs, use_reentrant=False,
                 )
             else:
-                chunk_logits = fusion_chunk_fn(
-                    q_chunk, final_chunk, p_chunk, inverse_chunk
-                )
+                chunk_logits = fusion_chunk_fn(*checkpoint_inputs)
             logit_chunks.append(chunk_logits)
 
         logits = torch.cat(logit_chunks, dim=0)
@@ -299,7 +305,7 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
             probabilities=probabilities,
             pcraft_local_features=p_local,
             pcraft_global_context=p_global,
-            quadrann_features=q_features,
+            quadrann_features=final_features,
             component_context=component_context,
             global_scale_weights=pcraft["global_scale_weights"],
             n_intervals=len(interval_mass),
