@@ -75,6 +75,20 @@ class QuadrANNChunkedGNNTests(unittest.TestCase):
             if parameter.grad is not None:
                 self.assertTrue(torch.isfinite(parameter.grad).all())
 
+
+    def test_layer_feature_mode_matches_concatenated_contract(self):
+        self.model.eval()
+        joined, final_a = self.model._gnn_features(
+            self.xyz, self.mass, self.components
+        )
+        layers, final_b = self.model._gnn_features(
+            self.xyz, self.mass, self.components,
+            return_layer_features=True,
+        )
+        self.assertEqual(len(layers), self.model.num_layers + 1)
+        self.assertTrue(torch.allclose(joined, torch.cat(layers, dim=-1), atol=2e-6, rtol=2e-6))
+        self.assertTrue(torch.allclose(final_a, final_b, atol=2e-6, rtol=2e-6))
+
     def test_rejects_invalid_chunk_size(self):
         with self.assertRaises(ValueError):
             SpinQuadrANNV11(
