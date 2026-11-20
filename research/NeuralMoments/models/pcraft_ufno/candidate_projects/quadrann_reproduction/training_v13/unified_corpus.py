@@ -220,6 +220,8 @@ class UnifiedOperatorCorpus:
                 raise ValueError(f"{row['id']}: {key} must be boolean [Q]")
         if "jacobian_valid_mask" not in labels and "target_jacobian" in labels:
             labels["jacobian_valid_mask"] = labels["valid_mask"].copy()
+        if "jacobian_valid_mask" in labels and "target_jacobian" not in labels and labels["jacobian_valid_mask"].any():
+            raise ValueError(f"{row['id']}: derivative_valid selects full Jacobian rows but jacobian labels are absent")
         if "restricted_basis" in labels or "restricted_jacobian" in labels:
             if not {"restricted_basis", "restricted_jacobian"}.issubset(labels):
                 raise ValueError(f"{row['id']}: restricted basis and labels must be paired")
