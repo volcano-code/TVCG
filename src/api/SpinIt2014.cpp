@@ -102,24 +102,14 @@ physics::RawMassMoments10 sourceGeometricMoments(
         const Eigen::Vector3d center = grid.minimum +
             (cell.cast<double>().array() + 0.5).matrix().cwiseProduct(spacing);
         const double volume = spacing.prod();
-        physics::RawMassMoments10::Vector values =
-            physics::RawMassMoments10::Vector::Zero();
-        values(physics::RawMassMoments10::M) = volume;
-        values(physics::RawMassMoments10::LX) = volume * center.x();
-        values(physics::RawMassMoments10::LY) = volume * center.y();
-        values(physics::RawMassMoments10::LZ) = volume * center.z();
-        values(physics::RawMassMoments10::QXX) =
-            volume * (center.x() * center.x() + spacing.x() * spacing.x() / 12.0);
-        values(physics::RawMassMoments10::QYY) =
-            volume * (center.y() * center.y() + spacing.y() * spacing.y() / 12.0);
-        values(physics::RawMassMoments10::QZZ) =
-            volume * (center.z() * center.z() + spacing.z() * spacing.z() / 12.0);
-        values(physics::RawMassMoments10::QYZ) = volume * center.y() * center.z();
-        values(physics::RawMassMoments10::QXZ) = volume * center.x() * center.z();
-        values(physics::RawMassMoments10::QXY) = volume * center.x() * center.y();
-        total += physics::RawMassMoments10::fromMassMoments(
-            physics::RawMassMoments10(values).toMassMoments()
+        MassMoments box;
+        box.mass = volume;
+        box.firstMoment = volume * center;
+        box.secondMoment = volume * (
+            center * center.transpose() +
+            (spacing.array().square() / 12.0).matrix().asDiagonal()
         );
+        total += physics::RawMassMoments10::fromMassMoments(box);
     }
     return total;
 }
