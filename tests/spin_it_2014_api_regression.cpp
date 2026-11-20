@@ -54,6 +54,20 @@ int main()
             "\"objective_semantics\": \"ANGLE_ELIMINATED_TRANSVERSE_INERTIA\""
         ) == std::string::npos ||
         artifact.diagnosticsJson().find("\"original_phi_trajectory\": false") ==
+            std::string::npos ||
+        artifact.diagnosticsJson().find("\"spin-it-2014-initial-material-state-v1\"") ==
+            std::string::npos ||
+        artifact.diagnosticsJson().find("\"source_material_mask\"") ==
+            std::string::npos ||
+        artifact.diagnosticsJson().find("\"fixed_material_mask\"") ==
+            std::string::npos ||
+        artifact.diagnosticsJson().find("\"design_domain_mask\"") ==
+            std::string::npos ||
+        artifact.diagnosticsJson().find("\"initial_geometric_moments_unit_density_model\"") ==
+            std::string::npos ||
+        artifact.diagnosticsJson().find("\"initial_geometric_moments_unit_density_target\"") ==
+            std::string::npos ||
+        artifact.diagnosticsJson().find("\"physical_si_scale_registered\": false") ==
             std::string::npos
     )
     {
