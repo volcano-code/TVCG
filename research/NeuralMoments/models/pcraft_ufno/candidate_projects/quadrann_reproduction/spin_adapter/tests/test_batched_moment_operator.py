@@ -189,6 +189,35 @@ def test_no_jacobian_mode():
     assert torch.count_nonzero(result["jacobian_q"]) == 0
 
 
+
+def test_jacobian_checkpoint_node_chunk_equivalence():
+    xyz, weights, coefficients = fixture()
+    reference = BatchedSpinMomentOperator(
+        chunk_nodes=128, chunk_queries=2
+    ).evaluate(xyz, weights, coefficients)
+    chunked = BatchedSpinMomentOperator(
+        chunk_nodes=17, chunk_queries=1
+    ).evaluate(xyz, weights, coefficients)
+    for key in ("potential", "moments", "jacobian_q", "jacobian_c"):
+        assert torch.allclose(
+            reference[key], chunked[key], rtol=1e-10, atol=1e-11
+        )
+
+
+def test_jacobian_checkpoint_backward_matches_finite_gradients():
+    xyz, weights, coefficients = fixture()
+    weights.requires_grad_(True)
+    coefficients.requires_grad_(True)
+    result = BatchedSpinMomentOperator(
+        chunk_nodes=19, chunk_queries=1
+    ).evaluate(xyz, weights, coefficients, with_jacobian=True)
+    loss = result["moments"].square().mean() + result["jacobian_q"].square().mean()
+    loss.backward()
+    assert weights.grad is not None and torch.isfinite(weights.grad).all()
+    assert coefficients.grad is not None and torch.isfinite(coefficients.grad).all()
+    assert weights.grad.abs().sum() > 0
+    assert coefficients.grad.abs().sum() > 0
+
 @pytest.mark.skipif(
     not torch.cuda.is_available(),
     reason="CUDA unavailable",
