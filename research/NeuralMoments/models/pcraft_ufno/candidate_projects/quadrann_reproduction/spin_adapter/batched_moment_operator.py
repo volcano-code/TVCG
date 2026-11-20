@@ -32,8 +32,8 @@ class BatchedSpinMomentOperator:
     def __init__(
         self,
         temperature: float = 0.04,
-        chunk_nodes: int = 65536,
-        chunk_queries: int = 16,
+        chunk_nodes: int = 2048,
+        chunk_queries: int = 1,
     ):
         if temperature <= 0:
             raise ValueError("temperature must be positive")
@@ -131,111 +131,73 @@ class BatchedSpinMomentOperator:
 
                 w = weights[start:stop]
 
-                # During Moment-only training, checkpoint each node block.
-                # This preserves exact forward equations and recomputes
-                # internal activations during backward.
-                if (
-                    not with_jacobian
-                    and torch.is_grad_enabled()
-                    and (w.requires_grad or q.requires_grad)
-                ):
-                    def chunk_forward(xyz_part, weights_part, q_part):
-                        basis_part = raw_moment_basis(xyz_part)
-                        a_part = basis_part @ q_part.T
-
-                        norm2_part = q_part.square().sum(dim=-1)
-
-                        s_part = torch.sqrt(
-                            a_part.square()
-                            + eps2 * norm2_part.unsqueeze(0)
+                def evaluate_node_chunk(xyz_part, weights_part, q_part):
+                    basis_part = raw_moment_basis(xyz_part)
+                    a_part = basis_part @ q_part.T
+                    norm2_part = q_part.square().sum(dim=-1)
+                    s_part = torch.sqrt(
+                        a_part.square() + eps2 * norm2_part.unsqueeze(0)
+                    )
+                    nvec_part = (
+                        a_part.unsqueeze(-1) * basis_part[:, None, :]
+                        + eps2 * q_part[None, :, :]
+                    )
+                    grad_q_part = 0.5 * (
+                        basis_part[:, None, :]
+                        + nvec_part / s_part.unsqueeze(-1)
+                    )
+                    potential_part = (
+                        0.5 * weights_part[:, None] * (a_part + s_part)
+                    ).sum(dim=0)
+                    moments_part = torch.einsum(
+                        "n,nbi->bi", weights_part, grad_q_part
+                    )
+                    if with_jacobian:
+                        outer_part = (
+                            basis_part[:, None, :, None]
+                            * basis_part[:, None, None, :]
                         )
-
-                        nvec_part = (
-                            a_part.unsqueeze(-1)
-                            * basis_part[:, None, :]
-                            + eps2 * q_part[None, :, :]
+                        numerator_part = outer_part + eps2 * eye[None, None, :, :]
+                        hessian_part = 0.5 * (
+                            numerator_part / s_part[:, :, None, None]
+                            - (
+                                nvec_part[:, :, :, None]
+                                * nvec_part[:, :, None, :]
+                            ) / s_part[:, :, None, None].pow(3)
                         )
-
-                        grad_q_part = 0.5 * (
-                            basis_part[:, None, :]
-                            + nvec_part / s_part.unsqueeze(-1)
+                        jacobian_part = torch.einsum(
+                            "n,nbij->bij", weights_part, hessian_part
                         )
-
-                        potential_part = (
-                            0.5 * weights_part[:, None]
-                            * (a_part + s_part)
-                        ).sum(dim=0)
-
-                        moments_part = torch.einsum(
-                            "n,nbi->bi",
-                            weights_part,
-                            grad_q_part,
+                    else:
+                        jacobian_part = moments_part.new_zeros(
+                            len(q_part), 10, 10
                         )
+                    return potential_part, moments_part, jacobian_part
 
-                        return potential_part, moments_part
-
-                    p_part, m_part = checkpoint(
-                        chunk_forward,
+                # Checkpoint the complete per-node-block calculation for both
+                # Moment and Jacobian training. This avoids retaining the
+                # [node,query,10,10] Hessian intermediates for every block.
+                needs_checkpoint = (
+                    torch.is_grad_enabled()
+                    and (w.requires_grad or q.requires_grad or xyz[start:stop].requires_grad)
+                )
+                if needs_checkpoint:
+                    p_part, m_part, j_part = checkpoint(
+                        evaluate_node_chunk,
                         xyz[start:stop],
                         w,
                         q,
                         use_reentrant=False,
                     )
-
-                    potential = potential + p_part
-                    moments = moments + m_part
-
                 else:
-                    basis = raw_moment_basis(xyz[start:stop])
-
-                    # [N, B]
-                    a = basis @ q.T
-
-                    s = torch.sqrt(
-                        a.square()
-                        + eps2 * norm2.unsqueeze(0)
+                    p_part, m_part, j_part = evaluate_node_chunk(
+                        xyz[start:stop], w, q
                     )
 
-                    nvec = (
-                        a.unsqueeze(-1) * basis[:, None, :]
-                        + eps2 * q[None, :, :]
-                    )
-
-                    grad_q = 0.5 * (
-                        basis[:, None, :]
-                        + nvec / s.unsqueeze(-1)
-                    )
-
-                    potential = potential + (
-                        0.5 * w[:, None] * (a + s)
-                    ).sum(dim=0)
-
-                    moments = moments + torch.einsum(
-                        "n,nbi->bi", w, grad_q
-                    )
-
-                    if with_jacobian:
-                        outer = (
-                            basis[:, None, :, None]
-                            * basis[:, None, None, :]
-                        )
-
-                        numerator = (
-                            outer
-                            + eps2 * eye[None, None, :, :]
-                        )
-
-                        hessian = 0.5 * (
-                            numerator / s[:, :, None, None]
-                            - (
-                                nvec[:, :, :, None]
-                                * nvec[:, :, None, :]
-                            ) / s[:, :, None, None].pow(3)
-                        )
-
-                        jacobian = jacobian + torch.einsum(
-                            "n,nbij->bij", w, hessian
-                        )
+                potential = potential + p_part
+                moments = moments + m_part
+                if with_jacobian:
+                    jacobian = jacobian + j_part
 
             all_potentials.append(potential)
             all_moments.append(moments)
