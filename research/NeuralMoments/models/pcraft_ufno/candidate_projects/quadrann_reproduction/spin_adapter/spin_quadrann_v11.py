@@ -30,6 +30,7 @@ class SpinQuadrANNV11(nn.Module):
         chunk_intervals=512,
         chunk_nodes=65536,
         pcraft_width=None,
+        gnn_chunk_size=8192,
     ):
         super().__init__()
         self.external_pcraft_width = None if pcraft_width is None else int(pcraft_width)
@@ -52,6 +53,9 @@ class SpinQuadrANNV11(nn.Module):
         self.chunk_intervals = int(chunk_intervals)
         self.quadrature_order = int(quadrature_order)
         self.chunk_nodes = int(chunk_nodes)
+        self.gnn_chunk_size = int(gnn_chunk_size)
+        if self.gnn_chunk_size < 1:
+            raise ValueError("gnn_chunk_size must be positive")
 
         self.gnn = SpinQuadrANN3D(
             hidden_dim=hidden_dim,
@@ -92,47 +96,77 @@ class SpinQuadrANNV11(nn.Module):
         self.quadrature_order = quadrature_order
 
     def _gnn_features(self, xyz, mass, components):
-        """Extract all GNN layer features without the original Softmax head."""
-        n = len(xyz)
+        """Chunk QuadrANN message passing over target intervals.
 
+        The topology graph retains global source indices, while each target
+        chunk is remapped to local indices. Global mean context is computed
+        across all nodes between message-passing layers, preserving the
+        original full-graph semantics without materializing E-sized message
+        activations for all 1M+ intervals at once.
+        """
+        n = len(xyz)
+        chunk_size = self.gnn_chunk_size
         edge_np = make_topology_graph(
             xyz.detach().cpu().numpy(),
             np.asarray(components),
             neighbors=self.gnn.neighbors,
         )
-
-        edge = torch.as_tensor(
-            edge_np, dtype=torch.long, device=xyz.device
-        )
+        edges_per_target = edge_np.shape[1] // n
+        if edges_per_target * n != edge_np.shape[1]:
+            raise RuntimeError("topology graph must have a fixed neighbor count per target")
 
         center = xyz.amin(dim=0)
         span = (xyz.amax(dim=0) - center).amax().clamp_min(1e-12)
         coords = 2 * (xyz - center) / span - 1
 
-        source, target = edge
-        distance = torch.linalg.vector_norm(
-            xyz[source] - xyz[target], dim=-1
-        )
+        initial_chunks = []
+        for start in range(0, n, chunk_size):
+            stop = min(start + chunk_size, n)
+            edge_slice = edge_np[:, start * edges_per_target:stop * edges_per_target].copy()
+            edge_slice[1] -= start
+            edge = torch.as_tensor(edge_slice, dtype=torch.long, device=xyz.device)
+            source, target_local = edge
+            xyz_target = xyz[start:stop]
+            distance = torch.linalg.vector_norm(
+                xyz[source] - xyz_target[target_local], dim=-1
+            )
+            mean_distance = scatter_mean(
+                distance, target_local, dim=0, dim_size=stop-start
+            )
+            density_target = torch.log1p(
+                1.0 / mean_distance.clamp_min(1e-8)
+            ).unsqueeze(-1)
+            density_source = torch.zeros((n, 1), dtype=density_target.dtype, device=xyz.device)
+            # Density for source nodes is evaluated globally once below. This
+            # first pass stores target density; edge source densities are
+            # filled by indexed assignment without retaining edge messages.
+            initial_chunks.append((start, stop, edge_slice, density_target))
 
-        mean_distance = scatter_mean(
-            distance, target, dim=0, dim_size=n
-        )
-
-        density = torch.log1p(
-            1.0 / mean_distance.clamp_min(1e-8)
-        ).unsqueeze(-1)
-
-        features = self.gnn.initial(coords, density, edge)
+        # Assemble per-node density in chunks, then perform initial messages.
+        density = torch.cat([item[3] for item in initial_chunks], dim=0)
+        first_features = []
+        for start, stop, edge_slice, _ in initial_chunks:
+            edge = torch.as_tensor(edge_slice, dtype=torch.long, device=xyz.device)
+            features = self.gnn.initial.forward_chunk(
+                coords, density, coords[start:stop], density[start:stop],
+                edge, source_count=n,
+            )
+            first_features.append(features)
+        features = torch.cat(first_features, dim=0)
         layer_outputs = [features]
 
         for layer in self.gnn.layers:
-            global_context = features.mean(
-                dim=0, keepdim=True
-            ).expand_as(features)
-
-            features = layer(
-                features, edge, global_context
-            )
+            global_mean = features.mean(dim=0, keepdim=True)
+            global_context = global_mean.expand(n, -1)
+            updated_chunks = []
+            for start, stop, edge_slice, _ in initial_chunks:
+                edge = torch.as_tensor(edge_slice, dtype=torch.long, device=xyz.device)
+                updated = layer.forward_chunk(
+                    features, features[start:stop], global_context[start:stop],
+                    edge, source_count=n,
+                )
+                updated_chunks.append(updated)
+            features = torch.cat(updated_chunks, dim=0)
             layer_outputs.append(features)
 
         return torch.cat(layer_outputs, dim=-1), features
