@@ -32,6 +32,7 @@ def run_preflight(
     grid_size: int = 64,
     run_update: bool = False,
     output: str | Path | None = None,
+    allow_absolute_assets: bool = False,
 ) -> dict[str, Any]:
     device_obj = torch.device(device)
     report: dict[str, Any] = {
@@ -58,7 +59,11 @@ def run_preflight(
     elif device_obj.type != "cpu":
         raise ValueError("preflight supports cpu or cuda devices")
 
-    corpus = UnifiedOperatorCorpus(manifest, grid_size=grid_size)
+    corpus = UnifiedOperatorCorpus(
+        manifest,
+        grid_size=grid_size,
+        allow_absolute_paths=allow_absolute_assets,
+    )
     summary = corpus.split_summary()
     if not corpus.splits["train"] or not corpus.splits["val"] or not corpus.splits["test"]:
         raise ValueError("train/val/test splits must all be nonempty")
@@ -214,6 +219,8 @@ def main() -> int:
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--grid-size", type=int, default=64)
     parser.add_argument("--smoke-update", action="store_true")
+    parser.add_argument("--allow-absolute-assets", action="store_true",
+                        help="allow Work manifests to reference absolute local asset paths")
     parser.add_argument("--output", required=True, help="JSON report path; checkpoint path when --smoke-update")
     args = parser.parse_args()
     report = run_preflight(
@@ -223,6 +230,7 @@ def main() -> int:
         grid_size=args.grid_size,
         run_update=args.smoke_update,
         output=args.output,
+        allow_absolute_assets=args.allow_absolute_assets,
     )
     if args.smoke_update:
         report_path = Path(args.output).with_suffix(".report.json")
