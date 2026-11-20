@@ -85,7 +85,7 @@ class QuadrANNChunkedGNNTests(unittest.TestCase):
             self.xyz, self.mass, self.components,
             return_layer_features=True,
         )
-        self.assertEqual(len(layers), self.model.num_layers + 1)
+        self.assertEqual(len(layers), len(self.model.gnn.layers) + 1)
         self.assertTrue(torch.allclose(joined, torch.cat(layers, dim=-1), atol=2e-6, rtol=2e-6))
         self.assertTrue(torch.allclose(final_a, final_b, atol=2e-6, rtol=2e-6))
 
