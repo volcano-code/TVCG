@@ -74,8 +74,13 @@ class GeometryPhysicsAttentionChunkTests(unittest.TestCase):
     def test_nonfinite_feature_is_rejected_with_chunked_validation(self):
         features = self.features.detach().clone()
         features[17, 3] = float("nan")
+        diagnostic_module = GeometryPhysicsCrossAttention(
+            width=16, heads=4, chunk_intervals=13, hidden=24,
+            output_scale=0.05, validate_inputs=True,
+        ).double()
+        diagnostic_module.load_state_dict(self.module.state_dict())
         with self.assertRaisesRegex(ValueError, "chunk"):
-            self.module(self.q.detach(), features, self.mass)
+            diagnostic_module(self.q.detach(), features, self.mass)
 
     def test_checkpointed_streaming_backward_is_finite(self):
         self.module.train()
