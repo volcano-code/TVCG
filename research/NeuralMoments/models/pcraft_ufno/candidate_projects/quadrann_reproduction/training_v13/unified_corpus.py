@@ -98,6 +98,19 @@ class UnifiedOperatorCorpus:
         self.manifest_sha256 = file_sha256(self.path)
         self.document = json.loads(self.path.read_text())
         schema = self.document.get("schema")
+        # Portable Work sample ZIPs intentionally carry a one-record manifest
+        # without a top-level schema; identify them by their explicit Work row
+        # keys rather than guessing from filenames.
+        if schema is None:
+            candidate_rows = self.document.get("records", [])
+            if (isinstance(candidate_rows, list) and candidate_rows
+                    and all(
+                        isinstance(row, dict)
+                        and {"geometry_id", "source_group_id", "source_type",
+                             "geometry_file", "labels_file"}.issubset(row)
+                        for row in candidate_rows
+                    )):
+                schema = self.WORK_SCHEMA
         if schema not in {self.SCHEMA, self.WORK_SCHEMA}:
             raise ValueError(
                 f"unsupported manifest schema: {schema!r}; "
