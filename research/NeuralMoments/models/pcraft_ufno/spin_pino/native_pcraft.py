@@ -458,35 +458,47 @@ class PhysicsStateSlicing(nn.Module):
     def forward(self,features:Tensor,mass_weights:Tensor,*,return_details:bool=False,
                 adaptive:bool=False,min_slices:int|None=None,
                 adaptive_temperature:bool=False,temperature_min:float=0.05,
-                temperature_max:float=2.0):
+                temperature_max:float=2.0,point_chunk_size:int=16384):
         if features.ndim!=2 or features.shape[1]!=self.width:
             raise ValueError("features must have shape [N,width]")
         if mass_weights.ndim!=1 or len(features)!=len(mass_weights):
             raise ValueError("mass_weights must have shape [N]")
-        if not torch.isfinite(features).all() or not torch.isfinite(mass_weights).all():
-            raise ValueError("nonfinite physical state features or masses")
+        if point_chunk_size<1:
+            raise ValueError("point_chunk_size must be positive")
+        if not torch.isfinite(mass_weights).all():
+            raise ValueError("nonfinite physical state masses")
         if (mass_weights<0).any() or float(mass_weights.sum().detach())<=0:
             raise ValueError("mass weights must be nonnegative with positive sum")
 
         n=len(features)
-        x_mid=self.in_project_x(self.norm(features)).reshape(n,self.n_heads,self.dim_head)
-        logits=self.in_project_slice(x_mid)
-        temperature=(self.proj_temperature(x_mid)+self.temperature_bias).clamp_min(0.01)
+        mass=mass_weights.float()
+        mass=mass/mass.sum().clamp_min(1e-30)
         active_slices=self.n_slices
         feature_variation=features.new_zeros(())
         mass_effective_support=features.new_tensor(float(n))
         complexity=features.new_tensor(1.0)
         if adaptive or adaptive_temperature:
-            # Deterministic geometry-only budget selector; it uses physical
-            # mass concentration and weighted feature variation.
+            # Stream global weighted statistics; never materialize a second
+            # float64 copy of the million-interval feature matrix.
             mass64=mass_weights.to(torch.float64).clamp_min(0)
-            mass_prob=mass64/mass64.sum().clamp_min(torch.finfo(torch.float64).tiny)
-            mass_effective_support=1.0/mass_prob.square().sum().clamp_min(1e-15)
-            feature64=features.to(torch.float64)
-            mean=(feature64*mass_prob[:,None]).sum(0)
-            variance=((feature64-mean).square().mean(-1)*mass_prob).sum()
-            energy=(feature64.square().mean(-1)*mass_prob).sum().clamp_min(1e-12)
-            feature_variation=(variance/energy).clamp(0,1)
+            total_mass=mass64.sum().clamp_min(torch.finfo(torch.float64).tiny)
+            mass_effective_support=total_mass.square() / mass64.square().sum().clamp_min(1e-15)
+            weighted_sum=features.new_zeros((self.width,),dtype=torch.float64)
+            weighted_energy=features.new_zeros((),dtype=torch.float64)
+            for start in range(0,n,point_chunk_size):
+                stop=min(start+point_chunk_size,n)
+                f=features[start:stop].to(torch.float64)
+                w=mass64[start:stop]/total_mass
+                weighted_sum=weighted_sum+(f*w[:,None]).sum(0)
+                weighted_energy=weighted_energy+(f.square().mean(-1)*w).sum()
+            mean=weighted_sum
+            weighted_variance=features.new_zeros((),dtype=torch.float64)
+            for start in range(0,n,point_chunk_size):
+                stop=min(start+point_chunk_size,n)
+                f=features[start:stop].to(torch.float64)
+                w=mass64[start:stop]/total_mass
+                weighted_variance=weighted_variance+((f-mean).square().mean(-1)*w).sum()
+            feature_variation=(weighted_variance/weighted_energy.clamp_min(1e-12)).clamp(0,1)
             mass_coverage=(mass_effective_support/max(1,n)).clamp(0,1)
             complexity=(0.5*feature_variation+0.5*mass_coverage).clamp(0,1)
             minimum=int(min_slices or max(1,self.n_slices//4))
@@ -494,43 +506,79 @@ class PhysicsStateSlicing(nn.Module):
                 raise ValueError("min_slices must be in [1,n_slices]")
             if adaptive:
                 active_slices=minimum+int(torch.round(complexity*(self.n_slices-minimum)).detach().cpu())
-            if adaptive_temperature:
-                if not (0.0 < temperature_min < temperature_max):
-                    raise ValueError("adaptive temperature bounds must be positive and ordered")
-                # More heterogeneous feature fields receive sharper (lower)
-                # assignments; diffuse/simple fields receive smoother ones.
-                factor=1.5-complexity
-                temperature=(temperature*factor).clamp(min=temperature_min,max=temperature_max)
-        # Deterministic soft assignment per interval/head; compute softmax
-        # only over active slots. Avoid all-masked/-inf branches in the
-        # autograd graph, then pad exact zeros for inactive slice slots.
-        active_logits=logits[...,:active_slices].float()
-        active_temperature=temperature.float()
-        active_assignment=torch.softmax(active_logits/active_temperature,dim=-1)
-        if active_slices<self.n_slices:
-            assignment=F.pad(active_assignment,(0,self.n_slices-active_slices))
-        else:
-            assignment=active_assignment
-        mass=mass_weights.float()
-        mass=mass/mass.sum().clamp_min(1e-30)
-        weighted_assignment=assignment*mass[:,None,None]
-        slice_mass=weighted_assignment.sum(dim=0)  # [heads,slices]
-        slice_tokens=torch.einsum("nhd,nhs->hsd",x_mid.float(),weighted_assignment)
-        slice_tokens=slice_tokens/(slice_mass.unsqueeze(-1)+1e-8)
 
+        def project_and_assign(f:Tensor,m:Tensor):
+            x_mid=self.in_project_x(self.norm(f)).reshape(len(f),self.n_heads,self.dim_head)
+            logits=self.in_project_slice(x_mid)[...,:active_slices]
+            temperature=(self.proj_temperature(x_mid)+self.temperature_bias).clamp_min(0.01)
+            if adaptive_temperature:
+                if not (0.0<temperature_min<temperature_max):
+                    raise ValueError("adaptive temperature bounds must be positive and ordered")
+                temperature=(temperature*(1.5-complexity)).clamp(
+                    min=temperature_min,max=temperature_max
+                )
+            assignment=torch.softmax(logits.float()/temperature.float(),dim=-1)
+            if active_slices<self.n_slices:
+                assignment=F.pad(assignment,(0,self.n_slices-active_slices))
+            return x_mid,assignment,temperature
+
+        slice_mass=features.new_zeros((self.n_heads,self.n_slices),dtype=torch.float32)
+        slice_numerator=features.new_zeros((self.n_heads,self.n_slices,self.dim_head),dtype=torch.float32)
+        entropy_sum=features.new_zeros((),dtype=torch.float64)
+        temperature_sum=features.new_zeros((),dtype=torch.float64)
+        temperature_min_value=float("inf")
+        temperature_max_value=float("-inf")
+        row_error=features.new_zeros(())
+        for start in range(0,n,point_chunk_size):
+            stop=min(start+point_chunk_size,n)
+            f=features[start:stop]
+            m=mass[start:stop]
+            def pool_fn(f_chunk,m_chunk):
+                x_mid,assignment,temp=project_and_assign(f_chunk,m_chunk)
+                weighted=assignment*m_chunk[:,None,None]
+                sm=weighted.sum(0)
+                sn=torch.einsum("nhd,nhs->hsd",x_mid.float(),weighted)
+                ent=-(assignment*assignment.clamp_min(1e-30).log()).sum()
+                tsum=temp.to(torch.float64).sum()
+                return sm,sn,ent,tsum,temp.detach().amin(),temp.detach().amax(),(assignment.sum(-1)-1).abs().max()
+            if self.training and torch.is_grad_enabled():
+                sm,sn,ent,tsum,tmin,tmax,rerr=checkpoint(
+                    pool_fn,f,m,use_reentrant=False
+                )
+            else:
+                sm,sn,ent,tsum,tmin,tmax,rerr=pool_fn(f,m)
+            slice_mass=slice_mass+sm
+            slice_numerator=slice_numerator+sn
+            entropy_sum=entropy_sum+ent.to(torch.float64)
+            temperature_sum=temperature_sum+tsum
+            temperature_min_value=min(temperature_min_value,float(tmin))
+            temperature_max_value=max(temperature_max_value,float(tmax))
+            row_error=torch.maximum(row_error,rerr)
+
+        slice_tokens=slice_numerator/(slice_mass.unsqueeze(-1)+1e-8)
         q=self.to_q(slice_tokens).unsqueeze(0)
         k=self.to_k(slice_tokens).unsqueeze(0)
         v=self.to_v(slice_tokens).unsqueeze(0)
         attended=F.scaled_dot_product_attention(q,k,v).squeeze(0)
-        # Deslicing uses the same learned assignment as the pooling stage.
-        point_update=torch.einsum("hsd,nhs->nhd",attended,assignment).reshape(n,self.width)
-        x=features+self.attn_dropout(self.to_out(point_update).to(features.dtype))
-        x=x+self.ffn_dropout(self.ffn(self.ffn_norm(x)).to(x.dtype))
+
+        output_chunks=[]
+        for start in range(0,n,point_chunk_size):
+            stop=min(start+point_chunk_size,n)
+            f=features[start:stop]
+            def deslice_fn(f_chunk):
+                x_mid,assignment,_=project_and_assign(f_chunk,mass[start:stop])
+                point_update=torch.einsum("hsd,nhs->nhd",attended,assignment).reshape(len(f_chunk),self.width)
+                x=f_chunk+self.attn_dropout(self.to_out(point_update).to(f_chunk.dtype))
+                return x+self.ffn_dropout(self.ffn(self.ffn_norm(x)).to(x.dtype))
+            if self.training and torch.is_grad_enabled():
+                updated=checkpoint(deslice_fn,f,use_reentrant=False)
+            else:
+                updated=deslice_fn(f)
+            output_chunks.append(updated)
+        output=torch.cat(output_chunks,dim=0)
 
         mean_usage=slice_mass.mean(dim=0)
         entropy=-(mean_usage*mean_usage.clamp_min(1e-30).log()).sum()
-        # Per-head utilization distinguishes a nominally active slice budget
-        # from slices that actually receive meaningful physical mass.
         head_entropy=-(slice_mass*slice_mass.clamp_min(1e-30).log()).sum(dim=-1)
         head_effective=torch.exp(head_entropy)
         occupancy_threshold=1e-6
@@ -538,7 +586,7 @@ class PhysicsStateSlicing(nn.Module):
         per_head_occupied=(slice_mass>occupancy_threshold).sum(dim=-1)
         per_head_near_empty=((slice_mass>0)&(slice_mass<=near_empty_threshold)).sum(dim=-1)
         metrics={
-            "transolver_assignment_row_error":float((assignment.sum(-1)-1).abs().max().detach()),
+            "transolver_assignment_row_error":float(row_error.detach()),
             "transolver_slice_mass_sum_error":float((slice_mass.sum(-1)-1).abs().max().detach()),
             "transolver_effective_slices":float(torch.exp(entropy).detach()),
             "transolver_per_head_effective_slices_mean":float(head_effective.mean().detach()),
@@ -548,10 +596,10 @@ class PhysicsStateSlicing(nn.Module):
             "transolver_per_head_occupied_slices_max":float(per_head_occupied.max().detach()),
             "transolver_per_head_near_empty_slices_mean":float(per_head_near_empty.float().mean().detach()),
             "transolver_active_slice_utilization":float((head_effective.mean()/max(1,active_slices)).detach()),
-            "transolver_assignment_entropy":float((-(assignment*assignment.clamp_min(1e-30).log()).sum(-1).mean()).detach()),
-            "transolver_temperature_mean":float(temperature.mean().detach()),
-            "transolver_temperature_min":float(temperature.min().detach()),
-            "transolver_temperature_max":float(temperature.max().detach()),
+            "transolver_assignment_entropy":float((entropy_sum/(n*self.n_heads)).detach()),
+            "transolver_temperature_mean":float((temperature_sum/(n*self.n_heads*self.dim_head)).detach()),
+            "transolver_temperature_min":temperature_min_value,
+            "transolver_temperature_max":temperature_max_value,
             "transolver_adaptive_enabled":float(bool(adaptive)),
             "transolver_adaptive_temperature_enabled":float(bool(adaptive_temperature)),
             "transolver_temperature_bound_min":float(temperature_min),
@@ -560,11 +608,11 @@ class PhysicsStateSlicing(nn.Module):
             "transolver_feature_variation":float(feature_variation.detach()),
             "transolver_mass_effective_support":float(mass_effective_support.detach()),
             "transolver_complexity_score":float(complexity.detach()) if adaptive else 1.0,
+            "transolver_point_chunk_size":float(point_chunk_size),
         }
         if return_details:
-            return x,metrics,assignment,slice_mass
-        return x,metrics
-
+            return output,metrics,None,slice_mass
+        return output,metrics
 
 
 
