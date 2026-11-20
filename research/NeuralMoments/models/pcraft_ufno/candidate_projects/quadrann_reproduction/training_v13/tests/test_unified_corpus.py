@@ -138,5 +138,106 @@ class UnifiedCorpusTests(unittest.TestCase):
                 corpus.load(corpus.splits["train"][0])
 
 
+    def _write_work_corpus(self, root: Path):
+        columns = np.asarray([[1, 1, 0, 4]], dtype=np.int64)
+        geometry_path = root / "work_geometry.npz"
+        np.savez(
+            geometry_path,
+            columns=columns,
+            origin=np.zeros(3, dtype=np.float64),
+            h=np.asarray(1.0),
+            native_resolution=np.asarray(4, dtype=np.int64),
+            density=np.asarray(1.0),
+            fixed_moments=np.zeros(10, dtype=np.float64),
+        )
+        q = np.zeros((2, 10), dtype=np.float64)
+        q[:, 0] = 1.0
+        moments = np.zeros((2, 10), dtype=np.float64)
+        moments[:, 0] = 1.0
+        jac = np.full((2, 10, 10), np.nan, dtype=np.float64)
+        jac[0] = np.eye(10)
+        basis = np.full((2, 10, 8), np.nan, dtype=np.float64)
+        restricted_jac = np.full((2, 10, 8), np.nan, dtype=np.float64)
+        basis[1, :, :3] = np.eye(10)[:, :3]
+        restricted_jac[1, :, :3] = 0.5
+        labels_path = root / "work_labels.npz"
+        np.savez(
+            labels_path,
+            query_id=np.asarray(["q0", "q1"]),
+            queries=q,
+            moments=moments,
+            full_moments=np.asarray([2.0] + [0.0] * 9),
+            jacobian=jac,
+            derivative_valid=np.asarray([True, False]),
+            restricted_valid=np.asarray([False, True]),
+            restricted_dimension=np.asarray([0, 3], dtype=np.int16),
+            restricted_basis=basis,
+            restricted_jacobian=restricted_jac,
+            query_status=np.asarray(["accepted_moment", "accepted_moment"]),
+            event_valid=np.asarray([1, -1], dtype=np.int8),
+        )
+        records = []
+        for geometry_id, source_split, source_group in (
+            ("train-a", "train", "train-family"),
+            ("dev-a", "development", "dev-family"),
+            ("bench-a", "fixed_benchmark", "benchmark-family"),
+        ):
+            records.append({
+                "geometry_id": geometry_id,
+                "source_group_id": source_group,
+                "source_type": "Objaverse",
+                "split": source_split,
+                "geometry_file": geometry_path.name,
+                "geometry_sha256": sha(geometry_path),
+                "labels_file": labels_path.name,
+                "labels_sha256": sha(labels_path),
+                "native_resolution": 4,
+                "fixed_moments": [0.0] * 10,
+                "original_moments": [2.0] + [0.0] * 9,
+                "queries": 2,
+            })
+        manifest_path = root / "work_manifest.json"
+        manifest_path.write_text(json.dumps({
+            "schema": "phase2.10.corpus.v1",
+            "records": records,
+            "excluded_partial_count": 76,
+        }))
+        return manifest_path
+
+    def test_adapts_work_manifest_splits_and_mesh_moments(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self._write_work_corpus(Path(tmp))
+            corpus = UnifiedOperatorCorpus(path, grid_size=2)
+            self.assertEqual(
+                {key: len(value) for key, value in corpus.splits.items()},
+                {"train": 1, "val": 1, "test": 1},
+            )
+            self.assertEqual(corpus.splits["val"][0]["source_split"], "development")
+            self.assertEqual(corpus.splits["test"][0]["source_split"], "fixed_benchmark")
+            batch = corpus.to_training_batch(corpus.splits["train"][0])
+            self.assertEqual(batch["coefficients"].shape, (2, 10))
+            self.assertEqual(batch["valid_mask"].tolist(), [True, True])
+            self.assertEqual(batch["jacobian_valid_mask"].tolist(), [True, False])
+            self.assertEqual(batch["restricted_valid"].tolist(), [False, True])
+            self.assertEqual(batch["restricted_dimension"].tolist(), [0, 3])
+            # Mesh-teacher original moments are separate from coarse RLE moments.
+            self.assertAlmostEqual(float(batch["geometry"]["original_moments"][0]), 4.0)
+            self.assertAlmostEqual(float(corpus.splits["train"][0]["original_moments"][0]), 2.0)
+
+    def test_work_sample_can_require_only_its_declared_split(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self._write_work_corpus(Path(tmp))
+            # The portable one-record ZIPs are interface fixtures, not trainable
+            # corpora; permit a split-scoped validation invocation explicitly.
+            manifest = json.loads(path.read_text())
+            manifest["records"] = [manifest["records"][0]]
+            path.write_text(json.dumps(manifest))
+            corpus = UnifiedOperatorCorpus(
+                path, grid_size=2, required_splits=("train",)
+            )
+            self.assertEqual(len(corpus.splits["train"]), 1)
+            self.assertEqual(len(corpus.splits["val"]), 0)
+
+
 if __name__ == "__main__":
     unittest.main()
