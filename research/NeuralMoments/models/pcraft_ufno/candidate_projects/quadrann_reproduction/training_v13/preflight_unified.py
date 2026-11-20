@@ -167,6 +167,32 @@ def run_preflight(
             )
             check("checkpoint_written", path=str(checkpoint), bytes=checkpoint.stat().st_size)
 
+            # Verify a fresh model/optimizer/scheduler can resume the exact
+            # one-step checkpoint under the same architecture/data contract.
+            restored = build_model(config_name, device=device_obj)
+            restored_optimizer = restored.build_optimizer()
+            restored_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                restored_optimizer, T_max=2
+            )
+            restored.load_checkpoint(
+                checkpoint,
+                optimizer=restored_optimizer,
+                scheduler=restored_scheduler,
+                expected_data_fingerprint=corpus.manifest_sha256,
+                restore_rng=False,
+                map_location=device_obj,
+                expected_training_contract=training_contract,
+            )
+            mismatched = [
+                name for name, value in model.state_dict().items()
+                if not torch.equal(value.detach(), restored.state_dict()[name].detach())
+            ]
+            if mismatched:
+                raise RuntimeError(
+                    "checkpoint round-trip mismatch: " + ", ".join(mismatched[:8])
+                )
+            check("checkpoint_resume_roundtrip", restored_parameters=len(model.state_dict()))
+
     report["status"] = "pass"
     report["summary"] = {
         "checks_passed": len(report["checks"]),
