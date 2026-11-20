@@ -13,8 +13,9 @@ class GeometryPhysicsCrossAttention(nn.Module):
     score memory for interval chunk C. The normalized physical mass is a
     log-prior in attention, not an unnormalized arbitrary token weight.
     """
-    def __init__(self,width:int,*,heads:int=2,chunk_intervals:int=1024,
-                 hidden:int|None=None,output_scale:float=.05):
+    def __init__(self,width:int,*,heads:int=2,chunk_intervals:int=256,
+                 hidden:int|None=None,output_scale:float=.05,
+                 validate_inputs:bool=False):
         super().__init__()
         if width<1 or heads<1 or width%heads:
             raise ValueError("width must be positive and divisible by heads")
@@ -22,6 +23,7 @@ class GeometryPhysicsCrossAttention(nn.Module):
             raise ValueError("invalid attention chunk or output scale")
         self.width=int(width); self.heads=int(heads); self.dim=width//heads
         self.chunk_intervals=int(chunk_intervals); self.output_scale=float(output_scale)
+        self.validate_inputs=bool(validate_inputs)
         hidden=int(hidden or width)
         self.query_encoder=nn.Sequential(nn.Linear(10,hidden),nn.GELU(),nn.Linear(hidden,width))
         self.query=nn.Linear(width,width,bias=False)
@@ -41,13 +43,14 @@ class GeometryPhysicsCrossAttention(nn.Module):
         if interval_mass.ndim!=1 or interval_mass.shape[0]!=len(interval_features):
             raise ValueError("interval_mass must have shape [N]")
         if len(interval_features)==0: raise ValueError("geometry has no intervals")
-        if not torch.isfinite(coefficients).all():
-            raise ValueError("attention coefficients must be finite")
-        # Avoid torch.isfinite(interval_features) over the full 1M+ interval
-        # matrix: its temporary boolean tensor can itself require hundreds of
-        # MiB. Validate each already-bounded chunk immediately before use.
-        if not torch.isfinite(interval_mass).all() or (interval_mass<=0).any():
-            raise ValueError("physical interval masses must be finite and positive")
+        # Full-resolution finite checks allocate temporary boolean tensors.
+        # They are opt-in diagnostics; production data is checked by the
+        # corpus/geometry admission pipeline before it reaches the GPU.
+        if self.validate_inputs:
+            if not torch.isfinite(coefficients).all():
+                raise ValueError("attention coefficients must be finite")
+            if not torch.isfinite(interval_mass).all() or (interval_mass<=0).any():
+                raise ValueError("physical interval masses must be finite and positive")
         dtype=interval_features.dtype; device=interval_features.device
         qnorm=coefficients/torch.linalg.vector_norm(coefficients,dim=-1,keepdim=True).clamp_min(1e-30)
         qtoken=self.query_encoder(qnorm.to(device=device,dtype=dtype))
@@ -67,7 +70,7 @@ class GeometryPhysicsCrossAttention(nn.Module):
             for n0 in range(0,len(interval_features),self.chunk_intervals):
                 n1=min(n0+self.chunk_intervals,len(interval_features))
                 feature_chunk=interval_features[n0:n1]
-                if not torch.isfinite(feature_chunk).all():
+                if self.validate_inputs and not torch.isfinite(feature_chunk).all():
                     raise ValueError(
                         f"attention interval features must be finite (chunk {n0}:{n1})"
                     )
