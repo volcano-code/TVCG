@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import torch
 from torch import Tensor, nn
+from torch.utils.checkpoint import checkpoint
 
 
 class GeometryPhysicsCrossAttention(nn.Module):
@@ -48,11 +49,12 @@ class GeometryPhysicsCrossAttention(nn.Module):
         qnorm=coefficients/torch.linalg.vector_norm(coefficients,dim=-1,keepdim=True).clamp_min(1e-30)
         qtoken=self.query_encoder(qnorm.to(device=device,dtype=dtype))
         q=self.query(qtoken).reshape(-1,self.heads,self.dim)
-        keys=self.key(interval_features).reshape(-1,self.heads,self.dim)
-        values=self.value(interval_features).reshape(-1,self.heads,self.dim)
-        log_mass=torch.log((interval_mass/interval_mass.sum()).to(dtype=dtype).clamp_min(1e-30))
+        log_mass=torch.log(interval_mass.to(dtype=dtype).clamp_min(1e-30)) - torch.log(
+            interval_mass.to(dtype=dtype).sum().clamp_min(1e-30)
+        )
         contexts=[]; entropies=[]
-        q_chunk=max(1,min(32,len(coefficients))); scale=1.0/math.sqrt(self.dim)
+        q_chunk=1
+        scale=1.0/math.sqrt(self.dim)
         for q0 in range(0,len(coefficients),q_chunk):
             qc=q[q0:q0+q_chunk]
             running_max=torch.full((len(qc),self.heads,1),-torch.inf,device=device,dtype=dtype)
@@ -61,15 +63,36 @@ class GeometryPhysicsCrossAttention(nn.Module):
             score_sum=torch.zeros_like(running_max)
             for n0 in range(0,len(interval_features),self.chunk_intervals):
                 n1=min(n0+self.chunk_intervals,len(interval_features))
-                scores=torch.einsum("qhd,nhd->qhn",qc,keys[n0:n1])*scale
-                scores=scores+log_mass[n0:n1].view(1,1,-1)
-                chunk_max=scores.amax(dim=-1,keepdim=True)
+                feature_chunk=interval_features[n0:n1]
+                log_mass_chunk=log_mass[n0:n1]
+
+                def project_score_chunk(q_chunk_input, feature_input, log_mass_input):
+                    key_chunk=self.key(feature_input).reshape(-1,self.heads,self.dim)
+                    value_chunk=self.value(feature_input).reshape(-1,self.heads,self.dim)
+                    scores=torch.einsum("qhd,nhd->qhn",q_chunk_input,key_chunk)*scale
+                    scores=scores+log_mass_input.view(1,1,-1)
+                    local_max=scores.amax(dim=-1,keepdim=True)
+                    weights=torch.exp(scores-local_max)
+                    local_denom=weights.sum(dim=-1,keepdim=True)
+                    local_value=torch.einsum("qhn,nhd->qhd",weights,value_chunk)
+                    local_score=(weights*scores).sum(dim=-1,keepdim=True)
+                    return local_max,local_denom,local_value,local_score
+
+                if self.training and torch.is_grad_enabled():
+                    chunk_max,chunk_denom,chunk_value,chunk_score=checkpoint(
+                        project_score_chunk,qc,feature_chunk,log_mass_chunk,
+                        use_reentrant=False
+                    )
+                else:
+                    chunk_max,chunk_denom,chunk_value,chunk_score=project_score_chunk(
+                        qc,feature_chunk,log_mass_chunk
+                    )
                 next_max=torch.maximum(running_max,chunk_max)
                 old_scale=torch.exp(running_max-next_max)
-                weights=torch.exp(scores-next_max)
-                denom=denom*old_scale+weights.sum(dim=-1,keepdim=True)
-                value_sum=value_sum*old_scale+torch.einsum("qhn,nhd->qhd",weights,values[n0:n1])
-                score_sum=score_sum*old_scale+(weights*scores).sum(dim=-1,keepdim=True)
+                chunk_scale=torch.exp(chunk_max-next_max)
+                denom=denom*old_scale+chunk_denom*chunk_scale
+                value_sum=value_sum*old_scale+chunk_value*chunk_scale
+                score_sum=score_sum*old_scale+chunk_score*chunk_scale
                 running_max=next_max
             context=value_sum/denom.clamp_min(1e-30)
             log_z=running_max+torch.log(denom.clamp_min(1e-30))
