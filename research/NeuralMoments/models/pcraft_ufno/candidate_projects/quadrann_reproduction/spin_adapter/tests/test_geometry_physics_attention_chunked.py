@@ -4,6 +4,7 @@ import math
 import unittest
 
 import torch
+from torch.utils.checkpoint import checkpoint
 
 from research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.geometry_physics_attention import (
     GeometryPhysicsCrossAttention,
@@ -80,9 +81,15 @@ class GeometryPhysicsAttentionChunkTests(unittest.TestCase):
         self.module.train()
         q = self.q.detach().clone().requires_grad_(True)
         features = self.features.detach().clone().requires_grad_(True)
-        correction, _ = self.module(q, features, self.mass)
-        # Include a query derivative so the test exercises the nested graph
-        # used by UnifiedM80SQNO's Jacobian supervision.
+        def attention_with_diagnostics(q_input, feature_input, mass_input):
+            correction, diagnostics = self.module(q_input, feature_input, mass_input)
+            return correction, diagnostics["attention_entropy"]
+        correction, _ = checkpoint(
+            attention_with_diagnostics, q, features, self.mass,
+            use_reentrant=False,
+        )
+        # Include a query derivative so the test exercises the outer
+        # checkpointed graph used by UnifiedM80SQNO's Jacobian supervision.
         jac = torch.autograd.grad(
             correction.sum(), q, create_graph=True, retain_graph=True
         )[0]
