@@ -69,6 +69,13 @@ class GeometryPhysicsAttentionChunkTests(unittest.TestCase):
             else:
                 self.assertTrue(torch.allclose(got, want, atol=2e-9, rtol=2e-9))
 
+
+    def test_nonfinite_feature_is_rejected_with_chunked_validation(self):
+        features = self.features.detach().clone()
+        features[17, 3] = float("nan")
+        with self.assertRaisesRegex(ValueError, "chunk"):
+            self.module(self.q.detach(), features, self.mass)
+
     def test_checkpointed_streaming_backward_is_finite(self):
         self.module.train()
         q = self.q.detach().clone().requires_grad_(True)
