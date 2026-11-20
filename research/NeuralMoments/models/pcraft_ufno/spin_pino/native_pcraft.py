@@ -565,15 +565,16 @@ class PhysicsStateSlicing(nn.Module):
         for start in range(0,n,point_chunk_size):
             stop=min(start+point_chunk_size,n)
             f=features[start:stop]
-            def deslice_fn(f_chunk):
-                x_mid,assignment,_=project_and_assign(f_chunk,mass[start:stop])
+            m=mass[start:stop]
+            def deslice_fn(f_chunk,m_chunk):
+                x_mid,assignment,_=project_and_assign(f_chunk,m_chunk)
                 point_update=torch.einsum("hsd,nhs->nhd",attended,assignment).reshape(len(f_chunk),self.width)
                 x=f_chunk+self.attn_dropout(self.to_out(point_update).to(f_chunk.dtype))
                 return x+self.ffn_dropout(self.ffn(self.ffn_norm(x)).to(x.dtype))
             if self.training and torch.is_grad_enabled():
-                updated=checkpoint(deslice_fn,f,use_reentrant=False)
+                updated=checkpoint(deslice_fn,f,m,use_reentrant=False)
             else:
-                updated=deslice_fn(f)
+                updated=deslice_fn(f,m)
             output_chunks.append(updated)
         output=torch.cat(output_chunks,dim=0)
 
