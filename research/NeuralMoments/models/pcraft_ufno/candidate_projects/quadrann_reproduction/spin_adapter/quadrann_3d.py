@@ -91,7 +91,6 @@ class InitialGeometryLayer(MessagePassing):
 
     def message(self, xyz_i, xyz_j, density_j):
         delta = xyz_j - xyz_i
-
         features = torch.cat((
             density_j,
             xyz_j,
@@ -99,8 +98,17 @@ class InitialGeometryLayer(MessagePassing):
             delta,
             positional_encoding(delta, self.pe_rel),
         ), dim=-1)
-
         return self.mlp(features)
+
+    def forward_chunk(self, xyz_source, density_source, xyz_target, density_target,
+                      edge_index, *, source_count):
+        """Bipartite message pass for a target chunk; source nodes stay global."""
+        return self.propagate(
+            edge_index,
+            xyz=(xyz_source, xyz_target),
+            density=(density_source, density_target),
+            size=(source_count, len(xyz_target)),
+        )
 
 
 class FeaturePropagationLayer(MessagePassing):
@@ -127,6 +135,16 @@ class FeaturePropagationLayer(MessagePassing):
             x_j-x_i,
             global_context_i,
         ), dim=-1))
+
+    def forward_chunk(self, x_source, x_target, global_context_target,
+                      edge_index, *, source_count):
+        """Bipartite message pass with all source states and local targets."""
+        return self.propagate(
+            edge_index,
+            x=(x_source, x_target),
+            global_context=(global_context_target, global_context_target),
+            size=(source_count, len(x_target)),
+        )
 
 
 class SpinQuadrANN3D(nn.Module):
