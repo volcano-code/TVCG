@@ -1,15 +1,15 @@
-"""Strict manifest-backed corpus for Unified M80+SQNO training.
+"""Manifest-backed corpus adapter for Unified M80+SQNO training.
 
-The loader preserves partial derivative supervision and source-group splits.
-It adapts native RLE geometry to the existing P-CRAFT input contract and
-never fabricates missing Jacobian labels.
+Supports both the original internal schema and Work Phase 2.10 corpus.v1.
+Work's RLE is a conditioning representation: its moments are derived from
+RLE and are deliberately NOT equated to the continuous mesh teacher moments.
 """
 from __future__ import annotations
 
 from hashlib import sha256
 from pathlib import Path, PurePosixPath
 import json
-from typing import Any
+from typing import Any, Iterable
 
 import numpy as np
 
@@ -42,93 +42,168 @@ def safe_member(root: Path, relative: str) -> Path:
 
 
 class UnifiedOperatorCorpus:
-    """Read immutable RLE geometry + Moment/partial-Jacobian NPZ records.
+    """Read immutable RLE geometry and Moment/partial-Jacobian NPZ records.
 
-    Manifest schema:
-      {"schema":"tvcg.unified-operator-corpus.v1",
-       "records":[{"id","group_id","split","status","geometry_file",
-       "geometry_sha256","labels_file","labels_sha256","source_type"}]}
+    Internal schema: tvcg.unified-operator-corpus.v1
+    Work schema: phase2.10.corpus.v1
 
-    Geometry NPZ uses the existing native P-CRAFT RLE schema:
-    columns, origin, h, side (or native_resolution), density,
-    fixed_moments, original_moments.
+    Work split mapping:
+      train -> train
+      development -> val
+      fixed_benchmark -> test (locked benchmark; not an OOD-generalization claim)
+      train_partial / excluded records -> ignored
 
-    Labels NPZ requires queries and moments. Full and restricted derivative
-    arrays are optional and retain independent boolean masks.
+    Work full manifests use absolute local asset paths. Set
+    allow_absolute_paths=True explicitly for those manifests. Portable sample
+    ZIPs use relative paths and need no such option.
     """
 
     SCHEMA = "tvcg.unified-operator-corpus.v1"
+    WORK_SCHEMA = "phase2.10.corpus.v1"
     SPLITS = ("train", "val", "test")
-    GEOMETRY_REQUIRED = {
-        "columns", "origin", "h", "fixed_moments", "original_moments",
-    }
+    GEOMETRY_REQUIRED = {"columns", "origin", "h", "fixed_moments"}
     LABEL_REQUIRED = {"queries", "moments"}
     LABEL_OPTIONAL = {
-        "jacobian", "valid_mask", "derivative_valid", "restricted_basis",
-        "restricted_jacobian", "restricted_valid", "restricted_dimension",
-        "query_status", "event_state",
+        "jacobian", "valid_mask", "moment_valid", "derivative_valid",
+        "restricted_basis", "restricted_jacobian", "restricted_valid",
+        "restricted_dimension", "query_status", "event_state", "event_valid",
+        "restricted_event_valid", "event_scope", "query_id", "proposal_index",
+        "stratum", "ambient_event_valid", "native_output_triangulation_event_valid",
+        "event_margin", "continuous_reference", "continuous_absolute_errors",
+        "continuous_reference_uncertainty_indicators", "finite_difference_audit",
+        "chart_stable_at_initial_epsilon", "minimum_reviewed_coarse_epsilon",
+        "column_valid", "column_event_valid", "column_jacobian",
+        "restricted_chart_dimension", "restricted_column_valid",
+        "restricted_column_event_valid", "restricted_column_jacobian",
+        "restricted_chart_basis", "column_fd_steps", "restricted_column_fd_steps",
+        "derivative_valid_reason", "conditioning_moments_rle1024",
+        "full_moments", "queries_source_frame", "moments_source_frame",
+        "queries_before_positive_l2", "continuous_reference_source_frame",
+        "continuous_absolute_errors_source_frame",
+        "continuous_reference_uncertainty_indicators_source_frame",
+        "continuous_0p1pct_report_mask", "continuous_1pct_report_mask",
     }
 
-    def __init__(self, manifest_path: str | Path, *, grid_size: int = 64):
+    def __init__(
+        self,
+        manifest_path: str | Path,
+        *,
+        grid_size: int = 64,
+        allow_absolute_paths: bool = False,
+        required_splits: Iterable[str] = ("train", "val", "test"),
+    ):
         self.path = Path(manifest_path).resolve(strict=True)
         self.root = self.path.parent
+        self.allow_absolute_paths = bool(allow_absolute_paths)
         self.manifest_sha256 = file_sha256(self.path)
         self.document = json.loads(self.path.read_text())
-        if self.document.get("schema") != self.SCHEMA:
-            raise ValueError(f"unsupported manifest schema: expected {self.SCHEMA}")
+        schema = self.document.get("schema")
+        if schema not in {self.SCHEMA, self.WORK_SCHEMA}:
+            raise ValueError(
+                f"unsupported manifest schema: {schema!r}; "
+                f"expected {self.SCHEMA!r} or {self.WORK_SCHEMA!r}"
+            )
+        self.schema = schema
         if grid_size < 1:
             raise ValueError("grid_size must be positive")
         self.grid_size = int(grid_size)
-        self.records = [
-            row for row in self.document.get("records", [])
-            if row.get("status") == "qualified"
-        ]
+        self.records = self._normalize_records(self.document.get("records", []))
         if not self.records:
-            raise ValueError("manifest has no qualified records")
+            raise ValueError("manifest has no admitted records")
         self.splits = {
             split: sorted(
-                [row for row in self.records if row.get("split") == split],
+                [row for row in self.records if row["split"] == split],
                 key=lambda row: row["id"],
             )
             for split in self.SPLITS
         }
-        self._validate_manifest()
+        self._validate_manifest(set(required_splits))
 
-    def _validate_manifest(self) -> None:
+    def _normalize_records(self, records: Any) -> list[dict[str, Any]]:
+        if not isinstance(records, list):
+            raise ValueError("manifest records must be a list")
+        normalized = []
+        for original in records:
+            if not isinstance(original, dict):
+                raise ValueError("manifest record must be an object")
+            if original.get("status", "qualified") != "qualified":
+                continue
+            source_split = original.get("split")
+            if source_split == "train_partial":
+                continue
+            if self.schema == self.WORK_SCHEMA:
+                split = {
+                    "train": "train",
+                    "development": "val",
+                    "fixed_benchmark": "test",
+                }.get(source_split)
+                if split is None:
+                    continue
+                row = dict(original)
+                row.update({
+                    "id": original.get("geometry_id"),
+                    "group_id": original.get("source_group_id"),
+                    "split": split,
+                    "status": "qualified",
+                    "source_split": source_split,
+                })
+            else:
+                row = dict(original)
+                row.setdefault("status", "qualified")
+                row["source_split"] = source_split
+            normalized.append(row)
+        return normalized
+
+    def _resolve_asset(self, value: str) -> Path:
+        if not isinstance(value, str) or not value:
+            raise ValueError("asset path must be a nonempty string")
+        candidate = Path(value)
+        if candidate.is_absolute():
+            if not self.allow_absolute_paths:
+                raise ValueError(
+                    "absolute asset path requires allow_absolute_paths=True"
+                )
+            return candidate.resolve(strict=True)
+        return safe_member(self.root, value).resolve(strict=True)
+
+    def _validate_manifest(self, required_splits: set[str]) -> None:
+        unknown = required_splits - set(self.SPLITS)
+        if unknown:
+            raise ValueError(f"unknown required splits: {sorted(unknown)}")
         ids: set[str] = set()
         owners: dict[str, str] = {}
-        for split, rows in self.splits.items():
-            for row in rows:
-                for key in ("id", "group_id", "geometry_file", "geometry_sha256",
-                            "labels_file", "labels_sha256", "source_type"):
-                    if key not in row:
-                        raise ValueError(f"manifest row missing {key}")
-                rid = row["id"]
-                if not isinstance(rid, str) or not rid or rid in ids:
-                    raise ValueError(f"duplicate or invalid record id: {rid!r}")
-                ids.add(rid)
-                group = row["group_id"]
-                if not isinstance(group, str) or not group:
-                    raise ValueError(f"{rid}: missing source group_id")
-                if group in owners and owners[group] != split:
-                    raise ValueError(f"source-group leakage: {group}")
-                owners[group] = split
-                for key in ("geometry_sha256", "labels_sha256"):
-                    value = row[key]
-                    if not isinstance(value, str) or len(value) != 64:
-                        raise ValueError(f"{rid}: invalid {key}")
-                    try:
-                        int(value, 16)
-                    except ValueError as exc:
-                        raise ValueError(f"{rid}: invalid {key}") from exc
-                safe_member(self.root, row["geometry_file"])
-                safe_member(self.root, row["labels_file"])
-        if not self.splits["train"]:
-            raise ValueError("empty train split")
-        if not self.splits["val"]:
-            raise ValueError("empty val split")
-        if not self.splits["test"]:
-            raise ValueError("empty test split")
+        for row in self.records:
+            for key in ("id", "group_id", "split", "geometry_file",
+                        "geometry_sha256", "labels_file", "labels_sha256",
+                        "source_type"):
+                if key not in row or row[key] is None:
+                    raise ValueError(f"manifest row missing {key}")
+            rid = row["id"]
+            if not isinstance(rid, str) or not rid or rid in ids:
+                raise ValueError(f"duplicate or invalid record id: {rid!r}")
+            ids.add(rid)
+            group = row["group_id"]
+            if not isinstance(group, str) or not group:
+                raise ValueError(f"{rid}: missing source group_id")
+            split = row["split"]
+            if split not in self.SPLITS:
+                raise ValueError(f"{rid}: invalid normalized split {split!r}")
+            if group in owners and owners[group] != split:
+                raise ValueError(f"source-group leakage: {group}")
+            owners[group] = split
+            for key in ("geometry_sha256", "labels_sha256"):
+                value = row[key]
+                if not isinstance(value, str) or len(value) != 64:
+                    raise ValueError(f"{rid}: invalid {key}")
+                try:
+                    int(value, 16)
+                except ValueError as exc:
+                    raise ValueError(f"{rid}: invalid {key}") from exc
+            self._resolve_asset(row["geometry_file"])
+            self._resolve_asset(row["labels_file"])
+        for split in required_splits:
+            if not self.splits[split]:
+                raise ValueError(f"empty required split: {split}")
 
     def split_summary(self) -> dict[str, Any]:
         return {
@@ -136,6 +211,7 @@ class UnifiedOperatorCorpus:
                 "records": len(rows),
                 "groups": len({row["group_id"] for row in rows}),
                 "group_ids": sorted({row["group_id"] for row in rows}),
+                "source_split": sorted({row.get("source_split", split) for row in rows}),
             }
             for split, rows in self.splits.items()
         }
@@ -146,8 +222,8 @@ class UnifiedOperatorCorpus:
             return {key: np.array(archive[key], copy=True) for key in archive.files}
 
     def load(self, row: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
-        geometry_path = safe_member(self.root, row["geometry_file"])
-        labels_path = safe_member(self.root, row["labels_file"])
+        geometry_path = self._resolve_asset(row["geometry_file"])
+        labels_path = self._resolve_asset(row["labels_file"])
         if file_sha256(geometry_path) != row["geometry_sha256"]:
             raise ValueError(f"{row['id']}: geometry SHA-256 mismatch")
         if file_sha256(labels_path) != row["labels_sha256"]:
@@ -156,7 +232,13 @@ class UnifiedOperatorCorpus:
         raw_geometry = self._load_npz(geometry_path)
         missing_geometry = self.GEOMETRY_REQUIRED - set(raw_geometry)
         if missing_geometry or not ({"side", "native_resolution"} & set(raw_geometry)):
-            raise ValueError(f"{row['id']}: invalid RLE geometry schema; missing={sorted(missing_geometry)}")
+            raise ValueError(
+                f"{row['id']}: invalid RLE geometry schema; "
+                f"missing={sorted(missing_geometry)}"
+            )
+        # Work's RLE NPZ intentionally omits original_moments. Derive the
+        # conditioning-grid moment identity from fixed + editable RLE cells.
+        # Mesh-teacher full_moments remain a separate label/provenance field.
         geometry = geometry_from_columns(raw_geometry)
         if self.grid_size > geometry["side"] or geometry["side"] % self.grid_size:
             raise ValueError(f"{row['id']}: native side must be divisible by grid_size")
@@ -164,12 +246,8 @@ class UnifiedOperatorCorpus:
 
         raw_labels = self._load_npz(labels_path)
         missing_labels = self.LABEL_REQUIRED - set(raw_labels)
-        unknown_labels = set(raw_labels) - self.LABEL_REQUIRED - self.LABEL_OPTIONAL
-        if missing_labels or unknown_labels:
-            raise ValueError(
-                f"{row['id']}: label schema mismatch; missing={sorted(missing_labels)}, "
-                f"unknown={sorted(unknown_labels)}"
-            )
+        if missing_labels:
+            raise ValueError(f"{row['id']}: missing label arrays {sorted(missing_labels)}")
         q = np.asarray(raw_labels["queries"])
         moments = np.asarray(raw_labels["moments"])
         if q.ndim != 2 or q.shape[1] != 10 or not len(q):
@@ -181,18 +259,26 @@ class UnifiedOperatorCorpus:
         if (np.linalg.norm(q.astype(np.float64), axis=1) <= 0).any():
             raise ValueError(f"{row['id']}: zero quadric query")
 
-        labels: dict[str, np.ndarray] = {
-            "queries": q,
-            "moments": moments,
-            "valid_mask": np.asarray(raw_labels.get("valid_mask", np.ones(len(q), dtype=bool))),
-        }
-        if labels["valid_mask"].dtype != np.bool_ or labels["valid_mask"].shape != (len(q),):
-            raise ValueError(f"{row['id']}: valid_mask must be boolean [Q]")
-        if not labels["valid_mask"].any():
+        if "valid_mask" in raw_labels:
+            valid = np.asarray(raw_labels["valid_mask"])
+        elif "moment_valid" in raw_labels:
+            valid = np.asarray(raw_labels["moment_valid"])
+        elif "query_status" in raw_labels:
+            valid = np.asarray(raw_labels["query_status"] == "accepted_moment")
+        else:
+            valid = np.ones(len(q), dtype=bool)
+        if valid.dtype != np.bool_ or valid.shape != (len(q),):
+            raise ValueError(f"{row['id']}: valid Moment mask must be boolean [Q]")
+        if not valid.any():
             raise ValueError(f"{row['id']}: no valid Moment queries")
-        if not np.isfinite(moments[labels["valid_mask"]]).all():
+        if not np.isfinite(moments[valid]).all():
             raise ValueError(f"{row['id']}: active Moment targets must be finite")
 
+        labels: dict[str, Any] = {
+            "queries": q,
+            "moments": moments,
+            "valid_mask": valid,
+        }
         if "jacobian" in raw_labels:
             jac = np.asarray(raw_labels["jacobian"])
             if jac.shape != (len(q), 10, 10):
@@ -210,8 +296,10 @@ class UnifiedOperatorCorpus:
             labels["restricted_dimension"] = np.asarray(raw_labels["restricted_dimension"])
         if "query_status" in raw_labels:
             labels["query_status"] = np.asarray(raw_labels["query_status"])
-        if "event_state" in raw_labels:
-            labels["event_state"] = np.asarray(raw_labels["event_state"])
+        if "event_valid" in raw_labels:
+            labels["event_valid"] = np.asarray(raw_labels["event_valid"])
+        if "restricted_event_valid" in raw_labels:
+            labels["restricted_event_valid"] = np.asarray(raw_labels["restricted_event_valid"])
 
         for key in ("jacobian_valid_mask", "restricted_valid"):
             if key in labels and (
@@ -220,8 +308,12 @@ class UnifiedOperatorCorpus:
                 raise ValueError(f"{row['id']}: {key} must be boolean [Q]")
         if "jacobian_valid_mask" not in labels and "target_jacobian" in labels:
             labels["jacobian_valid_mask"] = labels["valid_mask"].copy()
-        if "jacobian_valid_mask" in labels and "target_jacobian" not in labels and labels["jacobian_valid_mask"].any():
-            raise ValueError(f"{row['id']}: derivative_valid selects full Jacobian rows but jacobian labels are absent")
+        if ("jacobian_valid_mask" in labels and "target_jacobian" not in labels
+                and labels["jacobian_valid_mask"].any()):
+            raise ValueError(
+                f"{row['id']}: derivative_valid selects full Jacobian rows "
+                "but Jacobian labels are absent"
+            )
         if "restricted_basis" in labels or "restricted_jacobian" in labels:
             if not {"restricted_basis", "restricted_jacobian"}.issubset(labels):
                 raise ValueError(f"{row['id']}: restricted basis and labels must be paired")
@@ -254,10 +346,26 @@ class UnifiedOperatorCorpus:
                 if not np.isfinite(labels["restricted_jacobian"][i, :, :d]).all():
                     raise ValueError(f"{row['id']}: active restricted target is nonfinite")
 
-        # Keep arrays immutable; downstream training converts them to tensors.
+        if "full_moments" in raw_labels and "original_moments" in row:
+            teacher_full = np.asarray(raw_labels["full_moments"])
+            manifest_full = np.asarray(row["original_moments"])
+            if teacher_full.shape != (10,) or manifest_full.shape != (10,):
+                raise ValueError(f"{row['id']}: original/full moments must be [10]")
+            if not np.allclose(teacher_full, manifest_full, rtol=1e-10, atol=1e-12):
+                raise ValueError(f"{row['id']}: manifest original_moments != label full_moments")
+
+        # Preserve non-training audit arrays without feeding them to train_step.
+        labels["audit_metadata"] = {
+            key: value for key, value in raw_labels.items()
+            if key not in self.LABEL_REQUIRED | self.LABEL_OPTIONAL
+        }
         for value in labels.values():
             if isinstance(value, np.ndarray):
                 value.flags.writeable = False
+            elif isinstance(value, dict):
+                for nested in value.values():
+                    if isinstance(nested, np.ndarray):
+                        nested.flags.writeable = False
         for value in geometry.values():
             if isinstance(value, np.ndarray):
                 value.flags.writeable = False
