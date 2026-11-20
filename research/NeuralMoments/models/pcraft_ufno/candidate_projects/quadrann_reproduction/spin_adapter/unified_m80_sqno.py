@@ -256,8 +256,8 @@ class UnifiedM80SQNO(nn.Module):
                     outputs=geometry_attention_with_jacobian(*inputs)
                 corr,jac,*diag_values=outputs
                 correction_parts.append(corr); jacobian_parts.append(jac)
-                for key,value in zip(sorted(("attention_entropy",
-                        "attention_effective_support","attention_mass_sum",
+                for key,value in zip(sorted(("attention_effective_support",
+                        "attention_entropy","attention_mass_sum",
                         "attention_query_norm")),diag_values):
                     diagnostic_parts.setdefault(key,[]).append(value.detach())
             corrections.append(torch.cat(correction_parts,dim=0))
