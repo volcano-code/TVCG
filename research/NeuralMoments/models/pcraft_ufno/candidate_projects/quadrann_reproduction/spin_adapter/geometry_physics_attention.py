@@ -41,8 +41,11 @@ class GeometryPhysicsCrossAttention(nn.Module):
         if interval_mass.ndim!=1 or interval_mass.shape[0]!=len(interval_features):
             raise ValueError("interval_mass must have shape [N]")
         if len(interval_features)==0: raise ValueError("geometry has no intervals")
-        if not torch.isfinite(coefficients).all() or not torch.isfinite(interval_features).all():
-            raise ValueError("attention inputs must be finite")
+        if not torch.isfinite(coefficients).all():
+            raise ValueError("attention coefficients must be finite")
+        # Avoid torch.isfinite(interval_features) over the full 1M+ interval
+        # matrix: its temporary boolean tensor can itself require hundreds of
+        # MiB. Validate each already-bounded chunk immediately before use.
         if not torch.isfinite(interval_mass).all() or (interval_mass<=0).any():
             raise ValueError("physical interval masses must be finite and positive")
         dtype=interval_features.dtype; device=interval_features.device
@@ -64,6 +67,10 @@ class GeometryPhysicsCrossAttention(nn.Module):
             for n0 in range(0,len(interval_features),self.chunk_intervals):
                 n1=min(n0+self.chunk_intervals,len(interval_features))
                 feature_chunk=interval_features[n0:n1]
+                if not torch.isfinite(feature_chunk).all():
+                    raise ValueError(
+                        f"attention interval features must be finite (chunk {n0}:{n1})"
+                    )
                 log_mass_chunk=log_mass[n0:n1]
 
                 def project_score_chunk(q_chunk_input, feature_input, log_mass_input):
