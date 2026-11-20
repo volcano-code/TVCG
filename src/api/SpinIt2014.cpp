@@ -87,6 +87,56 @@ void matrixJson(std::ostream& output, const Eigen::Matrix3d& value)
 }
 
 
+physics::RawMassMoments10 sourceGeometricMoments(
+    const voxel::VoxelDomain& domain
+)
+{
+    const auto& grid = domain.grid();
+    const Eigen::Vector3d spacing =
+        (grid.maximum - grid.minimum).cwiseQuotient(grid.dimensions.cast<double>());
+    physics::RawMassMoments10 total;
+    for (std::size_t index = 0; index < domain.cellCount(); ++index)
+    {
+        if (!domain.material(index)) continue;
+        const Eigen::Vector3i cell = domain.cellCoordinates(index);
+        const Eigen::Vector3d center = grid.minimum +
+            (cell.cast<double>().array() + 0.5).matrix().cwiseProduct(spacing);
+        const double volume = spacing.prod();
+        physics::RawMassMoments10::Vector values =
+            physics::RawMassMoments10::Vector::Zero();
+        values(physics::RawMassMoments10::M) = volume;
+        values(physics::RawMassMoments10::LX) = volume * center.x();
+        values(physics::RawMassMoments10::LY) = volume * center.y();
+        values(physics::RawMassMoments10::LZ) = volume * center.z();
+        values(physics::RawMassMoments10::QXX) =
+            volume * (center.x() * center.x() + spacing.x() * spacing.x() / 12.0);
+        values(physics::RawMassMoments10::QYY) =
+            volume * (center.y() * center.y() + spacing.y() * spacing.y() / 12.0);
+        values(physics::RawMassMoments10::QZZ) =
+            volume * (center.z() * center.z() + spacing.z() * spacing.z() / 12.0);
+        values(physics::RawMassMoments10::QYZ) = volume * center.y() * center.z();
+        values(physics::RawMassMoments10::QXZ) = volume * center.x() * center.z();
+        values(physics::RawMassMoments10::QXY) = volume * center.x() * center.y();
+        total += physics::RawMassMoments10::fromMassMoments(
+            physics::RawMassMoments10(values).toMassMoments()
+        );
+    }
+    return total;
+}
+
+
+void byteMaskJson(std::ostream& output, const std::vector<unsigned char>& mask)
+{
+    output << '[';
+    for (std::size_t i = 0; i < mask.size(); ++i)
+    {
+        if (i != 0U) output << ',';
+        output << static_cast<unsigned int>(mask[i]);
+    }
+    output << ']';
+}
+
+
 std::string diagnostics(
     const spin2014::AdaptiveVoxelSpinResult& result,
     const spin2014::AdaptiveVoxelSpinRequest& request,
@@ -173,6 +223,66 @@ std::string diagnostics(
     if(request.slqp.algorithm==spin2014::SlqpAlgorithm::AuditedKktRestorationV1) {
         output<<",\n  \"slqp_algorithm\":\"AUDITED_KKT_RESTORATION_V1\",\n  \"optimality_scope\":\"FIRST_ORDER_KKT_ONLY\",\n  \"slqp_audit_controls\":";
         spin2014::writeSlqpAuditControlsJson(output,request.slqp);
+    }
+    // Export the exact initial source-domain occupancy separately from the
+    // optimized final material.  Moments are geometric unit-density moments
+    // in the source coordinate units, not an SI mass declaration.
+    if (request.domain)
+    {
+        const auto& domain = *request.domain;
+        const auto& grid = domain.grid();
+        const physics::RawMassMoments10 initialModel =
+            sourceGeometricMoments(domain);
+        const Eigen::Matrix3d modelToTargetLinear =
+            request.targetFrame.axes.transpose();
+        const Eigen::Vector3d modelToTargetTranslation =
+            -modelToTargetLinear * request.targetFrame.origin;
+        const physics::RawMassMoments10 initialTarget =
+            initialModel.transformed(modelToTargetLinear, modelToTargetTranslation);
+        std::vector<unsigned char> fixedMask(domain.cellCount(), 0U);
+        std::vector<unsigned char> designMask(domain.cellCount(), 0U);
+        for (std::size_t i = 0; i < domain.cellCount(); ++i)
+        {
+            fixedMask[i] = domain.material(i) && !domain.carveable(i) ? 1U : 0U;
+            designMask[i] = domain.material(i) && domain.carveable(i) ? 1U : 0U;
+        }
+        output << ",\n  \"initial_state\": {"
+               << "\n    \"schema\": \"spin-it-2014-initial-material-state-v1\","
+               << "\n    \"scope\": \"INITIAL_SOURCE_DOMAIN_NOT_FINAL_OPTIMIZED_MATERIAL\","
+               << "\n    \"domain_artifact_id\": \"" << domain.artifactId() << "\","
+               << "\n    \"grid_dimensions\": [" << grid.dimensions.x() << ','
+               << grid.dimensions.y() << ',' << grid.dimensions.z() << "],"
+               << "\n    \"grid_minimum_model\": ";
+        vectorJson(output, grid.minimum);
+        output << ",\n    \"grid_maximum_model\": ";
+        vectorJson(output, grid.maximum);
+        output << ",\n    \"grid_spacing_model\": ";
+        vectorJson(output, domain.spacing());
+        output << ",\n    \"cell_order\": \"x + nx*(y + ny*z)\","
+               << "\n    \"source_material_mask\": ";
+        byteMaskJson(output, domain.materialMask());
+        output << ",\n    \"source_carveable_mask\": ";
+        byteMaskJson(output, domain.carveableMask());
+        output << ",\n    \"fixed_material_mask\": ";
+        byteMaskJson(output, fixedMask);
+        output << ",\n    \"design_domain_mask\": ";
+        byteMaskJson(output, designMask);
+        output << ",\n    \"initial_geometric_moments_unit_density_model\": ";
+        vectorJson(output, initialModel.values());
+        output << ",\n    \"initial_geometric_moments_unit_density_target\": ";
+        vectorJson(output, initialTarget.values());
+        output << ",\n    \"model_to_target_linear\": ";
+        matrixJson(output, modelToTargetLinear);
+        output << ",\n    \"model_to_target_translation\": ";
+        vectorJson(output, modelToTargetTranslation);
+        output << ",\n    \"target_origin_model\": ";
+        vectorJson(output, request.targetFrame.origin);
+        output << ",\n    \"target_axes_model\": ";
+        matrixJson(output, request.targetFrame.axes);
+        output << ",\n    \"moment_semantics\": \"geometric_volume_moments_at_unit_density_in_source_coordinate_units\","
+               << "\n    \"physical_si_scale_registered\": false,"
+               << "\n    \"quadric_anchor_available\": false"
+               << "\n  }";
     }
     output << ",\n  \"adaptive_passes\": [";
     for (std::size_t index = 0; index < result.adaptiveTrace.size(); ++index)
