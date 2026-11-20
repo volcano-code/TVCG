@@ -140,12 +140,14 @@ class SpinQuadrANNV11(nn.Module):
             # Density for source nodes is evaluated globally once below. This
             # first pass stores target density; edge source densities are
             # filled by indexed assignment without retaining edge messages.
-            initial_chunks.append((start, stop, edge_slice, density_target))
+            initial_chunks.append((start, stop, density_target))
 
         # Assemble per-node density in chunks, then perform initial messages.
-        density = torch.cat([item[3] for item in initial_chunks], dim=0)
+        density = torch.cat([item[2] for item in initial_chunks], dim=0)
         first_features = []
-        for start, stop, edge_slice, _ in initial_chunks:
+        for start, stop, _ in initial_chunks:
+            edge_slice = edge_np[:, start * edges_per_target:stop * edges_per_target].copy()
+            edge_slice[1] -= start
             edge = torch.as_tensor(edge_slice, dtype=torch.long, device=xyz.device)
             features = self.gnn.initial.forward_chunk(
                 coords, density, coords[start:stop], density[start:stop],
@@ -159,7 +161,9 @@ class SpinQuadrANNV11(nn.Module):
             global_mean = features.mean(dim=0, keepdim=True)
             global_context = global_mean.expand(n, -1)
             updated_chunks = []
-            for start, stop, edge_slice, _ in initial_chunks:
+            for start, stop, _ in initial_chunks:
+                edge_slice = edge_np[:, start * edges_per_target:stop * edges_per_target].copy()
+                edge_slice[1] -= start
                 edge = torch.as_tensor(edge_slice, dtype=torch.long, device=xyz.device)
                 updated = layer.forward_chunk(
                     features, features[start:stop], global_context[start:stop],
