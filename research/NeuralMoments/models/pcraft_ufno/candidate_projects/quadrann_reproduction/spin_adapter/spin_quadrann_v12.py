@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import numpy as np
 import torch
 from torch import nn
+from torch.utils.checkpoint import checkpoint
 
 from .spin_quadrann_v11 import SpinQuadrANNV11
 from .batched_moment_operator import BatchedSpinMomentOperator
@@ -39,10 +40,13 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
     """Geometry encoder plus batched query evaluator."""
 
     def __init__(self, *args, query_chunk=16, share_pcraft_encoder=False,
-                 pcraft_width=None, **kwargs):
+                 pcraft_width=None, fusion_chunk_size=1024, **kwargs):
         super().__init__(*args, pcraft_width=pcraft_width, **kwargs)
         self.external_pcraft_required = pcraft_width is not None
         self.query_chunk = int(query_chunk)
+        self.fusion_chunk_size = int(fusion_chunk_size)
+        if self.fusion_chunk_size < 1:
+            raise ValueError("fusion_chunk_size must be positive")
 
         self.batched_moment_operator = BatchedSpinMomentOperator(
             temperature=self.moment_operator.temperature,
@@ -175,23 +179,43 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
             component_context / component_counts[:, None]
         )
 
-        local_component_context = component_context[inverse]
-
         p_local = pcraft["local_features"].to(dtype=dtype)
         p_global = pcraft["global_context"].to(dtype=dtype)
-        p_global_expanded = p_global.unsqueeze(0).expand(
-            len(xyz), -1
-        )
 
-        fused = self.fusion(torch.cat((
-            q_features,
-            final_features,
-            p_local,
-            p_global_expanded,
-            local_component_context,
-        ), dim=-1))
+        # The concatenated per-interval fusion tensor is several GiB at
+        # million-interval resolution. Evaluate the exact same pointwise
+        # fusion MLP in chunks and checkpoint each chunk during training.
+        logit_chunks = []
+        for start in range(0, len(xyz), self.fusion_chunk_size):
+            stop = min(start + self.fusion_chunk_size, len(xyz))
+            q_chunk = q_features[start:stop]
+            final_chunk = final_features[start:stop]
+            p_chunk = p_local[start:stop]
+            inverse_chunk = inverse[start:stop]
 
-        logits = self.weight_head(fused).squeeze(-1)
+            def fusion_chunk_fn(qf, ff, pf, inv,
+                                fusion_module=self.fusion,
+                                weight_module=self.weight_head,
+                                global_context=p_global):
+                component_local = component_context[inv]
+                global_local = global_context.unsqueeze(0).expand(len(qf), -1)
+                fused_chunk = fusion_module(torch.cat(
+                    (qf, ff, pf, global_local, component_local), dim=-1
+                ))
+                return weight_module(fused_chunk).squeeze(-1)
+
+            if self.training and torch.is_grad_enabled():
+                chunk_logits = checkpoint(
+                    fusion_chunk_fn, q_chunk, final_chunk, p_chunk,
+                    inverse_chunk, use_reentrant=False,
+                )
+            else:
+                chunk_logits = fusion_chunk_fn(
+                    q_chunk, final_chunk, p_chunk, inverse_chunk
+                )
+            logit_chunks.append(chunk_logits)
+
+        logits = torch.cat(logit_chunks, dim=0)
 
         # Exactly one mass-prior softmax, once per geometry.
         probabilities = torch.softmax(
@@ -276,7 +300,7 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
             pcraft_local_features=p_local,
             pcraft_global_context=p_global,
             quadrann_features=q_features,
-            component_context=local_component_context,
+            component_context=component_context,
             global_scale_weights=pcraft["global_scale_weights"],
             n_intervals=len(interval_mass),
             n_nodes=len(node_xyz),
