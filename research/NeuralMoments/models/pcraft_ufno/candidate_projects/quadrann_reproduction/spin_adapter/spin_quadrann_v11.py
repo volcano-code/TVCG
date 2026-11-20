@@ -96,7 +96,7 @@ class SpinQuadrANNV11(nn.Module):
 
         self.quadrature_order = quadrature_order
 
-    def _gnn_features(self, xyz, mass, components):
+    def _gnn_features(self, xyz, mass, components, *, return_layer_features=False):
         """Chunk QuadrANN message passing over target intervals.
 
         The topology graph retains global source indices, while each target
@@ -197,6 +197,8 @@ class SpinQuadrANNV11(nn.Module):
             features = torch.cat(updated_chunks, dim=0)
             layer_outputs.append(features)
 
+        if return_layer_features:
+            return layer_outputs, features
         return torch.cat(layer_outputs, dim=-1), features
 
     def forward(
