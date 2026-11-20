@@ -158,12 +158,17 @@ def train(
     gradient_clip: float = 1.0,
     gradient_mode: str = "fixed",
     resume: str | None = None,
+    allow_absolute_assets: bool = False,
 ) -> dict[str, Any]:
     if epochs < 1:
         raise ValueError("epochs must be positive")
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
-    corpus = UnifiedOperatorCorpus(manifest, grid_size=grid_size)
+    corpus = UnifiedOperatorCorpus(
+        manifest,
+        grid_size=grid_size,
+        allow_absolute_paths=allow_absolute_assets,
+    )
     normalizer = MomentNormalizer.fit(corpus)
     _seed_all(seed)
     model = build_model(config_name, device=device)
@@ -308,6 +313,8 @@ def main() -> int:
     parser.add_argument("--gradient-clip", type=float, default=1.0)
     parser.add_argument("--gradient-mode", choices=("fixed", "pcgrad"), default="fixed")
     parser.add_argument("--resume")
+    parser.add_argument("--allow-absolute-assets", action="store_true",
+                        help="allow Work manifests to reference absolute local asset paths")
     args = parser.parse_args()
     result = train(
         args.manifest, args.output, config_name=args.config, device=args.device,
@@ -315,6 +322,7 @@ def main() -> int:
         learning_rate=args.lr, weight_decay=args.weight_decay,
         jacobian_weight=args.jacobian_weight, branch_aux_weight=args.branch_aux_weight,
         gradient_clip=args.gradient_clip, gradient_mode=args.gradient_mode, resume=args.resume,
+        allow_absolute_assets=args.allow_absolute_assets,
     )
     print(json.dumps(result, indent=2, allow_nan=False))
     return 0
