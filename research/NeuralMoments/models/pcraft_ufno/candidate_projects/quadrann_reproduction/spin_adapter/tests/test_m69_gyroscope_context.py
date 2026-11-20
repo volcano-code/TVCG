@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 
 import torch
 
@@ -28,21 +29,20 @@ class M69GyroscopeContextTests(unittest.TestCase):
 
     def test_rejects_non_unit_quadric_anchor(self):
         context = self._context()
-        context.beta_anchor[0] = 2.0
+        beta = context.beta_anchor.clone()
+        beta[0] = 2.0
         with self.assertRaises(ValueError):
-            context.validate()
+            replace(context, beta_anchor=beta).validate()
 
     def test_rejects_wrong_task_schema(self):
         context = self._context()
-        context.task = {"schema": "unknown"}
         with self.assertRaises(ValueError):
-            context.validate()
+            replace(context, task={"schema": "unknown"}).validate()
 
     def test_rejects_invalid_active_mask(self):
         context = self._context()
-        context.active_mask = torch.zeros(9, dtype=torch.bool)
         with self.assertRaises(ValueError):
-            context.validate()
+            replace(context, active_mask=torch.zeros(9, dtype=torch.bool)).validate()
 
 
 if __name__ == "__main__":
