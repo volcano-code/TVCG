@@ -991,7 +991,7 @@ class PcraftNativeMomentOperator(nn.Module):
             scale_features=pino_context.squeeze(0).unsqueeze(0)
             scale_ids=torch.as_tensor([c.grid_size],device=device,dtype=torch.long)
         context=(self.statistics_context(stats)+pino_context).squeeze(0)
-        origin=torch.as_tensor(np.asarray(geometry["origin"],dtype=np.float64),device=device)
+        origin=torch.as_tensor(np.asarray(geometry["origin"],dtype=np.float64).copy(),device=device)
         span=side*float(geometry["h"])
         normalized=2*(xyz-origin)/span-1
         coords=torch.stack((normalized[:,2],normalized[:,1],normalized[:,0]),-1)
