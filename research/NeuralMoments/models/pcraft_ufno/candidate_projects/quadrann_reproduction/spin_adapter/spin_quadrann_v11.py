@@ -136,10 +136,6 @@ class SpinQuadrANNV11(nn.Module):
             density_target = torch.log1p(
                 1.0 / mean_distance.clamp_min(1e-8)
             ).unsqueeze(-1)
-            density_source = torch.zeros((n, 1), dtype=density_target.dtype, device=xyz.device)
-            # Density for source nodes is evaluated globally once below. This
-            # first pass stores target density; edge source densities are
-            # filled by indexed assignment without retaining edge messages.
             initial_chunks.append((start, stop, density_target))
 
         # Assemble per-node density in chunks, then perform initial messages.
@@ -166,8 +162,8 @@ class SpinQuadrANNV11(nn.Module):
                 edge_slice[1] -= start
                 edge = torch.as_tensor(edge_slice, dtype=torch.long, device=xyz.device)
                 updated = layer.forward_chunk(
-                    features, features[start:stop], global_context[start:stop],
-                    edge, source_count=n,
+                    features, features[start:stop], global_context,
+                    global_context[start:stop], edge, source_count=n,
                 )
                 updated_chunks.append(updated)
             features = torch.cat(updated_chunks, dim=0)
