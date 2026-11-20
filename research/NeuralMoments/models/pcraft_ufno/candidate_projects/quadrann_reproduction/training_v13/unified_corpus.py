@@ -64,7 +64,7 @@ class UnifiedOperatorCorpus:
     }
     LABEL_REQUIRED = {"queries", "moments"}
     LABEL_OPTIONAL = {
-        "jacobian", "derivative_valid", "restricted_basis",
+        "jacobian", "valid_mask", "derivative_valid", "restricted_basis",
         "restricted_jacobian", "restricted_valid", "restricted_dimension",
         "query_status", "event_state",
     }
