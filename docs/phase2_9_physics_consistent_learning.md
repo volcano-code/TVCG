@@ -1,5 +1,13 @@
 # Phase 2.9 — Physics-consistent Learning
 
+**Phase 2.9.5 coordinate correction:** native coefficients use doubled cross
+terms while reported moments do not. In structural formulas below, the
+Hessian is now `H = J_c @ B^-1`, with
+`B = diag(1,1,1,1,1,1,1,2,2,2)`; raw `J_c` need not be symmetric.
+See [Faster107 pilot readiness](phase2_9_5_faster107_pilot_readiness.md) for
+the corrected convex-head semantics, partial derivative supervision, current
+reported dataset counts, and the independent development limitation.
+
 ## Scope
 
 Phase 2.8.6 passed the software Release Gate on commit

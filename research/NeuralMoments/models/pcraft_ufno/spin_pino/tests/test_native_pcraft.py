@@ -384,8 +384,9 @@ def test_convex_potential_head_is_scale_invariant_complementary_and_psd():
         2*cache.fixed_moments+cache.design_moments,rtol=1e-8,atol=1e-9)
     deviation=moments-cache.fixed_moments-.5*cache.design_moments
     assert torch.all(deviation.abs()<=.5*cache.absolute_moments+1e-9)
-    assert torch.allclose(jac,jac.T,rtol=1e-7,atol=1e-8)
-    eigenvalues=torch.linalg.eigvalsh((jac+jac.T)/2)
+    hessian=jac/model.native_B
+    assert torch.allclose(hessian,hessian.T,rtol=1e-7,atol=1e-8)
+    eigenvalues=torch.linalg.eigvalsh((hessian+hessian.T)/2)
     assert float(eigenvalues.min().detach())>=-1e-7
     eps=2e-5; fd=torch.empty_like(jac)
     with torch.no_grad():
@@ -427,6 +428,88 @@ def test_convex_potential_checkpoint_roundtrip_and_exact_endpoints(tmp_path):
     assert torch.allclose(empty,cache.fixed_moments)
 
 
+@pytest.mark.parametrize("amplitude_mode",["sigmoid","atan"])
+def test_convex_native_cross_derivatives_match_finite_differences_and_weighted_psd(amplitude_mode):
+    from dataclasses import replace
+    torch.manual_seed(271)
+    model=PcraftNativeMomentOperator(replace(small_model().config,
+        convex_potential_enabled=True,convex_potential_components=3,
+        convex_amplitude_mode=amplitude_mode)).eval()
+    cache=model.encode(small_geometry()).detached()
+    c=torch.tensor([.03,.11,-.07,.04,.02,-.01,.015,.07,-.06,.05],dtype=torch.float64)
+    _,jac=model.moments_and_jacobian(cache,c)
+    b=torch.tensor([1.,1.,1.,1.,1.,1.,1.,2.,2.,2.],dtype=torch.float64)
+    hessian=jac/b
+    torch.testing.assert_close(hessian,hessian.T,rtol=1e-10,atol=1e-11)
+    assert torch.linalg.eigvalsh(.5*(hessian+hessian.T)).min()>=-1e-10
+    assert (jac-jac.T).abs().max()>1e-5  # Native J is not a Hessian.
+    torch.testing.assert_close(jac@c,torch.zeros(10,dtype=c.dtype),rtol=0,atol=1e-10)
+    _,scaled_jac=model.moments_and_jacobian(cache,3.7*c)
+    torch.testing.assert_close(scaled_jac,jac/3.7,rtol=1e-10,atol=1e-11)
+    eps=2e-6
+    with torch.no_grad():
+        for column in (7,8,9):
+            delta=torch.zeros_like(c);delta[column]=eps
+            finite_difference=(model.predict(cache,c+delta)-model.predict(cache,c-delta))/(2*eps)
+            torch.testing.assert_close(jac[:,column],finite_difference,rtol=1e-5,atol=1e-7)
+
+
+def test_convex_native_coordinate_wrapper_matches_independent_physical_quadrature_gradient():
+    """Probe the wrapper with a known potential, independently of learned fit."""
+    from dataclasses import replace
+    geometry=small_geometry()
+    signs=np.stack(np.meshgrid(*[[-1/np.sqrt(3),1/np.sqrt(3)]]*3,indexing="ij"),-1).reshape(-1,3)
+    xyz=geometry["xyz"][:,None,:]+.5*geometry["cell_extent"][:,None,:]*signs[None]
+    xyz=torch.as_tensor(xyz.reshape(-1,3),dtype=torch.float64)
+    x,y,z=xyz.unbind(-1)
+    basis=torch.stack((torch.ones_like(x),x,y,z,x*x,y*y,z*z,y*z,x*z,x*y),-1)
+    weights=torch.as_tensor(np.repeat(geometry["mass"]/8,8),dtype=torch.float64)
+    length=float(((geometry["xyz"]+geometry["cell_extent"]/2).max(0)
+                  -(geometry["xyz"]-geometry["cell_extent"]/2).min(0)).max())
+    coordinate_scale=length**torch.tensor([0,1,1,1,2,2,2,2,2,2],dtype=torch.float64)
+    b=torch.tensor([1.,1.,1.,1.,1.,1.,1.,2.,2.,2.],dtype=torch.float64)
+    eps2=.04**2
+
+    class QuadraturePotential(torch.nn.Module):
+        def forward(self,latent,t,amplitude_bound):
+            monomial=t/coordinate_scale
+            values=monomial@basis.T
+            potential=.5*(weights*torch.sqrt(values.square()+eps2*monomial.square().sum(-1,keepdim=True))).sum(-1)
+            return potential,t.new_tensor(.5),t.new_tensor(0.)
+
+    model=PcraftNativeMomentOperator(replace(small_model().config,convex_potential_enabled=True)).eval()
+    model.convex_potential_head=QuadraturePotential()
+    cache=model.encode(geometry).detached()
+    c=torch.tensor([.03,.11,-.07,.04,.02,-.01,.015,.07,-.06,.05],dtype=torch.float64,requires_grad=True)
+    # Direct physical polynomial and hinge integral in native c coordinates.
+    monomial=b*c
+    values=basis@monomial
+    physical_potential=(.5*weights*(values+torch.sqrt(values.square()+eps2*monomial.square().sum()))).sum()
+    expected=torch.autograd.grad(physical_potential,c,create_graph=True)[0]/b
+    expected_jac=torch.stack([torch.autograd.grad(value,c,retain_graph=True)[0] for value in expected])
+    actual,actual_jac=model.moments_and_jacobian(cache,c)
+    torch.testing.assert_close(actual,expected,rtol=1e-10,atol=1e-11)
+    torch.testing.assert_close(actual_jac,expected_jac,rtol=1e-10,atol=1e-11)
+
+
+@pytest.mark.parametrize("convex",[False,True])
+def test_legacy_native_checkpoint_does_not_silently_change_convex_coordinate_semantics(tmp_path,convex):
+    from dataclasses import asdict,replace
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import SCHEMA,load_model
+    config=replace(small_model().config,convex_potential_enabled=convex)
+    model=PcraftNativeMomentOperator(config).eval()
+    old_semantics="pcraft-ufno-native-interval-m72-bounded-odd-or-convex-potential-moment-head-ad-jacobian-optional-gno-transolver-multiscale-event-validity.v6"
+    path=tmp_path/"legacy-native.pt"
+    torch.save(dict(schema=SCHEMA,semantics=old_semantics,config=asdict(config),model=model.state_dict()),path)
+    if convex:
+        with pytest.raises(ValueError,match="cross-coefficient semantics"):
+            load_model(path)
+    else:
+        restored,_=load_model(path)
+        for key,value in model.state_dict().items():
+            torch.testing.assert_close(restored.state_dict()[key],value,rtol=0,atol=0)
+
+
 def test_convex_potential_presets_are_opt_in():
     from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import make_config
     base=make_config("large")
@@ -454,8 +537,9 @@ def test_full_ug_pino_candidate_combines_multiscale_gno_transolver_convex_and_tr
     assert torch.allclose(moments,model.predict(cache,5*q),rtol=1e-8,atol=1e-9)
     assert torch.allclose(moments+model.predict(cache,-q),
         2*cache.fixed_moments+cache.design_moments,rtol=1e-8,atol=1e-9)
-    assert torch.allclose(jac,jac.T,rtol=1e-6,atol=1e-7)
-    assert float(torch.linalg.eigvalsh(.5*(jac+jac.T)).min())>=-1e-6
+    hessian=jac/model.native_B
+    assert torch.allclose(hessian,hessian.T,rtol=1e-6,atol=1e-7)
+    assert float(torch.linalg.eigvalsh(.5*(hessian+hessian.T)).min())>=-1e-6
     (moments.square().mean()+jac.square().mean()).backward()
     grads=[p.grad for p in model.parameters() if p.grad is not None]
     assert grads and all(torch.isfinite(g).all() for g in grads)
@@ -641,8 +725,9 @@ def test_convex_head_psd_is_parameterization_property_not_global_head_contract()
     q=torch.tensor([.05,.08,-.03,.02,.01,-.015,.007,.003,-.002,.004],dtype=torch.float64)
     _,jc=convex.moments_and_jacobian(ccache,q,create_graph=False)
     _,jb=bounded.moments_and_jacobian(bcache,q,create_graph=False)
-    assert torch.allclose(jc,jc.T,rtol=1e-6,atol=1e-7)
-    assert float(torch.linalg.eigvalsh(.5*(jc+jc.T)).min())>=-1e-7
+    hessian=jc/convex.native_B
+    assert torch.allclose(hessian,hessian.T,rtol=1e-6,atol=1e-7)
+    assert float(torch.linalg.eigvalsh(.5*(hessian+hessian.T)).min())>=-1e-7
     # The bounded-odd head has no imposed Hessian/PSD contract; only require
     # a finite, independently differentiable Jacobian.
     assert torch.isfinite(jb).all()
@@ -691,8 +776,9 @@ def test_convex_atan_potential_preserves_moment_invariants_and_jacobian_structur
     assert torch.allclose(moments,model.predict(cache,4.2*q),rtol=1e-8,atol=1e-9)
     assert torch.allclose(moments+model.predict(cache,-q),
         2*cache.fixed_moments+cache.design_moments,rtol=1e-8,atol=1e-9)
-    assert torch.allclose(jac,jac.T,rtol=1e-6,atol=1e-7)
-    assert float(torch.linalg.eigvalsh(.5*(jac+jac.T)).min())>=-1e-6
+    hessian=jac/model.native_B
+    assert torch.allclose(hessian,hessian.T,rtol=1e-6,atol=1e-7)
+    assert float(torch.linalg.eigvalsh(.5*(hessian+hessian.T)).min())>=-1e-6
     (moments.square().mean()+jac.square().mean()).backward()
     assert all(p.grad is None or torch.isfinite(p.grad).all() for p in model.parameters())
 

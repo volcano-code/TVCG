@@ -14,6 +14,7 @@ from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import (
 from .spin_quadrann_v12 import SpinQuadrANNV12, SQNOGeometryCache
 from .geometry_physics_attention import GeometryPhysicsCrossAttention
 from .cross_scale_attention import QueryConditionedCrossScaleAttention
+from .masked_derivative_supervision import derivative_supervision_loss
 from .unified_training_state import (
     parameter_partition, make_training_contract, optimizer_contract,
     checkpoint_training_metadata, validate_resume,
@@ -286,110 +287,145 @@ class UnifiedM80SQNO(nn.Module):
 
     @staticmethod
     def _masked_mean_square(error:Tensor,mask:Tensor|None,*,name:str)->Tensor:
-        values=error.square()
-        if mask is None:
-            return values.mean()
-        mask=torch.as_tensor(mask,device=values.device,dtype=torch.bool)
-        if mask.ndim!=1 or mask.shape[0]!=values.shape[0]:
-            raise ValueError(f"{name} mask must have shape [Q]")
-        if not mask.any():
-            raise ValueError(f"{name} mask contains no valid queries")
-        return values[mask].mean()
+        if mask is not None:
+            mask=torch.as_tensor(mask,device=error.device)
+            if mask.dtype!=torch.bool or mask.ndim!=1 or mask.shape[0]!=error.shape[0]:
+                raise ValueError(f"{name} mask must be boolean with shape [Q]")
+            if not mask.any():
+                raise ValueError(f"{name} mask contains no valid queries")
+            error=error[mask]
+        if not torch.isfinite(error).all():
+            raise ValueError(f"{name} selected targets/predictions must be finite")
+        return error.square().mean()
 
     def _joint_task_losses_and_metadata(
-        self,cache:UnifiedGeometryCache,coefficients:Tensor,target_moments:Tensor,target_jacobian:Tensor,*,
+        self,cache:UnifiedGeometryCache,coefficients:Tensor,target_moments:Tensor,target_jacobian:Tensor|None=None,*,
         moment_scale:Tensor|float=1.0,jacobian_scale:Tensor|float=1.0,
         valid_mask:Tensor|None=None,jacobian_valid_mask:Tensor|None=None,
         jacobian_weight:float=0.1,branch_aux_weight:float=0.25,
+        restricted_basis:Tensor|None=None,restricted_jacobian:Tensor|None=None,
+        restricted_valid:Tensor|None=None,restricted_dimension:Tensor|None=None,
+        restricted_scale:Tensor|float=1.0,_create_graph:bool=True,
     )->tuple[dict[str,Tensor],dict[str,Tensor]]:
         if any(not math.isfinite(float(value)) or value<0
                for value in (jacobian_weight,branch_aux_weight)):
             raise ValueError("loss weights must be finite and nonnegative")
-        q=torch.as_tensor(coefficients,device=cache.shared_cache.latent.device,dtype=torch.float64)
+        def real_tensor(value,name):
+            tensor=torch.as_tensor(value,device=cache.shared_cache.latent.device)
+            if tensor.is_complex() or tensor.dtype==torch.bool:
+                raise ValueError(f"{name} must be real numeric data, not complex or boolean")
+            # Preserve Python scalar precision instead of first materializing float32.
+            return torch.as_tensor(value,device=cache.shared_cache.latent.device,dtype=torch.float64)
+        q=real_tensor(coefficients,"coefficients")
         if q.ndim not in {1,2} or q.shape[-1]!=10 or not q.numel():
             raise ValueError("coefficients must be [10] or nonempty [Q,10]")
         qn=1 if q.ndim==1 else q.shape[0]
-        target_m=torch.as_tensor(target_moments,device=q.device,dtype=torch.float64)
-        target_j=torch.as_tensor(target_jacobian,device=q.device,dtype=torch.float64)
+        target_m=real_tensor(target_moments,"target_moments").detach()
+        target_j=(None if target_jacobian is None else
+                  real_tensor(target_jacobian,"target_jacobian").detach())
         if target_m.shape!=(qn,10) and not (q.ndim==1 and target_m.shape==(10,)):
             raise ValueError("target_moments must be [Q,10] or [10] for a single query")
-        if target_j.shape!=(qn,10,10) and not (q.ndim==1 and target_j.shape==(10,10)):
+        if target_j is not None and target_j.shape!=(qn,10,10) and not (q.ndim==1 and target_j.shape==(10,10)):
             raise ValueError("target_jacobian must be [Q,10,10] or [10,10] for a single query")
-        if q.ndim==1: target_m=target_m.unsqueeze(0);target_j=target_j.unsqueeze(0)
-        if not torch.isfinite(target_m).all() or not torch.isfinite(target_j).all():
-            raise ValueError("training targets must be finite")
-        ms=torch.as_tensor(moment_scale,device=q.device,dtype=torch.float64)
-        js=torch.as_tensor(jacobian_scale,device=q.device,dtype=torch.float64)
-        if (not torch.isfinite(ms).all() or (ms<=0).any() or not torch.isfinite(js).all() or (js<=0).any()):
-            raise ValueError("moment/jacobian scales must be finite and positive")
-        try: target_m_norm=target_m/ms;target_j_norm=target_j/js
+        if target_m.ndim==1: target_m=target_m.unsqueeze(0)
+        if target_j is not None and target_j.ndim==2: target_j=target_j.unsqueeze(0)
+        ms=real_tensor(moment_scale,"moment_scale").detach()
+        if not torch.isfinite(ms).all() or (ms<=0).any():
+            raise ValueError("moment scales must be finite and positive")
+        try: target_m_norm=target_m/ms
         except RuntimeError as exc: raise ValueError("normalization scales are not broadcastable") from exc
-        if target_m_norm.shape!=target_m.shape or target_j_norm.shape!=target_j.shape:
+        if target_m_norm.shape!=target_m.shape:
             raise ValueError("normalization scales must preserve target shapes")
-        result=self.evaluate_queries(cache,q,create_graph=True,with_jacobian=True)
+        result=self.evaluate_queries(cache,q,create_graph=_create_graph,with_jacobian=True)
         def norm_m(key):
             value=result[key]
             if value.ndim==1:value=value.unsqueeze(0)
             return value/ms
-        def norm_j(key):
+        def raw_j(key):
             value=result[key]
             if value.ndim==2:value=value.unsqueeze(0)
-            return value/js
-        mask=valid_mask;jmask=jacobian_valid_mask if jacobian_valid_mask is not None else valid_mask
+            return value
+        mask=valid_mask
+        jmask=jacobian_valid_mask if jacobian_valid_mask is not None else (valid_mask if target_j is not None else None)
+        derivative_options=dict(derivative_valid=jmask,restricted_basis=restricted_basis,
+            restricted_target=restricted_jacobian,restricted_valid=restricted_valid,
+            restricted_dimension=restricted_dimension,jacobian_scale=jacobian_scale,
+            restricted_scale=restricted_scale)
         fm=self._masked_mean_square(norm_m("moments")-target_m_norm,mask,name="moment")
-        fj=self._masked_mean_square(norm_j("jacobian_q")-target_j_norm,jmask,name="jacobian")
         m80m=self._masked_mean_square(norm_m("m80_moments")-target_m_norm,mask,name="M80 moment")
         sqnom=self._masked_mean_square(norm_m("sqno_moments")-target_m_norm,mask,name="SQNO moment")
-        m80j=self._masked_mean_square(norm_j("m80_jacobian_q")-target_j_norm,jmask,name="M80 Jacobian")
-        sqnoj=self._masked_mean_square(norm_j("sqno_jacobian_q")-target_j_norm,jmask,name="SQNO Jacobian")
+        fused=derivative_supervision_loss(raw_j("jacobian_q"),target_j,**derivative_options)
+        m80=derivative_supervision_loss(raw_j("m80_jacobian_q"),target_j,**derivative_options)
+        sqno=derivative_supervision_loss(raw_j("sqno_jacobian_q"),target_j,**derivative_options)
+        fj,m80j,sqnoj=fused["loss"],m80["loss"],sqno["loss"]
         branch=(m80m+sqnom+jacobian_weight*(m80j+sqnoj))*0.5
         tasks={"moment":fm,"jacobian":fj,"branch_aux":branch,
             "m80_moment":m80m,"sqno_moment":sqnom,"m80_jacobian":m80j,"sqno_jacobian":sqnoj}
+        for prefix,report in (("",fused),("m80_",m80),("sqno_",sqno)):
+            tasks[prefix+"full_jacobian"]=report["full_loss"]
+            tasks[prefix+"restricted_jacobian"]=report["restricted_loss"]
         def valid_count(value):
             return (torch.tensor(qn,device=q.device,dtype=torch.int64) if value is None
                     else torch.as_tensor(value,device=q.device,dtype=torch.bool).sum())
         metadata={"fusion_weight":result["fusion_weight"].detach(),
-            "valid_queries":valid_count(mask),"valid_jacobian_queries":valid_count(jmask)}
+            "valid_queries":valid_count(mask),"valid_jacobian_queries":fused["full_count"],
+            "valid_restricted_queries":fused["restricted_count"],
+            "valid_derivative_queries":fused["full_count"]+fused["restricted_count"],
+            "restricted_dimensions":fused["restricted_dimensions"]}
         return tasks,metadata
 
     def joint_task_losses(
-        self,cache:UnifiedGeometryCache,coefficients:Tensor,target_moments:Tensor,target_jacobian:Tensor,*,
+        self,cache:UnifiedGeometryCache,coefficients:Tensor,target_moments:Tensor,target_jacobian:Tensor|None=None,*,
         moment_scale:Tensor|float=1.0,jacobian_scale:Tensor|float=1.0,
         valid_mask:Tensor|None=None,jacobian_valid_mask:Tensor|None=None,
         jacobian_weight:float=0.1,branch_aux_weight:float=0.25,
+        restricted_basis:Tensor|None=None,restricted_jacobian:Tensor|None=None,
+        restricted_valid:Tensor|None=None,restricted_dimension:Tensor|None=None,
+        restricted_scale:Tensor|float=1.0,
     )->dict[str,Tensor]:
-        """Return the three differentiable objectives and four branch diagnostics."""
+        """Return three task objectives plus branch and derivative diagnostics.
+
+        Full and restricted derivatives are disjoint supervision modes per query.
+        Restricted labels compare raw ``J @ basis`` before normalization, with
+        only the first ``restricted_dimension`` columns active for each row.
+        An absent derivative task is a detached zero and is skipped by PCGrad.
+        """
         tasks,_=self._joint_task_losses_and_metadata(cache,coefficients,target_moments,target_jacobian,
             moment_scale=moment_scale,jacobian_scale=jacobian_scale,valid_mask=valid_mask,
             jacobian_valid_mask=jacobian_valid_mask,jacobian_weight=jacobian_weight,
-            branch_aux_weight=branch_aux_weight)
+            branch_aux_weight=branch_aux_weight,restricted_basis=restricted_basis,
+            restricted_jacobian=restricted_jacobian,restricted_valid=restricted_valid,
+            restricted_dimension=restricted_dimension,restricted_scale=restricted_scale)
         return tasks
 
     def joint_training_loss(self,cache:UnifiedGeometryCache,coefficients:Tensor,
-        target_moments:Tensor,target_jacobian:Tensor,*,moment_scale:Tensor|float=1.0,
+        target_moments:Tensor,target_jacobian:Tensor|None=None,*,moment_scale:Tensor|float=1.0,
         jacobian_scale:Tensor|float=1.0,valid_mask:Tensor|None=None,
         jacobian_valid_mask:Tensor|None=None,jacobian_weight:float=0.1,
-        branch_aux_weight:float=0.25)->dict[str,Tensor]:
+        branch_aux_weight:float=0.25,restricted_basis:Tensor|None=None,
+        restricted_jacobian:Tensor|None=None,restricted_valid:Tensor|None=None,
+        restricted_dimension:Tensor|None=None,restricted_scale:Tensor|float=1.0)->dict[str,Tensor]:
         tasks,metadata=self._joint_task_losses_and_metadata(cache,coefficients,target_moments,target_jacobian,
             moment_scale=moment_scale,jacobian_scale=jacobian_scale,valid_mask=valid_mask,
             jacobian_valid_mask=jacobian_valid_mask,jacobian_weight=jacobian_weight,
-            branch_aux_weight=branch_aux_weight)
+            branch_aux_weight=branch_aux_weight,restricted_basis=restricted_basis,
+            restricted_jacobian=restricted_jacobian,restricted_valid=restricted_valid,
+            restricted_dimension=restricted_dimension,restricted_scale=restricted_scale)
         total=tasks["moment"]+jacobian_weight*tasks["jacobian"]+branch_aux_weight*tasks["branch_aux"]
-        return {"loss":total,"moment_loss":tasks["moment"].detach(),
-            "jacobian_loss":tasks["jacobian"].detach(),"branch_aux_loss":tasks["branch_aux"].detach(),
-            "m80_moment_loss":tasks["m80_moment"].detach(),"sqno_moment_loss":tasks["sqno_moment"].detach(),
-            "m80_jacobian_loss":tasks["m80_jacobian"].detach(),"sqno_jacobian_loss":tasks["sqno_jacobian"].detach(),
-            **metadata}
+        return {"loss":total,**{name+"_loss":value.detach() for name,value in tasks.items()},**metadata}
 
     def train_step(
         self,optimizer,cache:UnifiedGeometryCache,coefficients:Tensor,
-        target_moments:Tensor,target_jacobian:Tensor,*,
+        target_moments:Tensor,target_jacobian:Tensor|None=None,*,
         moment_scale:Tensor|float=1.0,jacobian_scale:Tensor|float=1.0,
         valid_mask:Tensor|None=None,jacobian_valid_mask:Tensor|None=None,
         jacobian_weight:float=0.1,branch_aux_weight:float=0.25,
         gradient_clip:float=1.0,
         gradient_mode:str="fixed",
         pcgrad_reduction:str="sum",
+        restricted_basis:Tensor|None=None,restricted_jacobian:Tensor|None=None,
+        restricted_valid:Tensor|None=None,restricted_dimension:Tensor|None=None,
+        restricted_scale:Tensor|float=1.0,
     )->dict[str,Any]:
         """One explicit joint update; caller must re-encode after optimizer.step."""
         if not self.training:
@@ -398,7 +434,7 @@ class UnifiedM80SQNO(nn.Module):
             raise ValueError("train_step cannot consume an inference-only cache")
         contract=self.training_contract(gradient_mode=gradient_mode,pcgrad_reduction=pcgrad_reduction,
             jacobian_weight=jacobian_weight,branch_aux_weight=branch_aux_weight,gradient_clip=gradient_clip,
-            moment_scale=moment_scale,jacobian_scale=jacobian_scale)
+            moment_scale=moment_scale,jacobian_scale=jacobian_scale,restricted_scale=restricted_scale)
         resumed=getattr(self,"_resume_training_contract",None)
         if resumed is not None and resumed!=contract:
             raise ValueError("train_step differs from the resumed training contract")
@@ -407,7 +443,9 @@ class UnifiedM80SQNO(nn.Module):
         task_losses,metadata=self._joint_task_losses_and_metadata(cache,coefficients,target_moments,target_jacobian,
             moment_scale=moment_scale,jacobian_scale=jacobian_scale,valid_mask=valid_mask,
             jacobian_valid_mask=jacobian_valid_mask,jacobian_weight=jacobian_weight,
-            branch_aux_weight=branch_aux_weight)
+            branch_aux_weight=branch_aux_weight,restricted_basis=restricted_basis,
+            restricted_jacobian=restricted_jacobian,restricted_valid=restricted_valid,
+            restricted_dimension=restricted_dimension,restricted_scale=restricted_scale)
         weights={"moment":1.0,"jacobian":float(jacobian_weight),"branch_aux":float(branch_aux_weight)}
         active=[name for name in weights if weights[name]>0 and task_losses[name].requires_grad]
         total=sum((task_losses[k]*weights[k] for k in active),
@@ -436,8 +474,7 @@ class UnifiedM80SQNO(nn.Module):
         out={key:float(value.detach()) for key,value in task_losses.items()}
         out.update({key+"_loss":value for key,value in list(out.items())})
         out.update({"fusion_weight":float(metadata["fusion_weight"].mean()),
-            "valid_queries":int(metadata["valid_queries"]),
-            "valid_jacobian_queries":int(metadata["valid_jacobian_queries"])})
+            **{key:int(value) for key,value in metadata.items() if key!="fusion_weight"}})
         out["loss"]=float(total.detach())
         out["gradient_norm"]=float(grad_norm.detach())
         out["gradient_mode"]=gradient_mode
@@ -451,10 +488,11 @@ class UnifiedM80SQNO(nn.Module):
         return parameter_partition(self)
 
     def training_contract(self,*,gradient_mode="fixed",pcgrad_reduction="sum",jacobian_weight=.1,
-                          branch_aux_weight=.25,gradient_clip=1.,moment_scale=1.,jacobian_scale=1.):
+                          branch_aux_weight=.25,gradient_clip=1.,moment_scale=1.,jacobian_scale=1.,
+                          restricted_scale=1.):
         return make_training_contract(self,gradient_mode=gradient_mode,pcgrad_reduction=pcgrad_reduction,
             jacobian_weight=jacobian_weight,branch_aux_weight=branch_aux_weight,gradient_clip=gradient_clip,
-            moment_scale=moment_scale,jacobian_scale=jacobian_scale)
+            moment_scale=moment_scale,jacobian_scale=jacobian_scale,restricted_scale=restricted_scale)
 
     def unique_trainable_parameters(self):
         seen=set()

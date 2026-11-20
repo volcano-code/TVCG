@@ -79,11 +79,17 @@ def test_manifest_path_traversal_is_rejected(tmp_path):
         corpus.get(corpus.splits["train"][0])
 
 
-def test_cpu_preflight_runs_real_pcraft_m72_backward_and_checkpoint_roundtrip(tmp_path):
+@pytest.mark.parametrize("convex",[False,True])
+def test_cpu_preflight_runs_real_pcraft_m72_backward_and_checkpoint_roundtrip(tmp_path,monkeypatch,convex):
     from argparse import Namespace
     from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_train import preflight
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import PRESETS
     manifest,audit=make_corpus(tmp_path)
-    args=Namespace(device="cpu",amp="none",threads=1,seed=800071,preset="smoke",
+    preset="smoke"
+    if convex:
+        preset="test_smoke_convex"
+        monkeypatch.setitem(PRESETS,preset,dict(PRESETS["smoke"],convex_potential_enabled=True))
+    args=Namespace(device="cpu",amp="none",threads=1,seed=800071,preset=preset,
         min_native_resolution=1,manifest=manifest,audit=audit,cache_mib=16.,
         batch_queries=2,chunk=16,learning_rate=3e-4,weight_decay=1e-4,
         jacobian_weight=.05,event_weight=.05,gradient_clip=1.,min_event_margin=0.,require_fd_audit=False,max_jacobian_error_bound=None,out=tmp_path/"preflight.json")
@@ -93,6 +99,11 @@ def test_cpu_preflight_runs_real_pcraft_m72_backward_and_checkpoint_roundtrip(tm
     assert report["checkpoint_roundtrip_max_abs"]<=1e-10
     assert report["parameter_count"]>0
     assert report["gradient_norm"]>0
+    if convex:
+        physical=report["physical_diagnostics"]
+        assert physical["jacobian_structure_coordinates"]=="monomial_coefficients"
+        assert physical["jacobian_symmetry_max_abs"]<1e-7
+        assert physical["jacobian_min_eigenvalue"]>=-1e-7
 
 
 def test_validation_distribution_reports_tail_quantiles_and_rejects_nonfinite():
@@ -256,6 +267,32 @@ def test_validation_reports_convex_gate_saturation_and_effective_amplitude(tmp_p
     assert report["convex_amplitude"]["bound"]["count"]==1
     assert report["convex_amplitude"]["effective"]["count"]==1
     assert report["details"][0]["convex_amplitude"]["mode"]=="atan"
+    assert report["jacobian_structure_coordinates"]=="monomial_coefficients"
+    assert report["details"][0]["jacobian_structure_coordinates"]=="monomial_coefficients"
+    assert report["jacobian_symmetry_error"]["max"]<1e-7
+
+
+def test_jacobian_structure_penalty_uses_explicit_native_or_monomial_coordinates():
+    import torch
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_train import jacobian_structure_penalty
+    b=torch.tensor([1.,1.,1.,1.,1.,1.,1.,2.,2.,2.],dtype=torch.float64)
+    v=torch.arange(1,11,dtype=torch.float64)/10
+    hessian=(torch.eye(10,dtype=torch.float64)+v[:,None]*v[None,:]).unsqueeze(0)
+    native=(hessian*b).requires_grad_(True)
+    symmetry,psd=jacobian_structure_penalty(native,coordinates="native_coefficients")
+    assert symmetry.item()<1e-25 and psd.item()<1e-25
+    explicit=jacobian_structure_penalty(hessian,coordinates="monomial_coefficients")
+    torch.testing.assert_close(symmetry,explicit[0])
+    torch.testing.assert_close(psd,explicit[1])
+    wrong_symmetry,_=jacobian_structure_penalty(native,coordinates="monomial_coefficients")
+    assert wrong_symmetry.item()>1e-4
+    (symmetry+psd).backward()
+    assert torch.isfinite(native.grad).all()
+    nonconvex=hessian.clone();nonconvex[:,7,7]=-2
+    _,bad_psd=jacobian_structure_penalty(nonconvex*b)
+    assert bad_psd.item()>0
+    with pytest.raises(ValueError,match="coordinates"):
+        jacobian_structure_penalty(native,coordinates="unspecified")
 
 
 def test_optional_physics_regularizer_integrates_only_with_convex_potential(tmp_path):
@@ -435,6 +472,33 @@ def test_event_conditioned_jacobian_requires_explicit_event_labels_and_has_finit
     loss.backward()
     grads=[p.grad for p in model.parameters() if p.grad is not None]
     assert grads and all(torch.isfinite(g).all() for g in grads)
+
+
+@pytest.mark.parametrize("excluded_by",["derivative_invalid","event_unknown","zero_class_weight"])
+def test_event_conditioned_jacobian_selects_active_rows_before_nan_arithmetic(excluded_by):
+    import torch
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_train import loss_for_batch
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.tests.test_native_pcraft import small_geometry,small_model
+    model=small_model().train()
+    cache=model.encode(small_geometry())
+    q=np.asarray([[0.,1.,0,0,0,0,0,0,0,0],
+                  [0.,0,1.,0,0,0,0,0,0,0]],dtype=np.float64)
+    labels={"queries":q,"moments":np.zeros((2,10)),
+        "jacobian":np.stack((np.ones((10,10)),np.full((10,10),np.nan))),
+        "derivative_valid":np.asarray([True,excluded_by!="derivative_invalid"]),
+        "event_valid":np.asarray([True,excluded_by!="zero_class_weight"]),
+        "event_label_valid":np.asarray([True,excluded_by!="event_unknown"])}
+    loss,_,derivative,_=loss_for_batch(model,cache,labels,np.arange(2),.05,"cpu",
+        event_jacobian_weight=1.,event_regular_jacobian_scale=1.,event_event_jacobian_scale=0.)
+    _,predicted=model.moments_and_jacobian(cache,torch.as_tensor(q[0]),create_graph=False)
+    scale=cache.moment_scales[:,None]*cache.coordinate_scales[None,:]
+    expected=((predicted-1.)/scale).square().mean()
+    assert torch.isfinite(loss) and torch.isfinite(derivative)
+    torch.testing.assert_close(derivative,expected,rtol=1e-10,atol=1e-12)
+    loss.backward()
+    gradients=[p.grad for p in model.parameters() if p.grad is not None]
+    assert gradients and all(torch.isfinite(g).all() for g in gradients)
+    assert np.isnan(labels["jacobian"][1]).all()
 
 
 def test_event_threshold_selection_uses_calibration_mask_and_is_deterministic():

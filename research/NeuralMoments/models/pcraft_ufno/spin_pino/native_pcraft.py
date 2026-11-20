@@ -24,8 +24,9 @@ from torch.utils.checkpoint import checkpoint
 from .pino_backbone import PINOFeatureEncoder
 
 SCHEMA = "m80.pcraft-native-query.v5"
-SEMANTICS = "pcraft-ufno-native-interval-m72-bounded-odd-or-convex-potential-moment-head-ad-jacobian-optional-gno-transolver-multiscale-event-validity.v6"
+SEMANTICS = "pcraft-ufno-native-interval-m72-bounded-odd-or-native-cross-convex-potential-moment-head-ad-jacobian-optional-gno-transolver-multiscale-event-validity.v7"
 LEGACY_SCHEMAS = {
+    ("m80.pcraft-native-query.v5", "pcraft-ufno-native-interval-m72-bounded-odd-or-convex-potential-moment-head-ad-jacobian-optional-gno-transolver-multiscale-event-validity.v6"),
     ("m80.pcraft-native-query.v5", "pcraft-ufno-native-interval-m72-bounded-odd-or-convex-potential-moment-head-ad-jacobian-optional-gno-transolver-multiscale.v5"),
     ("m80.pcraft-native-query.v1",
      "pcraft-ufno-map-sampled-native-interval-m72-bounded-odd-head-ad-jacobian.v1"),
@@ -39,6 +40,19 @@ LEGACY_SCHEMAS = {
 MOMENT_ORDER = ("mass", "x", "y", "z", "xx", "yy", "zz", "yz", "xz", "xy")
 QUERY_ORDER = ("1", "x", "y", "z", "xx", "yy", "zz", "2yz", "2xz", "2xy")
 POWERS = (0, 1, 1, 1, 2, 2, 2, 2, 2, 2)
+NATIVE_B = (1., 1., 1., 1., 1., 1., 1., 2., 2., 2.)
+
+
+def native_jacobian_to_monomial(jacobian: Tensor) -> Tensor:
+    """Convert d(raw moments)/d(native c) to d(raw moments)/d(B c).
+
+    Native c multiplies (1,x,y,z,xx,yy,zz,2yz,2xz,2xy), whereas the
+    reported raw moments contain undoubled cross terms. Therefore the
+    convex-potential Hessian is J_c B^-1, not J_c itself.
+    """
+    if jacobian.ndim < 2 or jacobian.shape[-2:] != (10, 10):
+        raise ValueError("native Jacobian must have shape [...,10,10]")
+    return jacobian / jacobian.new_tensor(NATIVE_B)
 
 PRESETS = {
     "smoke": dict(grid_size=8, pino_width=2, pino_modes=1, pino_layers=2,
@@ -559,11 +573,12 @@ class ConvexMomentPotentialHead(nn.Module):
 
     Psi(q_tilde) = sum_k a_k * sqrt(q_tilde^T C_k q_tilde), where each C_k
     is an SPD correlation matrix (unit diagonal) and a_k >= 0. The response
-    is r_D(q) = 0.5 * M_D + D * grad(Psi(D q)), with D=coordinate_scales.
-    This gives a symmetric PSD Jacobian in smooth nonzero query directions,
-    positive-scale invariance and the M72 complement relation. A geometry-
-    dependent amplitude bound keeps the deviation within the existing
-    absolute-moment envelope.
+    is r_D(c) = 0.5 * M_D + D * grad(Psi(D B c)), where D contains
+    coordinate_scales and B doubles the three native cross coefficients.
+    Thus J_c B^-1 = D Hessian(Psi) D is symmetric PSD in smooth nonzero
+    query directions. Raw J_c need not be symmetric. Positive-scale
+    invariance and the M72 complement relation are retained. A geometry-
+    dependent amplitude bound keeps deviations within the raw-moment envelope.
     """
     def __init__(self,width:int,components:int=4,min_diag:float=1e-3,amplitude_mode:str="sigmoid"):
         super().__init__()
@@ -761,7 +776,7 @@ class PcraftNativeMomentOperator(nn.Module):
                 nn.LayerNorm(w+36+10),nn.Linear(w+36+10,w),nn.GELU(),
                 nn.Linear(w,max(8,w//2)),nn.GELU(),nn.Linear(max(8,w//2),1)
             )
-        self.register_buffer("native_B",torch.tensor([1.,1.,1.,1.,1.,1.,1.,2.,2.,2.],dtype=torch.float64))
+        self.register_buffer("native_B",torch.tensor(NATIVE_B,dtype=torch.float64))
         self._neighbor_cache=OrderedDict()
         self._neighbor_cache_bytes=0
         self.counters=dict(encode_calls=0,intervals=0,queries=0,jacobians=0,exact_calls=0,
@@ -1048,7 +1063,10 @@ class PcraftNativeMomentOperator(nn.Module):
             outer_grad_enabled=torch.is_grad_enabled()
             need_graph=outer_grad_enabled and q.requires_grad
             with torch.enable_grad():
-                q_tilde=q*cache.coordinate_scales
+                # Differentiate in monomial coordinates t=D*B*c. The output
+                # remains raw moments D*grad_t(Psi), with no doubled cross
+                # moments. Autograd consequently returns J_c=D*H*D*B.
+                q_tilde=q*cache.coordinate_scales*self.native_B
                 if not q_tilde.requires_grad:
                     q_tilde=q_tilde.detach().requires_grad_(True)
                 amplitude_bound=.5*(cache.absolute_moments/cache.coordinate_scales).min()
@@ -1171,6 +1189,8 @@ def load_model(path,device="cpu"):
     config.setdefault("multiscale_enabled",False)
     config.setdefault("multiscale_grids",(32,64,128))
     config.setdefault("convex_potential_enabled",False)
+    if config["convex_potential_enabled"] and (schema,semantics)!=(SCHEMA,SEMANTICS):
+        raise ValueError("legacy convex checkpoint has incompatible cross-coefficient semantics")
     config.setdefault("convex_potential_components",4)
     config.setdefault("convex_amplitude_mode","sigmoid")
     config.setdefault("event_validity_head_enabled",False)

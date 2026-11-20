@@ -11,9 +11,9 @@ import numpy as np
 import torch
 
 
-TRAINING_SCHEMA = "tvcg.unified-m80-sqno.training.v1"
+TRAINING_SCHEMA = "tvcg.unified-m80-sqno.training.v2"
 _SETTING_KEYS = ("gradient_mode", "pcgrad_reduction", "jacobian_weight",
-                 "branch_aux_weight", "gradient_clip", "moment_scale", "jacobian_scale")
+                 "branch_aux_weight", "gradient_clip", "moment_scale", "jacobian_scale", "restricted_scale")
 
 
 def parameter_partition(model) -> dict[str, list[str]]:
@@ -36,17 +36,21 @@ def parameter_partition(model) -> dict[str, list[str]]:
 
 def _scale(value, name):
     tensor = torch.as_tensor(value)
-    if tensor.is_complex():
-        raise ValueError(f"{name} must be real")
+    if tensor.is_complex() or tensor.dtype==torch.bool:
+        raise ValueError(f"{name} must be real numeric data, not complex or boolean")
     tensor = torch.as_tensor(value, dtype=torch.float64).detach().cpu()
     if not tensor.numel() or not torch.isfinite(tensor).all() or (tensor <= 0).any():
         raise ValueError(f"{name} must be finite and positive")
+    allowed_shapes={"jacobian_scale":((),(10,10)),
+                    "restricted_scale":((),(10,),(10,1))}
+    if name in allowed_shapes and tuple(tensor.shape) not in allowed_shapes[name]:
+        raise ValueError(f"{name} has an unsupported derivative normalization shape")
     return tensor.tolist()
 
 
 def make_training_contract(model, *, gradient_mode="fixed", pcgrad_reduction="sum",
                            jacobian_weight=.1, branch_aux_weight=.25, gradient_clip=1.,
-                           moment_scale=1., jacobian_scale=1.) -> dict:
+                           moment_scale=1., jacobian_scale=1., restricted_scale=1.) -> dict:
     if gradient_mode not in {"fixed", "pcgrad"}:
         raise ValueError("gradient_mode must be fixed or pcgrad")
     if pcgrad_reduction not in {"mean", "sum"}:
@@ -66,6 +70,9 @@ def make_training_contract(model, *, gradient_mode="fixed", pcgrad_reduction="su
         "gradient_clip": float(gradient_clip),
         "moment_scale": _scale(moment_scale, "moment_scale"),
         "jacobian_scale": _scale(jacobian_scale, "jacobian_scale"),
+        "restricted_scale": _scale(restricted_scale, "restricted_scale"),
+        "derivative_supervision": "disjoint-full-or-restricted-per-query-mean-v1",
+        "derivative_coordinates": "raw-native-coefficients-with-doubled-cross-terms",
         "gradient_coordinates": "real-and-imaginary-components-v1",
         "parameter_partition": parameter_partition(model),
         "trainable_parameters": [
@@ -86,7 +93,8 @@ def validate_training_contract(model, contract):
 
 def training_source_fingerprints():
     here = Path(__file__).resolve()
-    files = {here.name: here, "multitask.py": here.parent.parents[2] / "spin_pino/multitask.py"}
+    files = {here.name: here, "multitask.py": here.parent.parents[2] / "spin_pino/multitask.py",
+             "masked_derivative_supervision.py": here.parent / "masked_derivative_supervision.py"}
     return {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in files.items()}
 
 

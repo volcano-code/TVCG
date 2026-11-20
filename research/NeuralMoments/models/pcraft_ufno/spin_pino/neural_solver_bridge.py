@@ -15,7 +15,7 @@ from typing import Any, Callable, Mapping
 import numpy as np
 import torch
 
-from .native_pcraft import EncodedNativeGeometry, PcraftNativeMomentOperator
+from .native_pcraft import EncodedNativeGeometry, NATIVE_B, PcraftNativeMomentOperator, native_jacobian_to_monomial
 
 
 ExactEvaluator = Callable[[np.ndarray], Mapping[str, Any]]
@@ -62,7 +62,7 @@ def target_frame_moment_transforms(target_origin: Any,target_axes: Any):
     (1,x,y,z,x²,y²,z²,yz,xz,xy); coefficient cross terms are represented in
     the native symmetric-matrix convention. The returned matrix T satisfies
     basis(x_target)=T@basis(x_model), hence r_target=T@r_model and
-    q_model=T.T@q_target.
+    c_model=B^-1@T.T@B@c_target, where B doubles the three cross terms.
     """
     origin=np.asarray(target_origin,dtype=np.float64)
     axes=np.asarray(target_axes,dtype=np.float64)
@@ -106,7 +106,8 @@ def target_frame_moment_transforms(target_origin: Any,target_axes: Any):
             T[i,j]=poly.get(exponent,0.0)
     if not np.isfinite(T).all() or np.linalg.matrix_rank(T)!=10:
         raise ValueError("target-frame moment transform is not finite/invertible")
-    return T.T.copy(),T
+    b=np.asarray(NATIVE_B,dtype=np.float64)
+    return (T.T*b[None,:]/b[:,None]),T
 
 def _identity(value: str, name: str) -> str:
     if not isinstance(value, str) or not value or ";" in value:
@@ -121,6 +122,7 @@ class M80ExternalMomentEvaluator:
       q_model = coefficient_to_model @ q_native
       r_target = moment_to_target @ r_model
       J_target = moment_to_target @ J_model @ coefficient_to_model
+      coefficient_to_model = B^-1 @ moment_to_target.T @ B
 
     geometry_hash is the original solver-request geometry identity;
     cache_geometry_hash is the M72/RLE geometry identity used by the network.
@@ -154,8 +156,10 @@ class M80ExternalMomentEvaluator:
         self.topology_hash = _identity(topology_hash, "topology_hash")
         self.coefficient_to_model = _matrix10(coefficient_to_model, "coefficient_to_model")
         self.moment_to_target = _matrix10(moment_to_target, "moment_to_target")
-        if not np.allclose(self.coefficient_to_model,self.moment_to_target.T,rtol=1e-9,atol=1e-10):
-            raise ValueError("coefficient_to_model must equal moment_to_target.T to preserve the dual moment/coefficient pairing")
+        b=np.asarray(NATIVE_B,dtype=np.float64)
+        dual=self.moment_to_target.T*b[None,:]/b[:,None]
+        if not np.allclose(self.coefficient_to_model,dual,rtol=1e-9,atol=1e-10):
+            raise ValueError("coefficient_to_model must equal B^-1 @ moment_to_target.T @ B for native doubled-cross coefficients")
         self.exact_evaluator = exact_evaluator
         self.admission = admission
         self.hybrid_identity = _identity(hybrid_identity, "hybrid_identity")
@@ -259,8 +263,9 @@ class M80ExternalMomentEvaluator:
                 self.stats.rejected_envelope += 1
                 return self._exact(qn, "neural_response_outside_absolute_moment_envelope")
             if self.model.config.convex_potential_enabled:
-                symmetry = (jac_model-jac_model.T).abs().max()
-                minimum_eigenvalue = torch.linalg.eigvalsh(.5*(jac_model+jac_model.T)).min()
+                hessian_model = native_jacobian_to_monomial(jac_model)
+                symmetry = (hessian_model-hessian_model.T).abs().max()
+                minimum_eigenvalue = torch.linalg.eigvalsh(.5*(hessian_model+hessian_model.T)).min()
                 if (float(symmetry) > self.convex_symmetry_tolerance
                         or float(minimum_eigenvalue) < -self.convex_min_eigenvalue_tolerance):
                     self.stats.rejected_convex_jacobian += 1

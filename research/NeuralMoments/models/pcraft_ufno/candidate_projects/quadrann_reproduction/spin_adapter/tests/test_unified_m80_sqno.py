@@ -411,12 +411,20 @@ def test_cross_scale_attention_raw_jacobian_finite_difference_and_scale_invarian
         cache=model.encode_geometry(make_geometry(),inference=True)
         a=model.evaluate_queries(cache,q)
         b=model.evaluate_queries(cache,5.2*q)
-        delta=torch.zeros_like(q); delta[0,4]=1e-4
-        plus=model.evaluate_queries(cache,q+delta)
-        minus=model.evaluate_queries(cache,q-delta)
-        fd=(plus["moments"]-minus["moments"])/2e-4
+        # Attention computes in float32 even though fused moments are float64.
+        # Tiny perturbations therefore amplify attention rounding; verify two
+        # nearby, resolvable steps rather than treating the output cast as an
+        # all-float64 finite-difference path. Retain the original tolerances.
+        differences=[]
+        for eps in (2e-3,1e-3):
+            delta=torch.zeros_like(q); delta[0,4]=eps
+            plus=model.evaluate_queries(cache,q+delta)
+            minus=model.evaluate_queries(cache,q-delta)
+            differences.append((plus["moments"]-minus["moments"])/(2*eps))
     assert torch.allclose(a["moments"],b["moments"],rtol=2e-6,atol=2e-8)
-    assert torch.allclose(a["jacobian_coefficients"][:,:,4],fd,rtol=1e-2,atol=2e-6)
+    for fd in differences:
+        torch.testing.assert_close(a["jacobian_coefficients"][:,:,4],fd,rtol=1e-2,atol=2e-6)
+    torch.testing.assert_close(differences[0],differences[1],rtol=1e-2,atol=2e-6)
 
 
 def test_cross_scale_attention_gradients_are_finite_and_disabled_path_is_legacy():

@@ -25,11 +25,14 @@ import torch
 from torch import Tensor
 
 from .unified_m80_sqno import UnifiedM80SQNO, _source_fingerprints
+from .masked_derivative_supervision import derivative_supervision_loss
 from .unified_training_state import optimizer_contract, training_source_fingerprints
 
 MAX_STEPS = 100
-_REQUIRED = {"geometry", "coefficients", "target_moments", "target_jacobian"}
-_OPTIONAL = {"valid_mask", "jacobian_valid_mask"}
+_REQUIRED = {"geometry", "coefficients", "target_moments"}
+_SUPERVISION_FIELDS = ("valid_mask", "jacobian_valid_mask", "restricted_basis",
+                       "restricted_jacobian", "restricted_valid", "restricted_dimension")
+_OPTIONAL = {"target_jacobian", *_SUPERVISION_FIELDS}
 
 
 def _fingerprint(value: Any) -> str:
@@ -62,6 +65,11 @@ def _fingerprint(value: Any) -> str:
                 visit(child)
         elif isinstance(item, np.generic):
             visit(item.item())
+        elif isinstance(item, float) and not math.isfinite(item):
+            # Validation already rejects active nonfinite values. Inactive
+            # labels/dimension padding may be NaN or infinity in Python lists,
+            # just as in tensors/ndarrays; hash them without serializing a report.
+            add(b"nonfinite_float"); add(repr(item).encode("ascii"))
         elif item is None or isinstance(item, (str, bool, int, float)):
             add(json.dumps(item, allow_nan=False, separators=(",", ":")).encode())
         else:
@@ -118,13 +126,13 @@ def _seed(seed: int) -> None:
 
 
 def _validate_batches(batches: Sequence[Mapping[str, Any]], moment_scale: Any,
-                      jacobian_scale: Any) -> list[dict[str, Any]]:
+                      jacobian_scale: Any, restricted_scale: Any) -> list[dict[str, Any]]:
     if not isinstance(batches, Sequence) or not batches:
         raise ValueError("batches must be a nonempty sequence")
     prepared = []
     for batch in batches:
         if not isinstance(batch, Mapping) or not _REQUIRED.issubset(batch):
-            raise ValueError("each batch needs geometry, coefficients and both targets")
+            raise ValueError("each batch needs geometry, coefficients and target_moments")
         if set(batch) - _REQUIRED - _OPTIONAL:
             raise ValueError("unknown training batch fields")
         if not isinstance(batch["geometry"], Mapping):
@@ -135,26 +143,49 @@ def _validate_batches(batches: Sequence[Mapping[str, Any]], moment_scale: Any,
         qb = q.unsqueeze(0) if q.ndim == 1 else q
         if len(qb) == 0 or not torch.isfinite(qb).all() or (qb.to(torch.float64).norm(dim=-1) <= 0).any():
             raise ValueError("coefficients must contain finite nonzero queries")
-        for key, suffix, scale in (("target_moments", (10,), moment_scale),
-                                    ("target_jacobian", (10, 10), jacobian_scale)):
-            target = torch.as_tensor(batch[key])
-            expected = suffix if q.ndim == 1 else (len(qb), *suffix)
-            if target.shape != expected or target.is_complex() or not torch.isfinite(target).all():
-                raise ValueError(f"{key} must be finite real values of shape {expected}")
-            s = torch.as_tensor(scale)
-            if s.is_complex() or not torch.isfinite(s).all() or (s <= 0).any():
-                raise ValueError("normalization scales must be finite, real and positive")
-            try:
-                shape = torch.broadcast_shapes((len(qb), *suffix), s.shape)
-            except RuntimeError as exc:
-                raise ValueError("normalization scales are not broadcastable") from exc
-            if shape != (len(qb), *suffix):
-                raise ValueError("normalization scales must not expand the target shape")
-        for key in ("valid_mask", "jacobian_valid_mask"):
+        target = torch.as_tensor(batch["target_moments"])
+        expected = (10,) if q.ndim == 1 else (len(qb), 10)
+        if target.shape != expected or target.is_complex():
+            raise ValueError(f"target_moments must be real values of shape {expected}")
+        s = torch.as_tensor(moment_scale)
+        if s.is_complex() or not torch.isfinite(s).all() or (s <= 0).any():
+            raise ValueError("normalization scales must be finite, real and positive")
+        try:
+            shape = torch.broadcast_shapes((len(qb), 10), s.shape)
+        except RuntimeError as exc:
+            raise ValueError("normalization scales are not broadcastable") from exc
+        if shape != (len(qb), 10):
+            raise ValueError("normalization scales must not expand the target shape")
+        for key in ("valid_mask", "jacobian_valid_mask", "restricted_valid"):
             if batch.get(key) is not None:
-                mask = torch.as_tensor(batch[key], dtype=torch.bool)
-                if mask.shape != (len(qb),) or not mask.any():
-                    raise ValueError(f"{key} must have shape [Q] with at least one valid query")
+                mask = torch.as_tensor(batch[key])
+                if mask.dtype != torch.bool or mask.shape != (len(qb),):
+                    raise ValueError(f"{key} must be boolean with shape [Q]")
+                if key == "valid_mask" and not mask.any():
+                    raise ValueError("valid_mask must select at least one valid moment query")
+        selected = target.reshape(-1, 10)
+        if batch.get("valid_mask") is not None:
+            selected = selected[torch.as_tensor(batch["valid_mask"], device=selected.device)]
+        if not torch.isfinite(selected).all():
+            raise ValueError("selected target_moments must be finite")
+        full = batch.get("target_jacobian")
+        if full is not None:
+            full = torch.as_tensor(full)
+            expected_j = (10, 10) if q.ndim == 1 else (len(qb), 10, 10)
+            if full.shape != expected_j or full.is_complex():
+                raise ValueError(f"target_jacobian must be real values of shape {expected_j}")
+            full = full.reshape(-1, 10, 10)
+        full_mask = batch.get("jacobian_valid_mask")
+        if full_mask is None and full is not None:
+            full_mask = batch.get("valid_mask")
+        # Validate only selected full rows and active restricted columns. This
+        # deliberately permits NaN placeholders in unused derivative labels.
+        derivative_supervision_loss(torch.zeros(len(qb), 10, 10, dtype=torch.float64), full,
+            derivative_valid=full_mask, restricted_basis=batch.get("restricted_basis"),
+            restricted_target=batch.get("restricted_jacobian"),
+            restricted_valid=batch.get("restricted_valid"),
+            restricted_dimension=batch.get("restricted_dimension"),
+            jacobian_scale=jacobian_scale, restricted_scale=restricted_scale)
         prepared.append(_clone_inputs(batch))
     return prepared
 
@@ -162,38 +193,18 @@ def _validate_batches(batches: Sequence[Mapping[str, Any]], moment_scale: Any,
 @torch.no_grad()
 def _evaluate(model: UnifiedM80SQNO, batches: Sequence[Mapping[str, Any]], *,
               moment_scale: Any, jacobian_scale: Any, jacobian_weight: float,
-              branch_aux_weight: float) -> dict[str, Any]:
+              branch_aux_weight: float, restricted_scale: Any) -> dict[str, Any]:
     model.eval()
     rows = []
     for batch in batches:
         cache = model.encode_geometry(batch["geometry"], inference=True)
-        result = model.evaluate_queries(cache, batch["coefficients"], create_graph=False)
-        device = result["moments"].device
-        target_m = torch.as_tensor(batch["target_moments"], dtype=torch.float64, device=device).reshape(-1, 10)
-        target_j = torch.as_tensor(batch["target_jacobian"], dtype=torch.float64, device=device).reshape(-1, 10, 10)
-        ms = torch.as_tensor(moment_scale, dtype=torch.float64, device=device)
-        js = torch.as_tensor(jacobian_scale, dtype=torch.float64, device=device)
-        mask = batch.get("valid_mask")
-        jmask = batch.get("jacobian_valid_mask")
-        if jmask is None:
-            jmask = mask
-
-        def mse(key: str, target: Tensor, scale: Tensor, valid: Any) -> float:
-            squared = ((result[key].reshape_as(target) - target) / scale).square()
-            if valid is not None:
-                squared = squared[torch.as_tensor(valid, device=device, dtype=torch.bool)]
-            return float(squared.mean().cpu())
-
-        row = {
-            "moment": mse("moments", target_m, ms, mask),
-            "jacobian": mse("jacobian_coefficients", target_j, js, jmask),
-            "m80_moment": mse("m80_moments", target_m, ms, mask),
-            "sqno_moment": mse("sqno_moments", target_m, ms, mask),
-            "m80_jacobian": mse("m80_jacobian_coefficients", target_j, js, jmask),
-            "sqno_jacobian": mse("sqno_jacobian_coefficients", target_j, js, jmask),
-        }
-        row["branch_aux"] = .5 * (row["m80_moment"] + row["sqno_moment"]
-            + jacobian_weight * (row["m80_jacobian"] + row["sqno_jacobian"]))
+        tasks, _ = model._joint_task_losses_and_metadata(cache, batch["coefficients"],
+            batch["target_moments"], batch.get("target_jacobian"),
+            moment_scale=moment_scale, jacobian_scale=jacobian_scale,
+            restricted_scale=restricted_scale, jacobian_weight=jacobian_weight,
+            branch_aux_weight=branch_aux_weight, _create_graph=False,
+            **{key: batch.get(key) for key in _SUPERVISION_FIELDS})
+        row = {name: float(value.detach().cpu()) for name, value in tasks.items()}
         row["loss"] = row["moment"] + jacobian_weight * row["jacobian"] + branch_aux_weight * row["branch_aux"]
         rows.append(row)
     return {"aggregation": "mean_of_per_batch_masked_losses", "per_batch": rows,
@@ -220,13 +231,15 @@ def run_training_ablation(
     seed: int = 830413, learning_rate: float = 1e-5, weight_decay: float = 1e-4,
     jacobian_weight: float = .1, branch_aux_weight: float = .25,
     gradient_clip: float = 1., moment_scale: Any = 1., jacobian_scale: Any = 1.,
+    restricted_scale: Any = 1.,
     scope: str = "short_diagnostic",
 ) -> dict[str, Any]:
     """Train independent fixed/PCGrad clones for 1--100 identical batch steps.
 
-    Batches contain ``geometry``, ``coefficients``, ``target_moments`` and
-    ``target_jacobian``; optional masks are ``valid_mask`` and
-    ``jacobian_valid_mask``. Batches cycle in supplied order. Normalization and
+    Batches contain ``geometry``, ``coefficients`` and ``target_moments``.
+    Optional full and restricted derivatives use the same masks, raw-coordinate
+    projection and per-query averaging as ``UnifiedM80SQNO.train_step``.
+    Batches cycle in supplied order. Normalization and
     AdamW settings match across arms. These are new runs from cloned weights,
     including when the caller model came from a resumed run; neither arm reuses
     a caller optimizer or its resume-mode lock. PCGrad uses a sum reduction so the absence
@@ -253,8 +266,10 @@ def run_training_ablation(
     # Detach these alongside batches, so fixed backward cannot accumulate into them.
     moment_scale = _clone_inputs(moment_scale)
     jacobian_scale = _clone_inputs(jacobian_scale)
-    prepared = _validate_batches(batches, moment_scale, jacobian_scale)
-    input_state = {"batches": prepared, "moment_scale": moment_scale, "jacobian_scale": jacobian_scale}
+    restricted_scale = _clone_inputs(restricted_scale)
+    prepared = _validate_batches(batches, moment_scale, jacobian_scale, restricted_scale)
+    input_state = {"batches": prepared, "moment_scale": moment_scale,
+                   "jacobian_scale": jacobian_scale, "restricted_scale": restricted_scale}
     input_hash = _fingerprint(input_state)
     batch_hashes = [_fingerprint(batch) for batch in prepared]
     initial_hash = _fingerprint(model.state_dict())
@@ -265,7 +280,8 @@ def run_training_ablation(
     schedule = [i % len(prepared) for i in range(steps)]
     seeds = [seed + i for i in range(steps)]
     eval_kwargs = dict(moment_scale=moment_scale, jacobian_scale=jacobian_scale,
-                       jacobian_weight=jacobian_weight, branch_aux_weight=branch_aux_weight)
+                       restricted_scale=restricted_scale, jacobian_weight=jacobian_weight,
+                       branch_aux_weight=branch_aux_weight)
     training_kwargs = dict(**eval_kwargs, gradient_clip=gradient_clip, pcgrad_reduction="sum")
     rng = _rng_state()
     reports = {}
@@ -302,9 +318,8 @@ def run_training_ablation(
                 # Optimizer updates invalidate both cached features and their graph.
                 cache = arm.encode_geometry(batch["geometry"])
                 metrics = arm.train_step(optimizer, cache, batch["coefficients"],
-                    batch["target_moments"], batch["target_jacobian"],
-                    valid_mask=batch.get("valid_mask"),
-                    jacobian_valid_mask=batch.get("jacobian_valid_mask"),
+                    batch["target_moments"], batch.get("target_jacobian"),
+                    **{key: batch.get(key) for key in _SUPERVISION_FIELDS},
                     gradient_mode=mode, **training_kwargs)
                 if device.type == "cuda":
                     torch.cuda.synchronize(device)
@@ -314,7 +329,8 @@ def run_training_ablation(
                                 "seconds": elapsed, "metrics": _json_value(metrics)})
             training_encode_calls = arm.geometry_encode_calls - encode_before
             if _fingerprint({"batches": arm_batches, "moment_scale": moment_scale,
-                             "jacobian_scale": jacobian_scale}) != input_hash:
+                             "jacobian_scale": jacobian_scale,
+                             "restricted_scale": restricted_scale}) != input_hash:
                 raise RuntimeError("training modified ablation inputs")
             after = _evaluate(arm, arm_batches, **eval_kwargs)
             reports[mode] = {

@@ -186,3 +186,37 @@ def test_training_ablation_cli_writes_finite_explicitly_synthetic_report(tmp_pat
     assert set(report["arms"]) == {"fixed", "pcgrad"}
     assert all(arm["optimizer_steps"] == 1 for arm in report["arms"].values())
     assert list(tmp_path.glob("*.tmp")) == []
+
+
+def test_training_ablation_accepts_list_backed_inactive_nan_padding_without_input_mutation():
+    model, batches = synthetic_training_case()
+    batch = batches[0]
+    full = torch.full((4, 10, 10), float("nan"), dtype=torch.float64)
+    full[0] = 0.
+    basis = torch.full((4, 10, 8), float("nan"), dtype=torch.float64)
+    directional = torch.full_like(basis, float("nan"))
+    for row, dimension in ((1, 3), (2, 8)):
+        basis[row, :, :dimension] = torch.eye(10, dtype=torch.float64)[:, :dimension]
+        directional[row, :, :dimension] = 0.
+    batch.update({
+        "target_jacobian": full.tolist(),
+        "jacobian_valid_mask": [True, False, False, False],
+        "restricted_basis": basis.tolist(),
+        "restricted_jacobian": directional.tolist(),
+        "restricted_valid": [False, True, True, False],
+        "restricted_dimension": [float("nan"), 3., 8., float("nan")],
+    })
+    supplied = {key: copy.deepcopy(value) for key, value in batch.items() if isinstance(value, list)}
+    report = run_training_ablation(model, batches, steps=1)
+    fixed, pcgrad = report["arms"]["fixed"], report["arms"]["pcgrad"]
+    assert fixed["input_sha256"] == pcgrad["input_sha256"]
+    for arm in (fixed, pcgrad):
+        metrics = arm["steps"][0]["metrics"]
+        assert metrics["valid_jacobian_queries"] == 1
+        assert metrics["valid_restricted_queries"] == 2
+        assert metrics["restricted_dimensions"] == 11
+    for key, original in supplied.items():
+        assert isinstance(batch[key], list)
+        np.testing.assert_equal(batch[key], original)
+    assert model.geometry_encode_calls == 0
+    json.dumps(report, allow_nan=False)

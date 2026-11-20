@@ -126,12 +126,34 @@ def test_neural_evaluator_falls_back_on_stale_cache():
 
 
 def test_convex_neural_evaluator_passes_psd_gate_when_admitted():
+    torch.manual_seed(307)
     model,cache=_model_and_cache(convex=True)
+    q=torch.tensor([.03,.11,-.07,.04,.02,-.01,.015,.07,-.06,.05],dtype=torch.float64)
+    _,jac=model.moments_and_jacobian(cache,q)
+    hessian=jac/model.native_B
+    assert (jac-jac.T).abs().max()>1e-5
+    torch.testing.assert_close(hessian,hessian.T,rtol=1e-9,atol=1e-10)
     adapter=_adapter(model,cache,admission=lambda qn,qm,pred:True)
-    result=adapter(np.asarray([.03,.11,-.07,.04,.02,-.01,.015,.004,-.006,.003]))
+    result=adapter(q.numpy())
     assert result["derivative_defined"] is True
     assert adapter.stats.neural_calls==1
     assert adapter.stats.rejected_convex_jacobian==0
+
+
+def test_convex_neural_evaluator_rejects_negative_monomial_hessian(monkeypatch):
+    model,cache=_model_and_cache(convex=True)
+    hessian=torch.eye(10,dtype=torch.float64)
+    hessian[7,7]=-1.
+    jacobian=hessian*model.native_B
+    moments=cache.fixed_moments+.5*cache.design_moments
+    monkeypatch.setattr(model,"moments_and_jacobian",
+        lambda cache,q,**kwargs:(moments,jacobian))
+    adapter=_adapter(model,cache,admission=lambda qn,qm,pred:True)
+    result=adapter(np.asarray([.03,.11,-.07,.04,.02,-.01,.015,.07,-.06,.05]))
+    assert "convex_jacobian_symmetry_or_psd_gate" in result["derivative_diagnostic"]
+    assert adapter.stats.rejected_convex_jacobian==1
+    assert adapter.stats.exact_fallback_calls==1
+    assert adapter.stats.neural_calls==0
 
 
 def test_target_frame_moment_transform_matches_pointwise_polynomial_basis():
@@ -149,6 +171,7 @@ def test_target_frame_moment_transform_matches_pointwise_polynomial_basis():
     rng=np.random.default_rng(123)
     q_target=rng.normal(size=10)
     points=rng.normal(size=(32,3))
+    b=np.asarray([1.,1.,1.,1.,1.,1.,1.,2.,2.,2.])
     def basis(x):
         a,b,c=x
         return np.asarray([1.,a,b,c,a*a,b*b,c*c,b*c,a*c,a*b])
@@ -156,7 +179,35 @@ def test_target_frame_moment_transform_matches_pointwise_polynomial_basis():
         target=axes@(x-origin)
         assert np.allclose(basis(target),moment_to_target@basis(x),rtol=1e-12,atol=1e-12)
         q_model=coefficient_to_model@q_target
-        assert np.dot(q_target,basis(target))==pytest.approx(np.dot(q_model,basis(x)),abs=1e-12)
+        target_value=np.dot(b*q_target,basis(target))
+        model_value=np.dot(b*q_model,basis(x))
+        assert target_value==pytest.approx(model_value,abs=1e-12)
+        assert (target_value>0)==(model_value>0)
+
+
+def test_target_frame_native_jacobian_chain_rule_matches_rotated_translated_finite_difference():
+    from research.NeuralMoments.models.pcraft_ufno.spin_pino.neural_solver_bridge import target_frame_moment_transforms
+    torch.manual_seed(311)
+    model,cache=_model_and_cache(convex=True)
+    theta=.37
+    axes=np.asarray([[np.cos(theta),-np.sin(theta),0.],
+                     [np.sin(theta),np.cos(theta),0.],[0.,0.,1.]])
+    c,m=target_frame_moment_transforms(np.asarray([.3,-.2,.5]),axes)
+    assert not np.allclose(c,m.T)
+    with pytest.raises(ValueError,match="must equal B"):
+        _adapter(model,cache,admission=lambda *args:True,C=m.T,M=m)
+    adapter=_adapter(model,cache,admission=lambda *args:True,C=c,M=m)
+    q=np.asarray([.03,.11,-.07,.04,.02,-.01,.015,.07,-.06,.05])
+    result=adapter(q)
+    assert result["derivative_diagnostic"].startswith("neural_admitted")
+    eps=2e-6
+    for column in (0,4,7,8,9):
+        delta=np.zeros(10);delta[column]=eps
+        plus=adapter(q+delta);minus=adapter(q-delta)
+        assert plus["derivative_diagnostic"].startswith("neural_admitted")
+        assert minus["derivative_diagnostic"].startswith("neural_admitted")
+        fd=(plus["raw_moments"]-minus["raw_moments"])/(2*eps)
+        np.testing.assert_allclose(result["moment_jacobian"][:,column],fd,rtol=1e-5,atol=1e-7)
 
 
 def test_target_frame_transform_rejects_nonorthonormal_axes():
@@ -169,7 +220,7 @@ def test_target_frame_transform_rejects_nonorthonormal_axes():
 
 def test_neural_evaluator_rejects_nondual_frame_transform_pair():
     model,cache=_model_and_cache()
-    with pytest.raises(ValueError,match="must equal moment_to_target.T"):
+    with pytest.raises(ValueError,match="must equal B"):
         _adapter(model,cache,admission=lambda qn,qm,pred:True,
                  C=np.diag(np.linspace(.8,1.2,10)),
                  M=np.diag(np.linspace(1.3,.9,10)))
