@@ -284,7 +284,7 @@ class UnifiedM80SQNO(nn.Module):
                 inputs=(q_part,cache.shared_cache.scale_features,
                         cache.shared_cache.scale_ids)
                 if create_graph and torch.is_grad_enabled():
-                    corr,jac=torch.utils.checkpoint.checkpoint(
+                    corr,jac=checkpoint(
                         scale_attention_with_jacobian,*inputs,use_reentrant=False)
                 else:
                     corr,jac=scale_attention_with_jacobian(*inputs)
