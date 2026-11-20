@@ -146,10 +146,10 @@ class SpinQuadrANNV11(nn.Module):
             edge_slice = edge_np[:, start * edges_per_target:stop * edges_per_target].copy()
             edge_slice[1] -= start
             edge = torch.as_tensor(edge_slice, dtype=torch.long, device=xyz.device)
-            def initial_chunk_fn(xyz_all, density_all, xyz_local, density_local):
+            def initial_chunk_fn(xyz_all, density_all, xyz_local, density_local, edge_index=edge):
                 return self.gnn.initial.forward_chunk(
                     xyz_all, density_all, xyz_local, density_local,
-                    edge, source_count=n,
+                    edge_index, source_count=n,
                 )
             if self.training and torch.is_grad_enabled():
                 features = checkpoint(
@@ -174,11 +174,12 @@ class SpinQuadrANNV11(nn.Module):
                 edge_slice[1] -= start
                 edge = torch.as_tensor(edge_slice, dtype=torch.long, device=xyz.device)
                 def propagation_chunk_fn(source_features, target_features,
-                                          source_context, target_context):
-                    return layer.forward_chunk(
+                                          source_context, target_context,
+                                          layer_module=layer, edge_index=edge):
+                    return layer_module.forward_chunk(
                         source_features, target_features,
                         source_context, target_context,
-                        edge, source_count=n,
+                        edge_index, source_count=n,
                     )
                 if self.training and torch.is_grad_enabled():
                     updated = checkpoint(
