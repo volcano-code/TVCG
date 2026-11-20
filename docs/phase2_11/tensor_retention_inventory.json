@@ -1,0 +1,2467 @@
+{
+  "schema": "tvcg.phase2_11.tensor-retention.v1",
+  "baseline": "a21a200075a6703f5c7adef43058af43457a6aa5",
+  "symbols": {
+    "N": "native editable RLE interval count",
+    "Q": "all queries of one record",
+    "W": "P-CRAFT interval width",
+    "P": "PINO feature map channels",
+    "g": "one configured conservative-grid side",
+    "S": "number of multiscale tokens",
+    "K": "neighbors per target in this module",
+    "D_l": "GNN layer l output width",
+    "D_f": "final GNN output width",
+    "L": "number of returned GNN layers including initial",
+    "A": "connected components",
+    "R": "quadrature order",
+    "M": "N × R³ native quadrature nodes",
+    "T": "Transolver slice count",
+    "H": "heads in the named module",
+    "d": "W/H",
+    "C": "interval tile length in the named module",
+    "B": "query tile length",
+    "J": "quadrature-node tile length",
+    "U": "count of distinct neighbor source tiles referenced by a target tile",
+    "r": "stored maximum restricted tangent dimension",
+    "p": "shape of one trainable parameter"
+  },
+  "measurement_policy": "Rows are code-derived shape/ownership contracts. Dynamic rows below are direct observations on a small CPU fixture. GPU evidence uses memory_profile.json. Logical numel or summed field bytes do not equal peak allocator usage.",
+  "static_tensor_contracts": [
+    {
+      "module": "native_pcraft.py",
+      "role": "input/static geometry",
+      "tensor": "columns",
+      "shape": "[N,4]",
+      "dtype": "int64",
+      "device": "CPU",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "read-only snapshot/borrowed view of owned decode arrays",
+      "lifetime": "RLE decode or prepare through release of prepared owner",
+      "checkpoint_or_recompute": "memoized by prepared geometry"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "input/static geometry",
+      "tensor": "xyz",
+      "shape": "[N,3]",
+      "dtype": "FP64",
+      "device": "CPU",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "read-only snapshot/borrowed view of owned decode arrays",
+      "lifetime": "RLE decode or prepare through release of prepared owner",
+      "checkpoint_or_recompute": "memoized by prepared geometry"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "input/static geometry",
+      "tensor": "cell_extent",
+      "shape": "[N,3]",
+      "dtype": "FP64",
+      "device": "CPU",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "read-only snapshot/borrowed view of owned decode arrays",
+      "lifetime": "RLE decode or prepare through release of prepared owner",
+      "checkpoint_or_recompute": "memoized by prepared geometry"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "input/static geometry",
+      "tensor": "mass",
+      "shape": "[N]",
+      "dtype": "FP64",
+      "device": "CPU",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "read-only snapshot/borrowed view of owned decode arrays",
+      "lifetime": "RLE decode or prepare through release of prepared owner",
+      "checkpoint_or_recompute": "memoized by prepared geometry"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "input/static geometry",
+      "tensor": "moment_basis",
+      "shape": "[N,10]",
+      "dtype": "FP64",
+      "device": "CPU",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "read-only snapshot/borrowed view of owned decode arrays",
+      "lifetime": "RLE decode or prepare through release of prepared owner",
+      "checkpoint_or_recompute": "memoized by prepared geometry"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "input/static geometry",
+      "tensor": "coarse_grid[g]",
+      "shape": "[4,g,g,g]",
+      "dtype": "FP32",
+      "device": "CPU",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "read-only snapshot/borrowed view of owned decode arrays",
+      "lifetime": "RLE decode or prepare through release of prepared owner",
+      "checkpoint_or_recompute": "memoized by prepared geometry"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "physical inputs",
+      "tensor": "xyz, extent (each)",
+      "shape": "[N,3]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "physical uploads are device allocations; CPU execution may wrap temporary NumPy copies",
+      "lifetime": "encode phase; backward closures may retain masses/coordinate arrays",
+      "checkpoint_or_recompute": "deterministic from geometry"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "physical inputs",
+      "tensor": "basis",
+      "shape": "[N,10]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "physical uploads are device allocations; CPU execution may wrap temporary NumPy copies",
+      "lifetime": "encode phase; backward closures may retain masses/coordinate arrays",
+      "checkpoint_or_recompute": "deterministic from geometry"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "physical inputs",
+      "tensor": "mass",
+      "shape": "[N]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "physical uploads are device allocations; CPU execution may wrap temporary NumPy copies",
+      "lifetime": "encode phase; backward closures may retain masses/coordinate arrays",
+      "checkpoint_or_recompute": "deterministic from geometry"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "features and maps",
+      "tensor": "scale_maps[g]",
+      "shape": "[1,P,g,g,g]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "one full output table/map per scale; sample_native_intervals returns transposed view of sampler output",
+      "lifetime": "map generation through last dependent backward; sampled-table split views retain storage",
+      "checkpoint_or_recompute": "scale encoder checkpoint; fixed-coordinate sampler adjoint; interval checkpoints consume sampled rows"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "features and maps",
+      "tensor": "sample table[g]",
+      "shape": "[N,P]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "one full output table/map per scale; sample_native_intervals returns transposed view of sampler output",
+      "lifetime": "map generation through last dependent backward; sampled-table split views retain storage",
+      "checkpoint_or_recompute": "scale encoder checkpoint; fixed-coordinate sampler adjoint; interval checkpoints consume sampled rows"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "features and maps",
+      "tensor": "all_features before GNO",
+      "shape": "[N,W]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "one full output table/map per scale; sample_native_intervals returns transposed view of sampler output",
+      "lifetime": "map generation through last dependent backward; sampled-table split views retain storage",
+      "checkpoint_or_recompute": "scale encoder checkpoint; fixed-coordinate sampler adjoint; interval checkpoints consume sampled rows"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "features and maps",
+      "tensor": "all_features after GNO",
+      "shape": "[N,W]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "one full output table/map per scale; sample_native_intervals returns transposed view of sampler output",
+      "lifetime": "map generation through last dependent backward; sampled-table split views retain storage",
+      "checkpoint_or_recompute": "scale encoder checkpoint; fixed-coordinate sampler adjoint; interval checkpoints consume sampled rows"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "GNO local topology",
+      "tensor": "indices / tile.indices",
+      "shape": "[C,K]",
+      "dtype": "integer (local map int32; index operations int64)",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "mapped indices may be cached in closure; edges are recreated inside update_tile",
+      "lifetime": "indices survive through backward; edge descriptor lives within each execution",
+      "checkpoint_or_recompute": "pcraft_gno_recompute"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "GNO local topology",
+      "tensor": "edges",
+      "shape": "[C,K,7]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "mapped indices may be cached in closure; edges are recreated inside update_tile",
+      "lifetime": "indices survive through backward; edge descriptor lives within each execution",
+      "checkpoint_or_recompute": "pcraft_gno_recompute"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "GNO local messages",
+      "tensor": "neighbors",
+      "shape": "[C,K,W]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "tile gather allocates neighbors; source table aliases one tile or concatenates U source tiles",
+      "lifetime": "one target tile forward/replay",
+      "checkpoint_or_recompute": "pcraft_gno_recompute"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "GNO local messages",
+      "tensor": "source_table",
+      "shape": "[up to U*C,W]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "tile gather allocates neighbors; source table aliases one tile or concatenates U source tiles",
+      "lifetime": "one target tile forward/replay",
+      "checkpoint_or_recompute": "pcraft_gno_recompute"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "Transolver local activations",
+      "tensor": "x_mid",
+      "shape": "[C,H,d]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "tile projection/softmax allocate local buffers",
+      "lifetime": "pool/deslice forward or replay, each tile",
+      "checkpoint_or_recompute": "transolver_pool_recompute / transolver_deslice_recompute"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "Transolver local activations",
+      "tensor": "assignment",
+      "shape": "[C,H,T]",
+      "dtype": "FP32",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "tile projection/softmax allocate local buffers",
+      "lifetime": "pool/deslice forward or replay, each tile",
+      "checkpoint_or_recompute": "transolver_pool_recompute / transolver_deslice_recompute"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "Transolver local activations",
+      "tensor": "weighted assignment",
+      "shape": "[C,H,T]",
+      "dtype": "FP32",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "tile projection/softmax allocate local buffers",
+      "lifetime": "pool/deslice forward or replay, each tile",
+      "checkpoint_or_recompute": "transolver_pool_recompute / transolver_deslice_recompute"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "Transolver local activations",
+      "tensor": "point_update",
+      "shape": "[C,W]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "tile projection/softmax allocate local buffers",
+      "lifetime": "pool/deslice forward or replay, each tile",
+      "checkpoint_or_recompute": "transolver_pool_recompute / transolver_deslice_recompute"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "Transolver global reductions",
+      "tensor": "slice_mass",
+      "shape": "[H,T]",
+      "dtype": "FP32",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "distinct materialized storage",
+      "lifetime": "end of whole-geometry pool through deslice/backward",
+      "checkpoint_or_recompute": "pool replay, actual SDPA over slice axis"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "Transolver global reductions",
+      "tensor": "slice_numerator / slice_tokens / attended (each)",
+      "shape": "[H,T,d]",
+      "dtype": "FP32",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "distinct materialized storage",
+      "lifetime": "end of whole-geometry pool through deslice/backward",
+      "checkpoint_or_recompute": "pool replay, actual SDPA over slice axis"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "encoded cache output",
+      "tensor": "interval_features",
+      "shape": "[N,W]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "interval_features aliases SQNO.pcraft_local_features with matching dtype/device; global context and global scale weights also exported by reference; latent has its own weighted-reduction output storage",
+      "lifetime": "cache creation through last use/reference; rebuild learned values for next optimizer version",
+      "checkpoint_or_recompute": "re-encode after parameters change"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "encoded cache output",
+      "tensor": "latent",
+      "shape": "[1,W]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "interval_features aliases SQNO.pcraft_local_features with matching dtype/device; global context and global scale weights also exported by reference; latent has its own weighted-reduction output storage",
+      "lifetime": "cache creation through last use/reference; rebuild learned values for next optimizer version",
+      "checkpoint_or_recompute": "re-encode after parameters change"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "encoded cache output",
+      "tensor": "global_context",
+      "shape": "[W]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "interval_features aliases SQNO.pcraft_local_features with matching dtype/device; global context and global scale weights also exported by reference; latent has its own weighted-reduction output storage",
+      "lifetime": "cache creation through last use/reference; rebuild learned values for next optimizer version",
+      "checkpoint_or_recompute": "re-encode after parameters change"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "encoded cache output",
+      "tensor": "global_scale_weights",
+      "shape": "[S,1]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "interval_features aliases SQNO.pcraft_local_features with matching dtype/device; global context and global scale weights also exported by reference; latent has its own weighted-reduction output storage",
+      "lifetime": "cache creation through last use/reference; rebuild learned values for next optimizer version",
+      "checkpoint_or_recompute": "re-encode after parameters change"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "encoded cache output",
+      "tensor": "scale_features",
+      "shape": "[S,W]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "interval_features aliases SQNO.pcraft_local_features with matching dtype/device; global context and global scale weights also exported by reference; latent has its own weighted-reduction output storage",
+      "lifetime": "cache creation through last use/reference; rebuild learned values for next optimizer version",
+      "checkpoint_or_recompute": "re-encode after parameters change"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "encoded cache fixed fields",
+      "tensor": "interval_mass (normalized)",
+      "shape": "[N]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "derived tensors, reused by reference from cache",
+      "lifetime": "cache creation through last use/reference; rebuild learned values for next optimizer version",
+      "checkpoint_or_recompute": "rebuild from prepared geometry during re-encode"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "encoded cache fixed fields",
+      "tensor": "descriptor",
+      "shape": "[N,13]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "derived tensors, reused by reference from cache",
+      "lifetime": "cache creation through last use/reference; rebuild learned values for next optimizer version",
+      "checkpoint_or_recompute": "rebuild from prepared geometry during re-encode"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "encoded cache fixed fields",
+      "tensor": "normalized_xyz",
+      "shape": "[N,3]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "derived tensors, reused by reference from cache",
+      "lifetime": "cache creation through last use/reference; rebuild learned values for next optimizer version",
+      "checkpoint_or_recompute": "rebuild from prepared geometry during re-encode"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "encoded cache fixed fields",
+      "tensor": "statistics",
+      "shape": "[1,36]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "derived tensors, reused by reference from cache",
+      "lifetime": "cache creation through last use/reference; rebuild learned values for next optimizer version",
+      "checkpoint_or_recompute": "rebuild from prepared geometry during re-encode"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "encoded cache fixed fields",
+      "tensor": "fixed/design/absolute moments and moment/coordinate scales (each)",
+      "shape": "[10]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "derived tensors, reused by reference from cache",
+      "lifetime": "cache creation through last use/reference; rebuild learned values for next optimizer version",
+      "checkpoint_or_recompute": "rebuild from prepared geometry during re-encode"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "encoded cache fixed fields",
+      "tensor": "normalized_bounds",
+      "shape": "[2,3]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "derived tensors, reused by reference from cache",
+      "lifetime": "cache creation through last use/reference; rebuild learned values for next optimizer version",
+      "checkpoint_or_recompute": "rebuild from prepared geometry during re-encode"
+    },
+    {
+      "module": "native_pcraft.py",
+      "role": "encoded cache fixed fields",
+      "tensor": "scale_ids",
+      "shape": "[S]",
+      "dtype": "int64",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "derived tensors, reused by reference from cache",
+      "lifetime": "cache creation through last use/reference; rebuild learned values for next optimizer version",
+      "checkpoint_or_recompute": "rebuild from prepared geometry during re-encode"
+    },
+    {
+      "module": "spin_quadrann_v11.py",
+      "role": "GNN topology",
+      "tensor": "edges[i]",
+      "shape": "[2,C*K]",
+      "dtype": "int64",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "GNN edges are materialized per tile, with local source rows; normalized coordinate tiles are split views",
+      "lifetime": "initial geometry assembly through message-passing replay",
+      "checkpoint_or_recompute": "integer edges passed into checkpoints"
+    },
+    {
+      "module": "spin_quadrann_v11.py",
+      "role": "GNN topology",
+      "tensor": "densities[i]",
+      "shape": "[C,1]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "GNN edges are materialized per tile, with local source rows; normalized coordinate tiles are split views",
+      "lifetime": "initial geometry assembly through message-passing replay",
+      "checkpoint_or_recompute": "integer edges passed into checkpoints"
+    },
+    {
+      "module": "spin_quadrann_v11.py",
+      "role": "GNN topology",
+      "tensor": "coords[i]",
+      "shape": "[C,3]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "GNN edges are materialized per tile, with local source rows; normalized coordinate tiles are split views",
+      "lifetime": "initial geometry assembly through message-passing replay",
+      "checkpoint_or_recompute": "integer edges passed into checkpoints"
+    },
+    {
+      "module": "spin_quadrann_v11.py",
+      "role": "GNN layer outputs",
+      "tensor": "layer_outputs[l]",
+      "shape": "[N,D_l]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "full contiguous output per layer; split layer views and final_features share respective original storage",
+      "lifetime": "initial/layer production through derivative of fusion and GNN",
+      "checkpoint_or_recompute": "initial/propagation MLP replay, full layer outputs needed across layers and by fusion"
+    },
+    {
+      "module": "spin_quadrann_v11.py",
+      "role": "GNN layer outputs",
+      "tensor": "final_features",
+      "shape": "[N,D_f]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "full contiguous output per layer; split layer views and final_features share respective original storage",
+      "lifetime": "initial/layer production through derivative of fusion and GNN",
+      "checkpoint_or_recompute": "initial/propagation MLP replay, full layer outputs needed across layers and by fusion"
+    },
+    {
+      "module": "spin_quadrann_v11.py",
+      "role": "GNN layer outputs",
+      "tensor": "global_mean",
+      "shape": "[1,D_l]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "full contiguous output per layer; split layer views and final_features share respective original storage",
+      "lifetime": "initial/layer production through derivative of fusion and GNN",
+      "checkpoint_or_recompute": "initial/propagation MLP replay, full layer outputs needed across layers and by fusion"
+    },
+    {
+      "module": "spin_quadrann_v12.py",
+      "role": "fusion input",
+      "tensor": "p_local",
+      "shape": "[N,W]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "p_local references the shared interval table if dtype matches; final layer is reused twice in feature definition. component_context is index_add/count over final features",
+      "lifetime": "through last fusion checkpoint backward",
+      "checkpoint_or_recompute": "component_context/expanded global context referenced by closure"
+    },
+    {
+      "module": "spin_quadrann_v12.py",
+      "role": "fusion input",
+      "tensor": "q_feature_layers[l]",
+      "shape": "[N,D_l]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "p_local references the shared interval table if dtype matches; final layer is reused twice in feature definition. component_context is index_add/count over final features",
+      "lifetime": "through last fusion checkpoint backward",
+      "checkpoint_or_recompute": "component_context/expanded global context referenced by closure"
+    },
+    {
+      "module": "spin_quadrann_v12.py",
+      "role": "fusion input",
+      "tensor": "component_context",
+      "shape": "[A,D_f]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "p_local references the shared interval table if dtype matches; final layer is reused twice in feature definition. component_context is index_add/count over final features",
+      "lifetime": "through last fusion checkpoint backward",
+      "checkpoint_or_recompute": "component_context/expanded global context referenced by closure"
+    },
+    {
+      "module": "spin_quadrann_v12.py",
+      "role": "fusion tile workspace",
+      "tensor": "global_local",
+      "shape": "[C,W]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "global_local uses expand; component_local is an indexed copy for the active tile; qf and fused input use cat",
+      "lifetime": "one forward/replay per tile",
+      "checkpoint_or_recompute": "sqno_fusion_recompute"
+    },
+    {
+      "module": "spin_quadrann_v12.py",
+      "role": "fusion tile workspace",
+      "tensor": "component_local",
+      "shape": "[C,D_f]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "global_local uses expand; component_local is an indexed copy for the active tile; qf and fused input use cat",
+      "lifetime": "one forward/replay per tile",
+      "checkpoint_or_recompute": "sqno_fusion_recompute"
+    },
+    {
+      "module": "spin_quadrann_v12.py",
+      "role": "fusion tile workspace",
+      "tensor": "qf",
+      "shape": "[C,sum_l D_l]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "global_local uses expand; component_local is an indexed copy for the active tile; qf and fused input use cat",
+      "lifetime": "one forward/replay per tile",
+      "checkpoint_or_recompute": "sqno_fusion_recompute"
+    },
+    {
+      "module": "spin_quadrann_v12.py",
+      "role": "fusion tile workspace",
+      "tensor": "fusion MLP input",
+      "shape": "[C,sum_l D_l+2*D_f+2*W]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "global_local uses expand; component_local is an indexed copy for the active tile; qf and fused input use cat",
+      "lifetime": "one forward/replay per tile",
+      "checkpoint_or_recompute": "sqno_fusion_recompute"
+    },
+    {
+      "module": "spin_quadrann_v12.py",
+      "role": "learned mass",
+      "tensor": "logits, probabilities, learned_mass (each)",
+      "shape": "[N]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "distinct materialized storage",
+      "lifetime": "global output/softmax through node-weight backward and cache release",
+      "checkpoint_or_recompute": "shared once across all Q; re-encode every update"
+    },
+    {
+      "module": "spin_quadrann_v12.py",
+      "role": "learned mass",
+      "tensor": "node_weights",
+      "shape": "[M]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "distinct materialized storage",
+      "lifetime": "global output/softmax through node-weight backward and cache release",
+      "checkpoint_or_recompute": "shared once across all Q; re-encode every update"
+    },
+    {
+      "module": "spin_quadrann_v12.py",
+      "role": "quadrature constants",
+      "tensor": "node_array",
+      "shape": "[M,3]",
+      "dtype": "FP32 or FP64 per model dtype",
+      "device": "CPU",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "derived memoized host arrays; basis and audit points use ephemeral FP64 chunk storage",
+      "lifetime": "prepared owner lifetime; temporary basis dies each 8192-interval block",
+      "checkpoint_or_recompute": "prepared_quadrature keyed by order and storage dtype"
+    },
+    {
+      "module": "spin_quadrann_v12.py",
+      "role": "quadrature constants",
+      "tensor": "weight_array",
+      "shape": "[M]",
+      "dtype": "FP32 or FP64",
+      "device": "CPU",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "derived memoized host arrays; basis and audit points use ephemeral FP64 chunk storage",
+      "lifetime": "prepared owner lifetime; temporary basis dies each 8192-interval block",
+      "checkpoint_or_recompute": "prepared_quadrature keyed by order and storage dtype"
+    },
+    {
+      "module": "spin_quadrann_v12.py",
+      "role": "quadrature constants",
+      "tensor": "mass_array",
+      "shape": "[N]",
+      "dtype": "FP32 or FP64",
+      "device": "CPU",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "derived memoized host arrays; basis and audit points use ephemeral FP64 chunk storage",
+      "lifetime": "prepared owner lifetime; temporary basis dies each 8192-interval block",
+      "checkpoint_or_recompute": "prepared_quadrature keyed by order and storage dtype"
+    },
+    {
+      "module": "spin_quadrann_v12.py",
+      "role": "quadrature constants",
+      "tensor": "basis audit tile",
+      "shape": "[min(N,8192),R³,10]",
+      "dtype": "FP64",
+      "device": "CPU",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "derived memoized host arrays; basis and audit points use ephemeral FP64 chunk storage",
+      "lifetime": "prepared owner lifetime; temporary basis dies each 8192-interval block",
+      "checkpoint_or_recompute": "prepared_quadrature keyed by order and storage dtype"
+    },
+    {
+      "module": "spin_quadrann_v12.py",
+      "role": "quadrature fixed device data",
+      "tensor": "node_xyz",
+      "shape": "[M,3]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "torch.as_tensor may share NumPy storage on CPU; CUDA needs transfer. interval_mass is physical export, distinct from shared_cache.interval_mass",
+      "lifetime": "cache fields until release; local_fraction is needed for learned mass gradients",
+      "checkpoint_or_recompute": "host quadrature reused across steps by prepared owner"
+    },
+    {
+      "module": "spin_quadrann_v12.py",
+      "role": "quadrature fixed device data",
+      "tensor": "interval_ids",
+      "shape": "[M]",
+      "dtype": "int64",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "torch.as_tensor may share NumPy storage on CPU; CUDA needs transfer. interval_mass is physical export, distinct from shared_cache.interval_mass",
+      "lifetime": "cache fields until release; local_fraction is needed for learned mass gradients",
+      "checkpoint_or_recompute": "host quadrature reused across steps by prepared owner"
+    },
+    {
+      "module": "spin_quadrann_v12.py",
+      "role": "quadrature fixed device data",
+      "tensor": "local_fraction",
+      "shape": "[M]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "torch.as_tensor may share NumPy storage on CPU; CUDA needs transfer. interval_mass is physical export, distinct from shared_cache.interval_mass",
+      "lifetime": "cache fields until release; local_fraction is needed for learned mass gradients",
+      "checkpoint_or_recompute": "host quadrature reused across steps by prepared owner"
+    },
+    {
+      "module": "spin_quadrann_v12.py",
+      "role": "quadrature fixed device data",
+      "tensor": "interval_mass (physical)",
+      "shape": "[N]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "torch.as_tensor may share NumPy storage on CPU; CUDA needs transfer. interval_mass is physical export, distinct from shared_cache.interval_mass",
+      "lifetime": "cache fields until release; local_fraction is needed for learned mass gradients",
+      "checkpoint_or_recompute": "host quadrature reused across steps by prepared owner"
+    },
+    {
+      "module": "unified_m80_sqno.py",
+      "role": "query and fused outputs",
+      "tensor": "qb",
+      "shape": "[Q,10]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "conditional (target query may not require grad; query-local leaf enabled where needed; learned outputs require grad)",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "qb may alias supplied FP64 coefficients; jacobian_q is same tensor as jacobian_coefficients; branch Jacobian compatibility names also alias",
+      "lifetime": "one query evaluation through loss/backward or prediction release",
+      "checkpoint_or_recompute": "M80 ten row VJPs, one gate VJP, analytic geometry correction and checkpointed scale attention"
+    },
+    {
+      "module": "unified_m80_sqno.py",
+      "role": "query and fused outputs",
+      "tensor": "m80/sqno/fused moments (each)",
+      "shape": "[Q,10]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "conditional (target query may not require grad; query-local leaf enabled where needed; learned outputs require grad)",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "qb may alias supplied FP64 coefficients; jacobian_q is same tensor as jacobian_coefficients; branch Jacobian compatibility names also alias",
+      "lifetime": "one query evaluation through loss/backward or prediction release",
+      "checkpoint_or_recompute": "M80 ten row VJPs, one gate VJP, analytic geometry correction and checkpointed scale attention"
+    },
+    {
+      "module": "unified_m80_sqno.py",
+      "role": "query and fused outputs",
+      "tensor": "m80/sqno/fused raw Jacobians (each)",
+      "shape": "[Q,10,10]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "conditional (target query may not require grad; query-local leaf enabled where needed; learned outputs require grad)",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "qb may alias supplied FP64 coefficients; jacobian_q is same tensor as jacobian_coefficients; branch Jacobian compatibility names also alias",
+      "lifetime": "one query evaluation through loss/backward or prediction release",
+      "checkpoint_or_recompute": "M80 ten row VJPs, one gate VJP, analytic geometry correction and checkpointed scale attention"
+    },
+    {
+      "module": "unified_m80_sqno.py",
+      "role": "query and fused outputs",
+      "tensor": "fusion gate alpha",
+      "shape": "[Q,1]",
+      "dtype": "FP32 at head, FP64 for blend",
+      "device": "model device",
+      "requires_grad": "conditional (target query may not require grad; query-local leaf enabled where needed; learned outputs require grad)",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "qb may alias supplied FP64 coefficients; jacobian_q is same tensor as jacobian_coefficients; branch Jacobian compatibility names also alias",
+      "lifetime": "one query evaluation through loss/backward or prediction release",
+      "checkpoint_or_recompute": "M80 ten row VJPs, one gate VJP, analytic geometry correction and checkpointed scale attention"
+    },
+    {
+      "module": "unified_m80_sqno.py",
+      "role": "query and fused outputs",
+      "tensor": "alpha_jacobian",
+      "shape": "[Q,1,10]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "conditional (target query may not require grad; query-local leaf enabled where needed; learned outputs require grad)",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "qb may alias supplied FP64 coefficients; jacobian_q is same tensor as jacobian_coefficients; branch Jacobian compatibility names also alias",
+      "lifetime": "one query evaluation through loss/backward or prediction release",
+      "checkpoint_or_recompute": "M80 ten row VJPs, one gate VJP, analytic geometry correction and checkpointed scale attention"
+    },
+    {
+      "module": "unified_m80_sqno.py",
+      "role": "loss terms",
+      "tensor": "moment loss, full loss, restricted loss, fused derivative loss, branch auxiliary, total (each)",
+      "shape": "[]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "true for active tasks; absent task returns detached scalar",
+      "autograd_graph": "connected to active prediction paths",
+      "alias_or_materialization": "scalar reductions; validity masks select only labeled values",
+      "lifetime": "loss construction to backward; return metrics detached",
+      "checkpoint_or_recompute": "no separate loss checkpoint"
+    },
+    {
+      "module": "unified_m80_sqno.py",
+      "role": "loss terms",
+      "tensor": "restricted projection",
+      "shape": "[n_selected,10,r]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "true for active tasks; absent task returns detached scalar",
+      "autograd_graph": "connected to active prediction paths",
+      "alias_or_materialization": "scalar reductions; validity masks select only labeled values",
+      "lifetime": "loss construction to backward; return metrics detached",
+      "checkpoint_or_recompute": "no separate loss checkpoint"
+    },
+    {
+      "module": "geometry_physics_attention.py",
+      "role": "attention input",
+      "tensor": "features",
+      "shape": "[N,W]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "features passed by reference to custom Function; q/dq are learned projection outputs",
+      "lifetime": "forward through custom backward",
+      "checkpoint_or_recompute": "saved by reference; avoid a second copy of interval features"
+    },
+    {
+      "module": "geometry_physics_attention.py",
+      "role": "attention input",
+      "tensor": "q",
+      "shape": "[Q,H,d]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "features passed by reference to custom Function; q/dq are learned projection outputs",
+      "lifetime": "forward through custom backward",
+      "checkpoint_or_recompute": "saved by reference; avoid a second copy of interval features"
+    },
+    {
+      "module": "geometry_physics_attention.py",
+      "role": "attention input",
+      "tensor": "dq",
+      "shape": "[Q,H,d,10]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "features passed by reference to custom Function; q/dq are learned projection outputs",
+      "lifetime": "forward through custom backward",
+      "checkpoint_or_recompute": "saved by reference; avoid a second copy of interval features"
+    },
+    {
+      "module": "geometry_physics_attention.py",
+      "role": "attention input",
+      "tensor": "K/V projection weights (each)",
+      "shape": "[W,W]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "features passed by reference to custom Function; q/dq are learned projection outputs",
+      "lifetime": "forward through custom backward",
+      "checkpoint_or_recompute": "saved by reference; avoid a second copy of interval features"
+    },
+    {
+      "module": "geometry_physics_attention.py",
+      "role": "mass prior",
+      "tensor": "log_prior",
+      "shape": "[N]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "false for fixed physical geometry; differentiable when supplied mass requires grad",
+      "autograd_graph": "computed from physical mass",
+      "alias_or_materialization": "new size-N vector",
+      "lifetime": "saved by custom Function to reconstruct global scores in backward",
+      "checkpoint_or_recompute": "reproject features and reuse log_prior"
+    },
+    {
+      "module": "geometry_physics_attention.py",
+      "role": "attention tile working set",
+      "tensor": "key, value (each)",
+      "shape": "[C,H,d]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "forward under custom Function no_grad; differentiable replay if outer backward requests create_graph",
+      "autograd_graph": "custom VJP relates these to learned inputs",
+      "alias_or_materialization": "one KV projection shared by all queries; only B query rows active per score tile",
+      "lifetime": "one interval/query tile; release on overwrite",
+      "checkpoint_or_recompute": "attention_key_value_projection / attention_scores_and_directions"
+    },
+    {
+      "module": "geometry_physics_attention.py",
+      "role": "attention tile working set",
+      "tensor": "score, probability (each)",
+      "shape": "[B,H,C]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "forward under custom Function no_grad; differentiable replay if outer backward requests create_graph",
+      "autograd_graph": "custom VJP relates these to learned inputs",
+      "alias_or_materialization": "one KV projection shared by all queries; only B query rows active per score tile",
+      "lifetime": "one interval/query tile; release on overwrite",
+      "checkpoint_or_recompute": "attention_key_value_projection / attention_scores_and_directions"
+    },
+    {
+      "module": "geometry_physics_attention.py",
+      "role": "attention tile working set",
+      "tensor": "score tangent, weighted tangent (each)",
+      "shape": "[B,H,C,10]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "forward under custom Function no_grad; differentiable replay if outer backward requests create_graph",
+      "autograd_graph": "custom VJP relates these to learned inputs",
+      "alias_or_materialization": "one KV projection shared by all queries; only B query rows active per score tile",
+      "lifetime": "one interval/query tile; release on overwrite",
+      "checkpoint_or_recompute": "attention_key_value_projection / attention_scores_and_directions"
+    },
+    {
+      "module": "geometry_physics_attention.py",
+      "role": "retained attention sufficient statistics",
+      "tensor": "E[v]",
+      "shape": "[Q,H,d]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "custom autograd outputs, also saved for explicit double backward",
+      "alias_or_materialization": "distinct materialized storage",
+      "lifetime": "from finish of global interval reduction until custom VJP is consumed",
+      "checkpoint_or_recompute": "backward reconstructs globally normalized probabilities from log Z"
+    },
+    {
+      "module": "geometry_physics_attention.py",
+      "role": "retained attention sufficient statistics",
+      "tensor": "E[t]",
+      "shape": "[Q,H,10]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "custom autograd outputs, also saved for explicit double backward",
+      "alias_or_materialization": "distinct materialized storage",
+      "lifetime": "from finish of global interval reduction until custom VJP is consumed",
+      "checkpoint_or_recompute": "backward reconstructs globally normalized probabilities from log Z"
+    },
+    {
+      "module": "geometry_physics_attention.py",
+      "role": "retained attention sufficient statistics",
+      "tensor": "E[v tᵀ]",
+      "shape": "[Q,H,d,10]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "custom autograd outputs, also saved for explicit double backward",
+      "alias_or_materialization": "distinct materialized storage",
+      "lifetime": "from finish of global interval reduction until custom VJP is consumed",
+      "checkpoint_or_recompute": "backward reconstructs globally normalized probabilities from log Z"
+    },
+    {
+      "module": "geometry_physics_attention.py",
+      "role": "retained attention sufficient statistics",
+      "tensor": "E[z], log Z (each)",
+      "shape": "[Q,H,1]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "custom autograd outputs, also saved for explicit double backward",
+      "alias_or_materialization": "distinct materialized storage",
+      "lifetime": "from finish of global interval reduction until custom VJP is consumed",
+      "checkpoint_or_recompute": "backward reconstructs globally normalized probabilities from log Z"
+    },
+    {
+      "module": "geometry_physics_attention.py",
+      "role": "attention result",
+      "tensor": "correction",
+      "shape": "[Q,10]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "dense query-sized output/jacobian, output gradient cast to physical coefficient dtype",
+      "lifetime": "loss/branch fusion through backward",
+      "checkpoint_or_recompute": "analytic coefficient normalization, MLPs, head projections, covariance and LayerNorm chain"
+    },
+    {
+      "module": "geometry_physics_attention.py",
+      "role": "attention result",
+      "tensor": "raw correction Jacobian",
+      "shape": "[Q,10,10]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "dense query-sized output/jacobian, output gradient cast to physical coefficient dtype",
+      "lifetime": "loss/branch fusion through backward",
+      "checkpoint_or_recompute": "analytic coefficient normalization, MLPs, head projections, covariance and LayerNorm chain"
+    },
+    {
+      "module": "geometry_physics_attention.py",
+      "role": "attention result",
+      "tensor": "grad_features",
+      "shape": "[N,W]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "dense query-sized output/jacobian, output gradient cast to physical coefficient dtype",
+      "lifetime": "loss/branch fusion through backward",
+      "checkpoint_or_recompute": "analytic coefficient normalization, MLPs, head projections, covariance and LayerNorm chain"
+    },
+    {
+      "module": "cross_scale_attention.py",
+      "role": "cross-scale attention",
+      "tensor": "scale_features",
+      "shape": "[S,W]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "scale features alias shared cache; K/V and score outputs per query block are new",
+      "lifetime": "full scale summaries survive cache; block correction and Jacobian reach loss",
+      "checkpoint_or_recompute": "ten channel-sum VJPs per block of ≤64 independent queries in non-reentrant checkpoint"
+    },
+    {
+      "module": "cross_scale_attention.py",
+      "role": "cross-scale attention",
+      "tensor": "stoken",
+      "shape": "[S,W]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "scale features alias shared cache; K/V and score outputs per query block are new",
+      "lifetime": "full scale summaries survive cache; block correction and Jacobian reach loss",
+      "checkpoint_or_recompute": "ten channel-sum VJPs per block of ≤64 independent queries in non-reentrant checkpoint"
+    },
+    {
+      "module": "cross_scale_attention.py",
+      "role": "cross-scale attention",
+      "tensor": "K/V (each)",
+      "shape": "[S,H,d]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "scale features alias shared cache; K/V and score outputs per query block are new",
+      "lifetime": "full scale summaries survive cache; block correction and Jacobian reach loss",
+      "checkpoint_or_recompute": "ten channel-sum VJPs per block of ≤64 independent queries in non-reentrant checkpoint"
+    },
+    {
+      "module": "cross_scale_attention.py",
+      "role": "cross-scale attention",
+      "tensor": "weights",
+      "shape": "[min(64,Q remaining),H,S]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "scale features alias shared cache; K/V and score outputs per query block are new",
+      "lifetime": "full scale summaries survive cache; block correction and Jacobian reach loss",
+      "checkpoint_or_recompute": "ten channel-sum VJPs per block of ≤64 independent queries in non-reentrant checkpoint"
+    },
+    {
+      "module": "cross_scale_attention.py",
+      "role": "cross-scale attention",
+      "tensor": "correction, Jacobian",
+      "shape": "[B,10], [B,10,10] (B≤64)",
+      "dtype": "neural / FP64",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "scale features alias shared cache; K/V and score outputs per query block are new",
+      "lifetime": "full scale summaries survive cache; block correction and Jacobian reach loss",
+      "checkpoint_or_recompute": "ten channel-sum VJPs per block of ≤64 independent queries in non-reentrant checkpoint"
+    },
+    {
+      "module": "cross_scale_attention.py",
+      "role": "diagnostics",
+      "tensor": "cross_scale_weights",
+      "shape": "[Q,S]",
+      "dtype": "neural dtype (default FP32)",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "detached from the same forward",
+      "alias_or_materialization": "detached diagnostic arrays",
+      "lifetime": "returned to caller; released with result",
+      "checkpoint_or_recompute": "returned by main query block"
+    },
+    {
+      "module": "cross_scale_attention.py",
+      "role": "diagnostics",
+      "tensor": "cross_scale_valid_count",
+      "shape": "[Q]",
+      "dtype": "int64",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "detached from the same forward",
+      "alias_or_materialization": "detached diagnostic arrays",
+      "lifetime": "returned to caller; released with result",
+      "checkpoint_or_recompute": "returned by main query block"
+    },
+    {
+      "module": "batched_moment_operator.py",
+      "role": "moment inputs",
+      "tensor": "query_xyz",
+      "shape": "[M,3]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "node_weights differentiable; xyz fixed; q conditional",
+      "autograd_graph": "weight gradient reaches fusion and encoder",
+      "alias_or_materialization": "split rows alias aligned query-precision tables; conversion allocates full tables if dtypes differ",
+      "lifetime": "through last checkpoint that uses node or weight views",
+      "checkpoint_or_recompute": "checkpoint per query/node pair"
+    },
+    {
+      "module": "batched_moment_operator.py",
+      "role": "moment inputs",
+      "tensor": "query_weights",
+      "shape": "[M]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "node_weights differentiable; xyz fixed; q conditional",
+      "autograd_graph": "weight gradient reaches fusion and encoder",
+      "alias_or_materialization": "split rows alias aligned query-precision tables; conversion allocates full tables if dtypes differ",
+      "lifetime": "through last checkpoint that uses node or weight views",
+      "checkpoint_or_recompute": "checkpoint per query/node pair"
+    },
+    {
+      "module": "batched_moment_operator.py",
+      "role": "moment inputs",
+      "tensor": "q_all",
+      "shape": "[Q,10]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "node_weights differentiable; xyz fixed; q conditional",
+      "autograd_graph": "weight gradient reaches fusion and encoder",
+      "alias_or_materialization": "split rows alias aligned query-precision tables; conversion allocates full tables if dtypes differ",
+      "lifetime": "through last checkpoint that uses node or weight views",
+      "checkpoint_or_recompute": "checkpoint per query/node pair"
+    },
+    {
+      "module": "batched_moment_operator.py",
+      "role": "moment contraction",
+      "tensor": "basis",
+      "shape": "[J,10]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "depends on trainable weight/query; basis on fixed points only",
+      "autograd_graph": "differentiable local computation",
+      "alias_or_materialization": "basis, score, numerator and Grams materialized locally",
+      "lifetime": "each block forward or replay",
+      "checkpoint_or_recompute": "Moment Operator checkpoint (no RNG snapshot)"
+    },
+    {
+      "module": "batched_moment_operator.py",
+      "role": "moment contraction",
+      "tensor": "score / smooth",
+      "shape": "[B,J]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "depends on trainable weight/query; basis on fixed points only",
+      "autograd_graph": "differentiable local computation",
+      "alias_or_materialization": "basis, score, numerator and Grams materialized locally",
+      "lifetime": "each block forward or replay",
+      "checkpoint_or_recompute": "Moment Operator checkpoint (no RNG snapshot)"
+    },
+    {
+      "module": "batched_moment_operator.py",
+      "role": "moment contraction",
+      "tensor": "numerator",
+      "shape": "[B,J,10]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "depends on trainable weight/query; basis on fixed points only",
+      "autograd_graph": "differentiable local computation",
+      "alias_or_materialization": "basis, score, numerator and Grams materialized locally",
+      "lifetime": "each block forward or replay",
+      "checkpoint_or_recompute": "Moment Operator checkpoint (no RNG snapshot)"
+    },
+    {
+      "module": "batched_moment_operator.py",
+      "role": "moment contraction",
+      "tensor": "two weighted Gram reductions (each)",
+      "shape": "[B,10,10]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "depends on trainable weight/query; basis on fixed points only",
+      "autograd_graph": "differentiable local computation",
+      "alias_or_materialization": "basis, score, numerator and Grams materialized locally",
+      "lifetime": "each block forward or replay",
+      "checkpoint_or_recompute": "Moment Operator checkpoint (no RNG snapshot)"
+    },
+    {
+      "module": "batched_moment_operator.py",
+      "role": "moment outputs",
+      "tensor": "potential",
+      "shape": "[Q]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "J_c and J_normalized are the same tensor in internal operator; J_input differs from J_q by coordinate transforms",
+      "lifetime": "through query result/fusion loss",
+      "checkpoint_or_recompute": "accumulated from all nodes"
+    },
+    {
+      "module": "batched_moment_operator.py",
+      "role": "moment outputs",
+      "tensor": "moments",
+      "shape": "[Q,10]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "J_c and J_normalized are the same tensor in internal operator; J_input differs from J_q by coordinate transforms",
+      "lifetime": "through query result/fusion loss",
+      "checkpoint_or_recompute": "accumulated from all nodes"
+    },
+    {
+      "module": "batched_moment_operator.py",
+      "role": "moment outputs",
+      "tensor": "J_q, J_normalized, J_input (each)",
+      "shape": "[Q,10,10]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "true in grad-enabled training",
+      "autograd_graph": "connected to model parameters",
+      "alias_or_materialization": "J_c and J_normalized are the same tensor in internal operator; J_input differs from J_q by coordinate transforms",
+      "lifetime": "through query result/fusion loss",
+      "checkpoint_or_recompute": "accumulated from all nodes"
+    },
+    {
+      "module": "training_v13/train_unified.py",
+      "role": "input and labels",
+      "tensor": "coefficients, target_moments (each)",
+      "shape": "[Q,10]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "copied from CPU label arrays as needed; masks select valid labels",
+      "lifetime": "one selected record through optimizer step",
+      "checkpoint_or_recompute": "fully present; no query/label subsampling"
+    },
+    {
+      "module": "training_v13/train_unified.py",
+      "role": "input and labels",
+      "tensor": "target_jacobian",
+      "shape": "[Q,10,10]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "copied from CPU label arrays as needed; masks select valid labels",
+      "lifetime": "one selected record through optimizer step",
+      "checkpoint_or_recompute": "fully present; no query/label subsampling"
+    },
+    {
+      "module": "training_v13/train_unified.py",
+      "role": "input and labels",
+      "tensor": "restricted_basis, restricted_jacobian (each)",
+      "shape": "[Q,10,r]",
+      "dtype": "FP64",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "copied from CPU label arrays as needed; masks select valid labels",
+      "lifetime": "one selected record through optimizer step",
+      "checkpoint_or_recompute": "fully present; no query/label subsampling"
+    },
+    {
+      "module": "training_v13/train_unified.py",
+      "role": "input and labels",
+      "tensor": "valid_mask, jacobian_valid_mask, restricted_valid",
+      "shape": "[Q]",
+      "dtype": "bool",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "copied from CPU label arrays as needed; masks select valid labels",
+      "lifetime": "one selected record through optimizer step",
+      "checkpoint_or_recompute": "fully present; no query/label subsampling"
+    },
+    {
+      "module": "training_v13/train_unified.py",
+      "role": "input and labels",
+      "tensor": "restricted_dimension",
+      "shape": "[Q]",
+      "dtype": "integer",
+      "device": "model device",
+      "requires_grad": "false",
+      "autograd_graph": "no learned graph",
+      "alias_or_materialization": "copied from CPU label arrays as needed; masks select valid labels",
+      "lifetime": "one selected record through optimizer step",
+      "checkpoint_or_recompute": "fully present; no query/label subsampling"
+    },
+    {
+      "module": "training_v13/train_unified.py",
+      "role": "optimizer",
+      "tensor": "model parameter, .grad, exp_avg, exp_avg_sq (each)",
+      "shape": "p",
+      "dtype": "parameter dtype",
+      "device": "model device",
+      "requires_grad": "parameter=true, gradient/optimizer-state=false for default fixed update",
+      "autograd_graph": "parameters are persistent leaves; AdamW state detached",
+      "alias_or_materialization": "independent gradient and two moment buffers per parameter receiving gradient",
+      "lifetime": "parameters persist across records; gradients can remain until next zero_grad(set_to_none=True); AdamW moments persist",
+      "checkpoint_or_recompute": "serialized by model.save_checkpoint"
+    },
+    {
+      "module": "training_v13/train_unified.py",
+      "role": "optimizer",
+      "tensor": "AdamW step",
+      "shape": "scalar",
+      "dtype": "optimizer-dependent scalar dtype/device",
+      "device": "model device",
+      "requires_grad": "parameter=true, gradient/optimizer-state=false for default fixed update",
+      "autograd_graph": "parameters are persistent leaves; AdamW state detached",
+      "alias_or_materialization": "independent gradient and two moment buffers per parameter receiving gradient",
+      "lifetime": "parameters persist across records; gradients can remain until next zero_grad(set_to_none=True); AdamW moments persist",
+      "checkpoint_or_recompute": "serialized by model.save_checkpoint"
+    },
+    {
+      "module": "training_v13/preflight_unified.py",
+      "role": "audit snapshot",
+      "tensor": "before[name]",
+      "shape": "p",
+      "dtype": "parameter dtype",
+      "device": "CPU",
+      "requires_grad": "false",
+      "autograd_graph": "detached",
+      "alias_or_materialization": "to(cpu, copy=True) owns new storage",
+      "lifetime": "before one update until delta verification",
+      "checkpoint_or_recompute": "no autograd checkpoint"
+    },
+    {
+      "module": "training_v13/preflight_unified.py",
+      "role": "resumed model",
+      "tensor": "restored parameters and optimizer moment buffers",
+      "shape": "p",
+      "dtype": "parameter dtype",
+      "device": "model device",
+      "requires_grad": "parameters=true; optimizer state detached",
+      "autograd_graph": "independent model and optimizer state",
+      "alias_or_materialization": "separate allocation; may coexist with live original",
+      "lifetime": "checkpoint_resume through prediction verification and function exit",
+      "checkpoint_or_recompute": "serialized state loaded with map_location=cpu, then restored onto appropriate device"
+    }
+  ],
+  "dynamic_cpu_fixture": {
+    "source": "docs/phase2_11/compare_revisions.py:measure; snapshot cache and result field attributes at encoder/query return",
+    "runtime_device": "CPU",
+    "seed": 211211,
+    "native_resolution": 1024,
+    "intervals": 9,
+    "queries": 3,
+    "neural_width": 8,
+    "observation_scope": "tensor-valued dataclass/output fields, one encode, create_graph=True; includes shape/dtype/device/grad_fn and distinct live storages by device + base pointer. Excludes saved autograd activations, allocator slack, host metadata and backend workspaces.",
+    "cache_tensor_fields": 28,
+    "cache_unique_storages": 25,
+    "cache_logical_field_bytes": 4308,
+    "cache_distinct_storage_bytes": 3980,
+    "fields": {
+      "shared_cache.latent": {
+        "shape": [
+          1,
+          8
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "UnsqueezeBackward0",
+        "storage_owner_first_observed": "shared_cache.latent",
+        "logical_bytes": 32,
+        "storage_bytes": 32
+      },
+      "shared_cache.statistics": {
+        "shape": [
+          1,
+          36
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "shared_cache.statistics",
+        "logical_bytes": 144,
+        "storage_bytes": 144
+      },
+      "shared_cache.fixed_moments": {
+        "shape": [
+          10
+        ],
+        "dtype": "float64",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "shared_cache.fixed_moments",
+        "logical_bytes": 80,
+        "storage_bytes": 80
+      },
+      "shared_cache.design_moments": {
+        "shape": [
+          10
+        ],
+        "dtype": "float64",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "shared_cache.design_moments",
+        "logical_bytes": 80,
+        "storage_bytes": 80
+      },
+      "shared_cache.absolute_moments": {
+        "shape": [
+          10
+        ],
+        "dtype": "float64",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "shared_cache.absolute_moments",
+        "logical_bytes": 80,
+        "storage_bytes": 80
+      },
+      "shared_cache.moment_scales": {
+        "shape": [
+          10
+        ],
+        "dtype": "float64",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "shared_cache.moment_scales",
+        "logical_bytes": 80,
+        "storage_bytes": 80
+      },
+      "shared_cache.coordinate_scales": {
+        "shape": [
+          10
+        ],
+        "dtype": "float64",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "shared_cache.coordinate_scales",
+        "logical_bytes": 80,
+        "storage_bytes": 80
+      },
+      "shared_cache.normalized_bounds": {
+        "shape": [
+          2,
+          3
+        ],
+        "dtype": "float64",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "shared_cache.normalized_bounds",
+        "logical_bytes": 48,
+        "storage_bytes": 48
+      },
+      "shared_cache.interval_features": {
+        "shape": [
+          9,
+          8
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "CatBackward0",
+        "storage_owner_first_observed": "shared_cache.interval_features",
+        "logical_bytes": 288,
+        "storage_bytes": 288
+      },
+      "shared_cache.global_context": {
+        "shape": [
+          8
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "SqueezeBackward1",
+        "storage_owner_first_observed": "shared_cache.global_context",
+        "logical_bytes": 32,
+        "storage_bytes": 32
+      },
+      "shared_cache.interval_mass": {
+        "shape": [
+          9
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "shared_cache.interval_mass",
+        "logical_bytes": 36,
+        "storage_bytes": 36
+      },
+      "shared_cache.descriptor": {
+        "shape": [
+          9,
+          13
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "shared_cache.descriptor",
+        "logical_bytes": 468,
+        "storage_bytes": 468
+      },
+      "shared_cache.normalized_xyz": {
+        "shape": [
+          9,
+          3
+        ],
+        "dtype": "float64",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "shared_cache.normalized_xyz",
+        "logical_bytes": 216,
+        "storage_bytes": 216
+      },
+      "shared_cache.global_scale_weights": {
+        "shape": [
+          2,
+          1
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "SqueezeBackward1",
+        "storage_owner_first_observed": "shared_cache.global_scale_weights",
+        "logical_bytes": 8,
+        "storage_bytes": 8
+      },
+      "shared_cache.scale_features": {
+        "shape": [
+          2,
+          8
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "SqueezeBackward1",
+        "storage_owner_first_observed": "shared_cache.scale_features",
+        "logical_bytes": 64,
+        "storage_bytes": 64
+      },
+      "shared_cache.scale_ids": {
+        "shape": [
+          2
+        ],
+        "dtype": "int64",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "shared_cache.scale_ids",
+        "logical_bytes": 16,
+        "storage_bytes": 16
+      },
+      "sqno_cache.node_xyz": {
+        "shape": [
+          72,
+          3
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "sqno_cache.node_xyz",
+        "logical_bytes": 864,
+        "storage_bytes": 864
+      },
+      "sqno_cache.node_weights": {
+        "shape": [
+          72
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "MulBackward0",
+        "storage_owner_first_observed": "sqno_cache.node_weights",
+        "logical_bytes": 288,
+        "storage_bytes": 288
+      },
+      "sqno_cache.interval_mass": {
+        "shape": [
+          9
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "sqno_cache.interval_mass",
+        "logical_bytes": 36,
+        "storage_bytes": 36
+      },
+      "sqno_cache.fixed_moments": {
+        "shape": [
+          10
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "sqno_cache.fixed_moments",
+        "logical_bytes": 40,
+        "storage_bytes": 40
+      },
+      "sqno_cache.interval_ids": {
+        "shape": [
+          72
+        ],
+        "dtype": "int64",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "sqno_cache.interval_ids",
+        "logical_bytes": 576,
+        "storage_bytes": 576
+      },
+      "sqno_cache.logits": {
+        "shape": [
+          9
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "CatBackward0",
+        "storage_owner_first_observed": "sqno_cache.logits",
+        "logical_bytes": 36,
+        "storage_bytes": 36
+      },
+      "sqno_cache.probabilities": {
+        "shape": [
+          9
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "SoftmaxBackward0",
+        "storage_owner_first_observed": "sqno_cache.probabilities",
+        "logical_bytes": 36,
+        "storage_bytes": 36
+      },
+      "sqno_cache.pcraft_local_features": {
+        "shape": [
+          9,
+          8
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "CatBackward0",
+        "storage_owner_first_observed": "shared_cache.interval_features",
+        "logical_bytes": 288,
+        "storage_bytes": 288
+      },
+      "sqno_cache.pcraft_global_context": {
+        "shape": [
+          8
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "SqueezeBackward1",
+        "storage_owner_first_observed": "shared_cache.global_context",
+        "logical_bytes": 32,
+        "storage_bytes": 32
+      },
+      "sqno_cache.quadrann_features": {
+        "shape": [
+          9,
+          8
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "CatBackward0",
+        "storage_owner_first_observed": "sqno_cache.quadrann_features",
+        "logical_bytes": 288,
+        "storage_bytes": 288
+      },
+      "sqno_cache.component_context": {
+        "shape": [
+          2,
+          8
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "DivBackward0",
+        "storage_owner_first_observed": "sqno_cache.component_context",
+        "logical_bytes": 64,
+        "storage_bytes": 64
+      },
+      "sqno_cache.global_scale_weights": {
+        "shape": [
+          2,
+          1
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "SqueezeBackward1",
+        "storage_owner_first_observed": "shared_cache.global_scale_weights",
+        "logical_bytes": 8,
+        "storage_bytes": 8
+      },
+      "result.moments": {
+        "shape": [
+          3,
+          10
+        ],
+        "dtype": "float64",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "AddBackward0",
+        "storage_owner_first_observed": "result.moments",
+        "logical_bytes": 240,
+        "storage_bytes": 240
+      },
+      "result.jacobian_coefficients": {
+        "shape": [
+          3,
+          10,
+          10
+        ],
+        "dtype": "float64",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "AddBackward0",
+        "storage_owner_first_observed": "result.jacobian_coefficients",
+        "logical_bytes": 2400,
+        "storage_bytes": 2400
+      },
+      "result.jacobian_q": {
+        "shape": [
+          3,
+          10,
+          10
+        ],
+        "dtype": "float64",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "AddBackward0",
+        "storage_owner_first_observed": "result.jacobian_coefficients",
+        "logical_bytes": 2400,
+        "storage_bytes": 2400
+      },
+      "result.m80_moments": {
+        "shape": [
+          3,
+          10
+        ],
+        "dtype": "float64",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "WhereBackward0",
+        "storage_owner_first_observed": "result.m80_moments",
+        "logical_bytes": 240,
+        "storage_bytes": 240
+      },
+      "result.m80_jacobian_coefficients": {
+        "shape": [
+          3,
+          10,
+          10
+        ],
+        "dtype": "float64",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "StackBackward0",
+        "storage_owner_first_observed": "result.m80_jacobian_coefficients",
+        "logical_bytes": 2400,
+        "storage_bytes": 2400
+      },
+      "result.m80_jacobian_q": {
+        "shape": [
+          3,
+          10,
+          10
+        ],
+        "dtype": "float64",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "StackBackward0",
+        "storage_owner_first_observed": "result.m80_jacobian_coefficients",
+        "logical_bytes": 2400,
+        "storage_bytes": 2400
+      },
+      "result.sqno_moments": {
+        "shape": [
+          3,
+          10
+        ],
+        "dtype": "float64",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "AddBackward0",
+        "storage_owner_first_observed": "result.sqno_moments",
+        "logical_bytes": 240,
+        "storage_bytes": 240
+      },
+      "result.sqno_jacobian_coefficients": {
+        "shape": [
+          3,
+          10,
+          10
+        ],
+        "dtype": "float64",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "DivBackward0",
+        "storage_owner_first_observed": "result.sqno_jacobian_coefficients",
+        "logical_bytes": 2400,
+        "storage_bytes": 2400
+      },
+      "result.sqno_jacobian_q": {
+        "shape": [
+          3,
+          10,
+          10
+        ],
+        "dtype": "float64",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "DivBackward0",
+        "storage_owner_first_observed": "result.sqno_jacobian_coefficients",
+        "logical_bytes": 2400,
+        "storage_bytes": 2400
+      },
+      "result.fusion_weight": {
+        "shape": [
+          3
+        ],
+        "dtype": "float64",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "SqueezeBackward1",
+        "storage_owner_first_observed": "result.fusion_weight",
+        "logical_bytes": 24,
+        "storage_bytes": 24
+      },
+      "result.fusion_gate_jacobian_norm": {
+        "shape": [
+          3
+        ],
+        "dtype": "float64",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "LinalgVectorNormBackward0",
+        "storage_owner_first_observed": "result.fusion_gate_jacobian_norm",
+        "logical_bytes": 24,
+        "storage_bytes": 24
+      },
+      "result.native_intervals": {
+        "shape": [],
+        "dtype": "int64",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "result.native_intervals",
+        "logical_bytes": 8,
+        "storage_bytes": 8
+      },
+      "result.mass_error": {
+        "shape": [],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": true,
+        "grad_fn": "AbsBackward0",
+        "storage_owner_first_observed": "result.mass_error",
+        "logical_bytes": 4,
+        "storage_bytes": 4
+      },
+      "result.attention_entropy": {
+        "shape": [
+          3
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "result.attention_entropy",
+        "logical_bytes": 12,
+        "storage_bytes": 12
+      },
+      "result.attention_effective_support": {
+        "shape": [
+          3
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "result.attention_effective_support",
+        "logical_bytes": 12,
+        "storage_bytes": 12
+      },
+      "result.attention_mass_sum": {
+        "shape": [
+          3
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "result.attention_mass_sum",
+        "logical_bytes": 12,
+        "storage_bytes": 4
+      },
+      "result.attention_query_norm": {
+        "shape": [
+          3
+        ],
+        "dtype": "float64",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "result.attention_query_norm",
+        "logical_bytes": 24,
+        "storage_bytes": 24
+      },
+      "result.cross_scale_weights": {
+        "shape": [
+          3,
+          2
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "result.cross_scale_weights",
+        "logical_bytes": 24,
+        "storage_bytes": 24
+      },
+      "result.cross_scale_entropy": {
+        "shape": [
+          3
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "result.cross_scale_entropy",
+        "logical_bytes": 12,
+        "storage_bytes": 12
+      },
+      "result.cross_scale_effective_support": {
+        "shape": [
+          3
+        ],
+        "dtype": "float32",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "result.cross_scale_effective_support",
+        "logical_bytes": 12,
+        "storage_bytes": 12
+      },
+      "result.cross_scale_valid_count": {
+        "shape": [
+          3
+        ],
+        "dtype": "int64",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "result.cross_scale_valid_count",
+        "logical_bytes": 24,
+        "storage_bytes": 24
+      },
+      "result.parallel_attention_gate": {
+        "shape": [],
+        "dtype": "float64",
+        "device": "cpu",
+        "requires_grad": false,
+        "grad_fn": null,
+        "storage_owner_first_observed": "result.parallel_attention_gate",
+        "logical_bytes": 8,
+        "storage_bytes": 8
+      }
+    }
+  },
+  "real_record_evidence": {
+    "artifact": "memory_profile.json",
+    "access": "stages entry named encode_geometry → cache_storage; stage tensor_observations for interval/node counts and tile sizes; recompute_regions for actual replays.",
+    "limits": "Counts/sizes at named boundaries only. Memory peaks are allocator-wide during each inclusive region; time/bytes across nested stages overlap. See peak_memory_profile.md for the identified run and absolute measurements.",
+    "n002_encoder_return": {
+      "native_intervals": 1177764,
+      "measured_storages": {
+        "tensor_fields": 28,
+        "distinct_storages": 25,
+        "distinct_storage_bytes": 1540520588,
+        "alias_groups": [
+          {
+            "device": "cuda:0",
+            "bytes": 904522752,
+            "fields": [
+              "shared_interval_features",
+              "sqno_pcraft_local_features"
+            ]
+          },
+          {
+            "device": "cuda:0",
+            "bytes": 768,
+            "fields": [
+              "shared_global_context",
+              "sqno_pcraft_global_context"
+            ]
+          },
+          {
+            "device": "cuda:0",
+            "bytes": 12,
+            "fields": [
+              "shared_global_scale_weights",
+              "sqno_global_scale_weights"
+            ]
+          }
+        ],
+        "scope": "tensor-valued fields of shared_cache and sqno_cache at encoder return"
+      },
+      "named_fields": {
+        "shared_latent": {
+          "count": 1,
+          "total_elements": 192,
+          "max_elements": 192,
+          "first_shape": [
+            1,
+            192
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "UnsqueezeBackward0",
+          "first_storage_bytes": 768
+        },
+        "shared_statistics": {
+          "count": 1,
+          "total_elements": 36,
+          "max_elements": 36,
+          "first_shape": [
+            1,
+            36
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 144
+        },
+        "shared_fixed_moments": {
+          "count": 1,
+          "total_elements": 10,
+          "max_elements": 10,
+          "first_shape": [
+            10
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 80
+        },
+        "shared_design_moments": {
+          "count": 1,
+          "total_elements": 10,
+          "max_elements": 10,
+          "first_shape": [
+            10
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 80
+        },
+        "shared_absolute_moments": {
+          "count": 1,
+          "total_elements": 10,
+          "max_elements": 10,
+          "first_shape": [
+            10
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 80
+        },
+        "shared_moment_scales": {
+          "count": 1,
+          "total_elements": 10,
+          "max_elements": 10,
+          "first_shape": [
+            10
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 80
+        },
+        "shared_coordinate_scales": {
+          "count": 1,
+          "total_elements": 10,
+          "max_elements": 10,
+          "first_shape": [
+            10
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 80
+        },
+        "shared_normalized_bounds": {
+          "count": 1,
+          "total_elements": 6,
+          "max_elements": 6,
+          "first_shape": [
+            2,
+            3
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 48
+        },
+        "shared_interval_features": {
+          "count": 1,
+          "total_elements": 226130688,
+          "max_elements": 226130688,
+          "first_shape": [
+            1177764,
+            192
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "CatBackward0",
+          "first_storage_bytes": 904522752
+        },
+        "shared_global_context": {
+          "count": 1,
+          "total_elements": 192,
+          "max_elements": 192,
+          "first_shape": [
+            192
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "SqueezeBackward1",
+          "first_storage_bytes": 768
+        },
+        "shared_interval_mass": {
+          "count": 1,
+          "total_elements": 1177764,
+          "max_elements": 1177764,
+          "first_shape": [
+            1177764
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 4711056
+        },
+        "shared_descriptor": {
+          "count": 1,
+          "total_elements": 15310932,
+          "max_elements": 15310932,
+          "first_shape": [
+            1177764,
+            13
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 61243728
+        },
+        "shared_normalized_xyz": {
+          "count": 1,
+          "total_elements": 3533292,
+          "max_elements": 3533292,
+          "first_shape": [
+            1177764,
+            3
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 28266336
+        },
+        "shared_global_scale_weights": {
+          "count": 1,
+          "total_elements": 3,
+          "max_elements": 3,
+          "first_shape": [
+            3,
+            1
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "SqueezeBackward1",
+          "first_storage_bytes": 12
+        },
+        "shared_scale_features": {
+          "count": 1,
+          "total_elements": 576,
+          "max_elements": 576,
+          "first_shape": [
+            3,
+            192
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "SqueezeBackward1",
+          "first_storage_bytes": 2304
+        },
+        "shared_scale_ids": {
+          "count": 1,
+          "total_elements": 3,
+          "max_elements": 3,
+          "first_shape": [
+            3
+          ],
+          "first_dtype": "torch.int64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 24
+        },
+        "sqno_node_xyz": {
+          "count": 1,
+          "total_elements": 28266336,
+          "max_elements": 28266336,
+          "first_shape": [
+            9422112,
+            3
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 113065344
+        },
+        "sqno_node_weights": {
+          "count": 1,
+          "total_elements": 9422112,
+          "max_elements": 9422112,
+          "first_shape": [
+            9422112
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "MulBackward0",
+          "first_storage_bytes": 37688448
+        },
+        "sqno_interval_mass": {
+          "count": 1,
+          "total_elements": 1177764,
+          "max_elements": 1177764,
+          "first_shape": [
+            1177764
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 4711056
+        },
+        "sqno_fixed_moments": {
+          "count": 1,
+          "total_elements": 10,
+          "max_elements": 10,
+          "first_shape": [
+            10
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 40
+        },
+        "sqno_interval_ids": {
+          "count": 1,
+          "total_elements": 9422112,
+          "max_elements": 9422112,
+          "first_shape": [
+            9422112
+          ],
+          "first_dtype": "torch.int64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 75376896
+        },
+        "sqno_logits": {
+          "count": 1,
+          "total_elements": 1177764,
+          "max_elements": 1177764,
+          "first_shape": [
+            1177764
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "CatBackward0",
+          "first_storage_bytes": 4711056
+        },
+        "sqno_probabilities": {
+          "count": 1,
+          "total_elements": 1177764,
+          "max_elements": 1177764,
+          "first_shape": [
+            1177764
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "SoftmaxBackward0",
+          "first_storage_bytes": 4711056
+        },
+        "sqno_pcraft_local_features": {
+          "count": 1,
+          "total_elements": 226130688,
+          "max_elements": 226130688,
+          "first_shape": [
+            1177764,
+            192
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "CatBackward0",
+          "first_storage_bytes": 904522752
+        },
+        "sqno_pcraft_global_context": {
+          "count": 1,
+          "total_elements": 192,
+          "max_elements": 192,
+          "first_shape": [
+            192
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "SqueezeBackward1",
+          "first_storage_bytes": 768
+        },
+        "sqno_quadrann_features": {
+          "count": 1,
+          "total_elements": 75376896,
+          "max_elements": 75376896,
+          "first_shape": [
+            1177764,
+            64
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "CatBackward0",
+          "first_storage_bytes": 301507584
+        },
+        "sqno_component_context": {
+          "count": 1,
+          "total_elements": 192,
+          "max_elements": 192,
+          "first_shape": [
+            3,
+            64
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "DivBackward0",
+          "first_storage_bytes": 768
+        },
+        "sqno_global_scale_weights": {
+          "count": 1,
+          "total_elements": 3,
+          "max_elements": 3,
+          "first_shape": [
+            3,
+            1
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "SqueezeBackward1",
+          "first_storage_bytes": 12
+        }
+      }
+    }
+  }
+}

@@ -7,6 +7,7 @@ is discarded immediately after train_step invalidates it.
 from __future__ import annotations
 
 import argparse
+from contextlib import nullcontext
 import json
 import math
 from pathlib import Path
@@ -23,6 +24,7 @@ from research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_repro
 from research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.unified_prediction import (
     predict_full,
 )
+from ..spin_adapter.memory_profile import MemoryProfile, profile_cache_tensors, profile_count, profile_stage, profile_tensors
 from .unified_corpus import UnifiedOperatorCorpus
 
 
@@ -41,8 +43,9 @@ class MomentNormalizer:
     def fit(cls, corpus: UnifiedOperatorCorpus) -> "MomentNormalizer":
         square = np.zeros(10, dtype=np.float64)
         count = 0
+        load_labels = getattr(corpus, "load_labels", None)
         for row in corpus.splits["train"]:
-            _, labels = corpus.load(row)
+            labels = load_labels(row) if load_labels is not None else corpus.load(row)[1]
             mask = labels["valid_mask"]
             values = labels["moments"][mask].astype(np.float64)
             square += np.square(values).sum(axis=0)
@@ -75,6 +78,38 @@ def _batch_tensors(batch: dict[str, Any], device: torch.device) -> dict[str, Any
             result[key] = torch.as_tensor(np.array(value, copy=True) if isinstance(value, np.ndarray) else value,
                                           device=device)
     return result
+
+
+def _load_training_batch(corpus, row, device):
+    with profile_stage("rle_decode", phase="other"):
+        batch = corpus.to_training_batch(row)
+        geometry = batch["geometry"]
+        profile_count(active_intervals=len(geometry["columns"]))
+        profile_tensors(**{key: value for key, value in geometry.items()
+                           if isinstance(value, np.ndarray)})
+    with profile_stage("training_batch_transfer", phase="other"):
+        tensors = _batch_tensors(batch, device)
+        profile_count(queries=len(tensors["coefficients"]))
+        profile_tensors(**tensors)
+    return batch, tensors
+
+
+def _train_geometry(model, optimizer, geometry, tensors, **options):
+    with profile_stage("encode_geometry"):
+        cache = model.encode_geometry(geometry, inference=False)
+        profile_cache_tensors(cache)
+    with profile_stage("train_step"):
+        metrics = model.train_step(
+            optimizer, cache, tensors["coefficients"], tensors["target_moments"],
+            tensors.get("target_jacobian"), **options,
+            valid_mask=tensors.get("valid_mask"),
+            jacobian_valid_mask=tensors.get("jacobian_valid_mask"),
+            restricted_basis=tensors.get("restricted_basis"),
+            restricted_jacobian=tensors.get("restricted_jacobian"),
+            restricted_valid=tensors.get("restricted_valid"),
+            restricted_dimension=tensors.get("restricted_dimension"),
+        )
+    return cache, metrics
 
 
 def _evaluate_split(model, corpus, split: str, normalizer: MomentNormalizer,
@@ -159,6 +194,7 @@ def train(
     gradient_mode: str = "fixed",
     resume: str | None = None,
     allow_absolute_assets: bool = False,
+    memory_profile: str | Path | None = None,
 ) -> dict[str, Any]:
     if epochs < 1:
         raise ValueError("epochs must be positive")
@@ -223,29 +259,24 @@ def train(
         epoch_jacobian = 0.0
         epoch_seconds = 0.0
         for row in rows:
-            batch = corpus.to_training_batch(row)
-            tensors = _batch_tensors(batch, device_obj)
-            cache = model.encode_geometry(batch["geometry"], inference=False)
-            started = time.perf_counter()
-            metrics = model.train_step(
-                optimizer,
-                cache,
-                tensors["coefficients"],
-                tensors["target_moments"],
-                tensors.get("target_jacobian"),
-                moment_scale=scales,
-                jacobian_weight=jacobian_weight,
-                branch_aux_weight=branch_aux_weight,
-                gradient_clip=gradient_clip,
-                gradient_mode=gradient_mode,
-                valid_mask=tensors.get("valid_mask"),
-                jacobian_valid_mask=tensors.get("jacobian_valid_mask"),
-                restricted_basis=tensors.get("restricted_basis"),
-                restricted_jacobian=tensors.get("restricted_jacobian"),
-                restricted_valid=tensors.get("restricted_valid"),
-                restricted_dimension=tensors.get("restricted_dimension"),
-            )
-            epoch_seconds += time.perf_counter() - started
+            profile = MemoryProfile(device_obj, memory_profile) if memory_profile else None
+            with profile if profile is not None else nullcontext():
+                if profile is not None:
+                    profile.metadata.update(geometry_id=row["id"], global_step=global_step + 1,
+                                            manifest_sha256=corpus.manifest_sha256, config=config_name)
+                batch, tensors = _load_training_batch(corpus, row, device_obj)
+                started = time.perf_counter()
+                cache, metrics = _train_geometry(
+                    model, optimizer, batch["geometry"], tensors, moment_scale=scales,
+                    jacobian_weight=jacobian_weight, branch_aux_weight=branch_aux_weight,
+                    gradient_clip=gradient_clip, gradient_mode=gradient_mode,
+                )
+                epoch_seconds += time.perf_counter() - started
+                if profile is not None:
+                    profile.metadata["metrics"] = metrics
+                del cache, batch, tensors
+            # Record only the first update of this invocation, including resumed runs.
+            memory_profile = None
             epoch_loss += metrics["loss"]
             epoch_moment += metrics["moment"]
             epoch_jacobian += metrics["jacobian"]
@@ -313,6 +344,7 @@ def main() -> int:
     parser.add_argument("--gradient-clip", type=float, default=1.0)
     parser.add_argument("--gradient-mode", choices=("fixed", "pcgrad"), default="fixed")
     parser.add_argument("--resume")
+    parser.add_argument("--memory-profile", help="write first-update JSON and sibling Markdown profiles")
     parser.add_argument("--allow-absolute-assets", action="store_true",
                         help="allow Work manifests to reference absolute local asset paths")
     args = parser.parse_args()
@@ -322,7 +354,7 @@ def main() -> int:
         learning_rate=args.lr, weight_decay=args.weight_decay,
         jacobian_weight=args.jacobian_weight, branch_aux_weight=args.branch_aux_weight,
         gradient_clip=args.gradient_clip, gradient_mode=args.gradient_mode, resume=args.resume,
-        allow_absolute_assets=args.allow_absolute_assets,
+        allow_absolute_assets=args.allow_absolute_assets, memory_profile=args.memory_profile,
     )
     print(json.dumps(result, indent=2, allow_nan=False))
     return 0

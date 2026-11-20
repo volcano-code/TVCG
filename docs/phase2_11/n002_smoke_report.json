@@ -1,0 +1,202 @@
+{
+  "schema": "tvcg.unified-training-v13.preflight.v1",
+  "status": "pass",
+  "config_name": "full_v1_candidate",
+  "device": "cuda",
+  "checks": [
+    {
+      "name": "manifest_and_source_groups",
+      "status": "pass",
+      "manifest_sha256": "a0f914df030228b0f7fc930141b97968238250e43dd671e6f64e88ed882e42ee",
+      "split_summary": {
+        "train": {
+          "records": 31,
+          "groups": 21,
+          "group_ids": [
+            "trellis/imagegen-sheet/0805b0425a1ca859e4945227341d0586327f3f7b379ba09e204c9aed9d89444e",
+            "trellis/imagegen-sheet/26f5c3826544164f7fdac1a100044d66e0a032d8ca3d7373529370f7045b1c50",
+            "trellis/imagegen-sheet/2af683f0511828bcf8275e8ec3d7ce11b1605d9b915afa846de492cf80e8f345",
+            "trellis/imagegen-sheet/2cab91da7641eea392f10f45a551d805efd3ff074586905854a04134e5602f8c",
+            "trellis/imagegen-sheet/4c13b659004f8005b911d48eac83f96a186a496c763796a9e0ce82c1750e2e9f",
+            "trellis/imagegen-sheet/884c3ebc6f8f5de956cf917f8fb1fe95df688e7fdc3041f49db2e26532b91c8e",
+            "trellis/imagegen-sheet/9a84666bc2bde519b2069f1d82a5434980b2ba9c4a842275e6e2d7b484f27c33",
+            "trellis/imagegen-sheet/af9bdb587a2a3a2ec80e410b2ed9a57a0efff2afaa229bfaf5e4bf61c2066ec7",
+            "trellis/imagegen-sheet/b45787240c9c5d775e9f6e4314dc68836b2104fc1f15dad1713c209b412c3880",
+            "trellis/imagegen-sheet/b6557e0f07513eb3b5a8992e028cfce2c6ccb69aa3bd4d4c04c90462e5b46d3e",
+            "trellis/imagegen-sheet/d5aa229b9daf5fdba753bdabc2dd5bb825ce65f7dbae6fabd9e58b5e7bc89a18",
+            "trellis/imagegen-sheet/e60739dc2685affa5f70a6e2fd5ede8e7be3a433341d0fe98e0a763e177ed198",
+            "trellis/imagegen-sheet/fdbde287efd8ed62683f35a363e908e98dd14afc3a69f5547cda78759b502036",
+            "trellis/imagegen-sheet/fe0d8485fa868821a5028f244b44c8ce4e45062f99397706e887cfeaa0176412",
+            "trellis/text-prompt/13bea8d02d16b682557477aeeee257223c212774235a197e5e98e20968abba9c",
+            "trellis/text-prompt/19ae4e296e10b9cf8fe9f336d95c08f86a848d5906a3671618c61e38b4fb3ce4",
+            "trellis/text-prompt/70997ae03b5dd319f610786ffcb928cd3ca484388d1ee4f0ca4b0303ee4de8d5",
+            "trellis/text-prompt/77344c92482b3f30e9e1aca496093a5f4c8409e408fd5e3eac70481cffaaaa43",
+            "trellis/text-prompt/b9d211a1ad91454a852fef3abd3c0b7f891070034df17eb8edb9e0b07f9778d2",
+            "trellis/text-prompt/c1bf3f76560e026368146f14310bafd1854543114ce451e4ac2d763e0ccca55f",
+            "trellis/text-prompt/f28bc85086efe0ee58fe3152eb3ab07e194c9f093909c10072c1a56120c64b67"
+          ],
+          "source_split": [
+            "train"
+          ]
+        },
+        "val": {
+          "records": 9,
+          "groups": 8,
+          "group_ids": [
+            "sketchfab-author/05a162ed7b3f4855b0087c770a2b4f37",
+            "sketchfab-author/7fa471142ee449558912a388770a9891",
+            "sketchfab-author/878251eea71f4aba88fd04c4ba6f1871",
+            "sketchfab-author/d6385ef280964a8f9307cb389a158e30",
+            "sketchfab-author/eb794eeef57940a18d95adb259ba1493",
+            "trellis/imagegen-sheet/eea7b03c75722db01175ede79b9d209daf9bbcf2f3969aab621f832488fcfc0d",
+            "trellis/standalone-image/32078b29681d802a4abb089d2b0ad48dddc525223f4d6004c4f5fc6f9f6ecc85",
+            "trellis/standalone-image/85b8be5de950a825f83c3a721b95913b32cd35b31ab5773bf2f83611484d1134"
+          ],
+          "source_split": [
+            "development"
+          ]
+        },
+        "test": {
+          "records": 5,
+          "groups": 2,
+          "group_ids": [
+            "paper-reconstruction/spin-it-2014",
+            "paper-reconstruction/spin-it-faster-2024"
+          ],
+          "source_split": [
+            "fixed_benchmark"
+          ]
+        }
+      }
+    },
+    {
+      "name": "train_only_normalizer",
+      "status": "pass",
+      "query_count": 2019,
+      "scales": [
+        0.012139854171232266,
+        0.0013135965288008495,
+        0.0011867664763911192,
+        0.0019578948019292235,
+        0.0006787820565764582,
+        0.0005774268235350502,
+        0.0010083439544369788,
+        0.0002573767299210937,
+        0.0003014538240225189,
+        0.00013030611150608766
+      ]
+    },
+    {
+      "name": "model_factory",
+      "status": "pass",
+      "architecture_fingerprint": "10d79334834607823243b34d393c96e3d018b583e10a1b498bbfac7507a1a63e",
+      "parameter_count": 4302996,
+      "trainable_parameters": 4302996,
+      "modules": {
+        "shared_pcraft": true,
+        "m80": true,
+        "sqno": true,
+        "gno": true,
+        "transolver_physics_slicing": true,
+        "geometry_physics_cross_attention": true,
+        "cross_scale_attention": true,
+        "query_conditioned_fusion": true,
+        "moment_jacobian_uq": true,
+        "event_validity": true
+      }
+    },
+    {
+      "name": "selected_training_batch",
+      "status": "pass",
+      "geometry_id": "N002",
+      "source_group_id": "trellis/imagegen-sheet/e60739dc2685affa5f70a6e2fd5ede8e7be3a433341d0fe98e0a763e177ed198",
+      "geometry_sha256": "bac895b5af674119bc20c02948d364710dac04445f8e0f7ebef7832146612291",
+      "labels_sha256": "c226e8b2490016713d81a67546a44fd1d7ce982abf4850062b3b3d815b4d329d",
+      "queries": 64,
+      "moment_labels": 64,
+      "full_jacobian_labels": 38,
+      "restricted_jacobian_labels": 26,
+      "restricted_by_dimension": {
+        "3": 13,
+        "8": 13
+      },
+      "native_resolution": 1024,
+      "native_intervals": 1177764,
+      "full_batch": true
+    },
+    {
+      "name": "one_optimizer_update",
+      "status": "pass",
+      "loss": 0.22954777548053193,
+      "moment_loss": 0.15204767026361898,
+      "jacobian_loss": 3.0306081671777093e-05,
+      "full_jacobian_loss": 3.318655567307962e-05,
+      "restricted_jacobian_loss": 2.6096158131411857e-05,
+      "gradient_norm": 406.6504312339405,
+      "parameter_delta_l2": 0.23342499864866031,
+      "changed_parameter_tensors": 226,
+      "elapsed_seconds": 88.65807101898827,
+      "peak_memory_bytes": 10871928320,
+      "peak_reserved_bytes": 10947133440,
+      "optimizer_steps": 1,
+      "consumed_moment_queries": 64,
+      "consumed_full_jacobians": 38,
+      "consumed_restricted_jacobians": 26,
+      "consumed_restricted_directions": 143
+    },
+    {
+      "name": "cache_invalidated_after_update",
+      "status": "pass",
+      "error": "foreign or stale unified geometry cache"
+    },
+    {
+      "name": "checkpoint_written",
+      "status": "pass",
+      "path": "runs/phase2_11/acceptance/checkpoint.pt",
+      "bytes": 62795693
+    },
+    {
+      "name": "checkpoint_resume_roundtrip",
+      "status": "pass",
+      "predictions": {
+        "moments": {
+          "shape": [
+            64,
+            10
+          ],
+          "max_abs": 5.464938918064988e-10,
+          "max_rel": 1.2350500458591528e-07
+        },
+        "jacobian_coefficients": {
+          "shape": [
+            64,
+            10,
+            10
+          ],
+          "max_abs": 3.907219429943876e-09,
+          "max_rel": 0.00048305655358790966
+        }
+      },
+      "prediction_rtol": 1e-05,
+      "prediction_atol": 1e-08,
+      "relative_error_denominator": "max(abs(original_output), dtype_epsilon)",
+      "restored_parameters": 245,
+      "global_step": 1,
+      "optimizer_state_entries": 230,
+      "scheduler_last_epoch": 1,
+      "rng_restored": true
+    }
+  ],
+  "gpu": {
+    "name": "NVIDIA GeForce RTX 5090 D",
+    "total_memory_bytes": 33659879424,
+    "torch_cuda": "12.8",
+    "allocated_bytes_before": 0
+  },
+  "summary": {
+    "checks_passed": 8,
+    "smoke_update_executed": true,
+    "training_started": false,
+    "formal_training_claim": false
+  }
+}

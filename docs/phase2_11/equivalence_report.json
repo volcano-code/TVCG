@@ -1,0 +1,64 @@
+{
+  "schema": "tvcg.phase2_11.equivalence.v1",
+  "baseline": "a21a200075a6703f5c7adef43058af43457a6aa5",
+  "cross_revision_full_model_small": {
+    "compared": 298,
+    "absolute_max_errors": {
+      "output": 1.1920928955078125e-07,
+      "grad": 2.384185791015625e-07,
+      "hvp": 3.650784492492676e-07
+    },
+    "rtol": 0.0002,
+    "atol": 5e-07
+  },
+  "cross_revision_tensor_counts": {
+    "outputs": 8,
+    "parameter_gradients": 168,
+    "mixed_hessian_blocks": 122
+  },
+  "baseline_autograd_HVP_vs_central_difference_max": 0.012666372582316399,
+  "dense_attention_oracle": {
+    "seed": 211,
+    "Q": 5,
+    "N": 29,
+    "W": 12,
+    "heads": 3,
+    "query_tile": 2,
+    "interval_tile": 7,
+    "float64_max_abs": {
+      "correction": 2.7755575615628914e-17,
+      "jacobian": 8.673617379884035e-18,
+      "jacobian_loss_hvp_vs_elementary_layernorm": 1.3877787807814457e-16,
+      "jacobian_loss_hvp_vs_old_gradient_centered_difference": 2.7822411041711348e-11
+    },
+    "mixed_fp32_network_fp64_queries_relative_l2": {
+      "correction": 1.9970535154690835e-07,
+      "jacobian": 2.900333019750154e-07
+    }
+  },
+  "regression": {
+    "focused_target_gpu_available": {
+      "passed": 92,
+      "failed": 0,
+      "skipped": 0
+    },
+    "focused_cpu_only": {
+      "passed": 91,
+      "failed": 0,
+      "skipped": 1,
+      "skip": "CUDA parity case"
+    },
+    "broader_cpu_regression": {
+      "passed": 371,
+      "failed": 1,
+      "skipped": 6,
+      "scope": "spin_adapter/tests, training_v13/tests, spin_pino/tests/test_native_pcraft.py, spin_pino/tests/test_transolver_chunked.py",
+      "failure": "test_neural_newton_adapter.py::NeuralNewtonAdapterTests::test_exact_gate_accepts_only_feasible_decreasing_trial",
+      "same_failure_confirmed_on_baseline": "a21a200075a6703f5c7adef43058af43457a6aa5",
+      "isolated_baseline_file_results": {
+        "passed": 4,
+        "failed": 1
+      }
+    }
+  }
+}

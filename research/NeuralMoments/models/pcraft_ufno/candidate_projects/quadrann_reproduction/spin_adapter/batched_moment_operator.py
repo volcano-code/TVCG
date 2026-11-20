@@ -18,6 +18,7 @@ Query and node chunking preserve the autograd graph.
 """
 from __future__ import annotations
 
+from contextlib import nullcontext
 import torch
 from torch.utils.checkpoint import checkpoint
 from torch import Tensor
@@ -26,6 +27,33 @@ from .spin_moment_operator import (
     NATIVE_B,
     raw_moment_basis,
 )
+
+
+def _integrate_block(xyz, weights, queries, eps2, eye, with_jacobian):
+    """Contract each rank-one term over nodes before forming the 10x10 matrix."""
+    basis = raw_moment_basis(xyz)
+    score = queries @ basis.T
+    smooth = (score.square() + eps2 * queries.square().sum(-1, keepdim=True)).sqrt()
+    numerator = score.unsqueeze(-1) * basis + eps2 * queries[:, None, :]
+    weighted_inverse = weights / smooth
+    potential = 0.5 * ((score + smooth) * weights).sum(-1)
+    moments = 0.5 * (weights @ basis + (weighted_inverse.unsqueeze(-1) * numerator).sum(1))
+
+    if with_jacobian:
+        basis_gram = (weighted_inverse.unsqueeze(-1) * basis).transpose(1, 2) @ basis
+        negative_gram = numerator.transpose(1, 2) @ (
+            (weighted_inverse / smooth.square()).unsqueeze(-1) * numerator
+        )
+        jacobian = 0.5 * (basis_gram + eps2 * weighted_inverse.sum(-1)[:, None, None] * eye
+                          - negative_gram)
+    else:
+        jacobian = moments.new_zeros(len(queries), 10, 10)
+    return potential, moments, jacobian
+
+
+def _integration_contexts():
+    from .memory_profile import profile_recompute
+    return nullcontext(), profile_recompute("Moment Operator")
 
 
 class BatchedSpinMomentOperator:
@@ -106,104 +134,44 @@ class BatchedSpinMomentOperator:
             dtype=xyz.dtype,
         )
 
+        # Split once. Backward concatenates adjacent block gradients in one
+        # operation instead of zero-filling a full geometry for each slice.
+        nodes = xyz.split(self.chunk_nodes)
+        node_weights = weights.split(self.chunk_nodes)
+        recompute = torch.is_grad_enabled() and any(
+            value.requires_grad for value in (xyz, weights, q_all)
+        )
         all_potentials = []
         all_moments = []
         all_jacobians_q = []
-
-        for qs in range(0, len(q_all), self.chunk_queries):
-            qe = min(qs + self.chunk_queries, len(q_all))
-            q = q_all[qs:qe]
-
-            batch = len(q)
-
-            potential = xyz.new_zeros(batch)
-            moments = xyz.new_zeros(batch, 10)
-            jacobian = xyz.new_zeros(batch, 10, 10)
-
-            norm2 = q.square().sum(dim=-1)
-
-            for start in range(
-                0, len(xyz), self.chunk_nodes
-            ):
-                stop = min(
-                    start + self.chunk_nodes, len(xyz)
-                )
-
-                w = weights[start:stop]
-
-                def evaluate_node_chunk(xyz_part, weights_part, q_part):
-                    basis_part = raw_moment_basis(xyz_part)
-                    a_part = basis_part @ q_part.T
-                    norm2_part = q_part.square().sum(dim=-1)
-                    s_part = torch.sqrt(
-                        a_part.square() + eps2 * norm2_part.unsqueeze(0)
-                    )
-                    nvec_part = (
-                        a_part.unsqueeze(-1) * basis_part[:, None, :]
-                        + eps2 * q_part[None, :, :]
-                    )
-                    grad_q_part = 0.5 * (
-                        basis_part[:, None, :]
-                        + nvec_part / s_part.unsqueeze(-1)
-                    )
-                    potential_part = (
-                        0.5 * weights_part[:, None] * (a_part + s_part)
-                    ).sum(dim=0)
-                    moments_part = torch.einsum(
-                        "n,nbi->bi", weights_part, grad_q_part
-                    )
-                    if with_jacobian:
-                        outer_part = (
-                            basis_part[:, None, :, None]
-                            * basis_part[:, None, None, :]
-                        )
-                        numerator_part = outer_part + eps2 * eye[None, None, :, :]
-                        hessian_part = 0.5 * (
-                            numerator_part / s_part[:, :, None, None]
-                            - (
-                                nvec_part[:, :, :, None]
-                                * nvec_part[:, :, None, :]
-                            ) / s_part[:, :, None, None].pow(3)
-                        )
-                        jacobian_part = torch.einsum(
-                            "n,nbij->bij", weights_part, hessian_part
+        from .memory_profile import profile_adjoint, profile_stage, profile_tensors
+        query_blocks = q_all.split(self.chunk_queries)
+        with profile_stage("Moment Operator", chunks=len(nodes) * len(query_blocks), nodes=len(xyz),
+                           queries=len(q_all)):
+            profile_tensors(node_xyz=xyz, node_weights=weights, convex_queries=q_all)
+            for q in query_blocks:
+                potential = xyz.new_zeros(len(q))
+                moments = xyz.new_zeros(len(q), 10)
+                jacobian = xyz.new_zeros(len(q), 10, 10)
+                for points, mass in zip(nodes, node_weights):
+                    arguments = (points, mass, q, eps2, eye, with_jacobian)
+                    if recompute:
+                        p_part, m_part, j_part = checkpoint(
+                            _integrate_block, *arguments, use_reentrant=False, preserve_rng_state=False,
+                            context_fn=_integration_contexts
                         )
                     else:
-                        jacobian_part = moments_part.new_zeros(
-                            len(q_part), 10, 10
-                        )
-                    return potential_part, moments_part, jacobian_part
+                        p_part, m_part, j_part = _integrate_block(*arguments)
+                    potential = potential + p_part
+                    moments = moments + m_part
+                    if with_jacobian:
+                        jacobian = jacobian + j_part
 
-                # Checkpoint the complete per-node-block calculation for both
-                # Moment and Jacobian training. This avoids retaining the
-                # [node,query,10,10] Hessian intermediates for every block.
-                needs_checkpoint = (
-                    torch.is_grad_enabled()
-                    and (w.requires_grad or q.requires_grad or xyz[start:stop].requires_grad)
-                )
-                if needs_checkpoint:
-                    p_part, m_part, j_part = checkpoint(
-                        evaluate_node_chunk,
-                        xyz[start:stop],
-                        w,
-                        q,
-                        use_reentrant=False,
-                    )
-                else:
-                    p_part, m_part, j_part = evaluate_node_chunk(
-                        xyz[start:stop], w, q
-                    )
+                all_potentials.append(potential)
+                all_moments.append(moments)
 
-                potential = potential + p_part
-                moments = moments + m_part
                 if with_jacobian:
-                    jacobian = jacobian + j_part
-
-            all_potentials.append(potential)
-            all_moments.append(moments)
-
-            if with_jacobian:
-                all_jacobians_q.append(jacobian)
+                    all_jacobians_q.append(jacobian)
 
         potential = torch.cat(all_potentials, dim=0)
         moments = torch.cat(all_moments, dim=0)
@@ -246,6 +214,8 @@ class BatchedSpinMomentOperator:
             jacobian_normalized, projector
         ) / input_norm.unsqueeze(-1)
 
+        profile_adjoint("Moment Operator", (moments, jacobian_input, jacobian_q, potential),
+                        (xyz, weights, coefficients))
         return {
             "potential": potential,
             "moments": moments,

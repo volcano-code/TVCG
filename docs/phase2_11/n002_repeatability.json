@@ -1,0 +1,120 @@
+{
+  "mode": "two independent fresh processes, one optimizer step each",
+  "source_fingerprints": {
+    "native_pcraft.py": "48a817867903f0db8b965d325c42f6df5129f22f582fa084ddb39f6119c42e56",
+    "geometry_tiles.py": "bccc53c94c74d8188d2db48f86411e6d3a034376655b36183ce04aee3fe43ef4",
+    "prepared_quadrature.py": "6c2ab3efbc1709a3413cfdcae1ddf5470c91c9f442b43e0053de77e847bbb335",
+    "spin_quadrann_v11.py": "1932d29d35d4629a63c0b0ea40dc1848e01f7c0cc0335fcd6a1c34459bef167e",
+    "spin_quadrann_v12.py": "f4e2e40a3e97632170e76bdbe0b6435e38a2fc7f313ea99951be37a798bc7dd6",
+    "batched_moment_operator.py": "ac5ee0007fe778b833ba38aa3b15d2a67592b02d904d103a2e16ced380614df7",
+    "unified_m80_sqno.py": "523becec254e54deda967796c05d3df252786178705a2086594a6c4c2e770aae",
+    "geometry_physics_attention.py": "a0ea20a34b7cc2874001cc127a145aab61891d24620b11bc03aa7642dc8ad5bf",
+    "cross_scale_attention.py": "3e0cce826eda0135567dec3527674e2cd0449edda2ef7f964d55c9684cdc1b3e"
+  },
+  "runs": [
+    {
+      "run": "acceptance",
+      "seed": 830251,
+      "update": {
+        "loss": 0.22954777548053193,
+        "moment_loss": 0.15204767026361898,
+        "jacobian_loss": 3.0306081671777093e-05,
+        "full_jacobian_loss": 3.318655567307962e-05,
+        "restricted_jacobian_loss": 2.6096158131411857e-05,
+        "gradient_norm": 406.6504312339405,
+        "parameter_delta_l2": 0.23342499864866031,
+        "changed_parameter_tensors": 226,
+        "elapsed_seconds": 88.65807101898827,
+        "peak_memory_bytes": 10871928320,
+        "peak_reserved_bytes": 10947133440,
+        "optimizer_steps": 1,
+        "consumed_moment_queries": 64,
+        "consumed_full_jacobians": 38,
+        "consumed_restricted_jacobians": 26,
+        "consumed_restricted_directions": 143
+      },
+      "cache_invalidated": true,
+      "restoration": {
+        "predictions": {
+          "moments": {
+            "shape": [
+              64,
+              10
+            ],
+            "max_abs": 5.464938918064988e-10,
+            "max_rel": 1.2350500458591528e-07
+          },
+          "jacobian_coefficients": {
+            "shape": [
+              64,
+              10,
+              10
+            ],
+            "max_abs": 3.907219429943876e-09,
+            "max_rel": 0.00048305655358790966
+          }
+        },
+        "prediction_rtol": 1e-05,
+        "prediction_atol": 1e-08,
+        "relative_error_denominator": "max(abs(original_output), dtype_epsilon)",
+        "restored_parameters": 245,
+        "global_step": 1,
+        "optimizer_state_entries": 230,
+        "scheduler_last_epoch": 1,
+        "rng_restored": true
+      }
+    },
+    {
+      "run": "repeat",
+      "seed": 830251,
+      "update": {
+        "loss": 0.2295477754946478,
+        "moment_loss": 0.15204767028243407,
+        "jacobian_loss": 3.030608167983153e-05,
+        "full_jacobian_loss": 3.3186555680929416e-05,
+        "restricted_jacobian_loss": 2.609615813976539e-05,
+        "gradient_norm": 406.6504312317048,
+        "parameter_delta_l2": 0.2334250003438029,
+        "changed_parameter_tensors": 226,
+        "elapsed_seconds": 80.84757453401107,
+        "peak_memory_bytes": 10871928320,
+        "peak_reserved_bytes": 10947133440,
+        "optimizer_steps": 1,
+        "consumed_moment_queries": 64,
+        "consumed_full_jacobians": 38,
+        "consumed_restricted_jacobians": 26,
+        "consumed_restricted_directions": 143
+      },
+      "cache_invalidated": true,
+      "restoration": {
+        "predictions": {
+          "moments": {
+            "shape": [
+              64,
+              10
+            ],
+            "max_abs": 3.513648434705363e-10,
+            "max_rel": 7.45120540780131e-08
+          },
+          "jacobian_coefficients": {
+            "shape": [
+              64,
+              10,
+              10
+            ],
+            "max_abs": 2.5185706853392276e-09,
+            "max_rel": 0.0028819098230228254
+          }
+        },
+        "prediction_rtol": 1e-05,
+        "prediction_atol": 1e-08,
+        "relative_error_denominator": "max(abs(original_output), dtype_epsilon)",
+        "restored_parameters": 245,
+        "global_step": 1,
+        "optimizer_state_entries": 230,
+        "scheduler_last_epoch": 1,
+        "rng_restored": true
+      }
+    }
+  ]
+}

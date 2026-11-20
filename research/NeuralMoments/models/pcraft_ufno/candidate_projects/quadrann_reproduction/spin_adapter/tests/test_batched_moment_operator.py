@@ -241,3 +241,34 @@ def test_cuda_batch_matches_cpu():
         rtol=1e-9,
         atol=1e-10,
     )
+
+
+@pytest.mark.parametrize("dtype,rtol,atol", [
+    (torch.float64, 2e-9, 3e-10),
+    (torch.float32, 4e-4, 8e-5),
+])
+def test_contracted_hessian_and_full_derivatives(dtype, rtol, atol):
+    """Independent unchunked outer-product reference, including second derivatives."""
+    torch.manual_seed(211)
+    xyz = torch.randn(19, 3, dtype=dtype, requires_grad=True)
+    weights = torch.rand(19, dtype=dtype, requires_grad=True)
+    queries = torch.randn(3, 10, dtype=dtype, requires_grad=True)
+    inputs = (xyz, weights, queries)
+    directions = [torch.randn_like(v) for v in inputs]
+    probe = torch.randn(3, 10, 10, dtype=dtype)
+
+    def evaluate(reference):
+        if reference:
+            rows = [SpinMomentOperator().evaluate(xyz, weights, q) for q in queries]
+            moments = torch.stack([r["moments"] for r in rows])
+            jacobian = torch.stack([r["jacobian_q"] for r in rows])
+        else:
+            out = BatchedSpinMomentOperator(chunk_nodes=6, chunk_queries=2).evaluate(*inputs)
+            moments, jacobian = out["moments"], out["jacobian_q"]
+        objective = (moments.square().mean() + (probe * jacobian).mean())
+        first = torch.autograd.grad(objective, inputs, create_graph=True)
+        second = torch.autograd.grad(sum((g * v).sum() for g, v in zip(first, directions)), inputs)
+        return (moments, jacobian, *first, *second)
+
+    for actual, expected in zip(evaluate(False), evaluate(True)):
+        torch.testing.assert_close(actual, expected, rtol=rtol, atol=atol)

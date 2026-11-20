@@ -8,12 +8,15 @@ decoder feature map, and included in the mass-weighted interval reduction.
 from __future__ import annotations
 
 from collections import OrderedDict
+from contextlib import nullcontext
+from functools import partial
 from dataclasses import asdict, dataclass, replace
 from hashlib import sha256
 import math
 from pathlib import Path
 from time import perf_counter
 from typing import Mapping
+import weakref
 
 import numpy as np
 import torch
@@ -22,6 +25,16 @@ import torch.nn.functional as F
 from torch.utils.checkpoint import checkpoint
 
 from .pino_backbone import PINOFeatureEncoder
+from .geometry_tiles import neighbor_tiles, sample_native_intervals
+from ..candidate_projects.quadrann_reproduction.spin_adapter.memory_profile import (
+    profile_stage, profile_count, profile_tensors, profile_recompute, profile_adjoint,
+)
+
+
+def checkpoint_stage(name, fn, *args):
+    return checkpoint(fn, *args, use_reentrant=False,
+                      context_fn=lambda: (nullcontext(), profile_recompute(name)))
+
 
 SCHEMA = "m80.pcraft-native-query.v5"
 SEMANTICS = "pcraft-ufno-native-interval-m72-bounded-odd-or-native-cross-convex-potential-moment-head-ad-jacobian-optional-gno-transolver-multiscale-event-validity.v7"
@@ -312,6 +325,68 @@ def geometry_from_columns(values: Mapping[str, object]) -> dict:
         columns=columns.copy(), origin=origin.copy(), h=h, side=side)
 
 
+def parameter_versions(module):
+    # Parameter replacement and Module.to() can preserve the in-place version.
+    return tuple((id(p),p._version,p.data_ptr(),p.dtype,p.device,p.requires_grad) for p in module.parameters())
+
+
+@dataclass(frozen=True)
+class NativeFeatureSource:
+    """Track the producer of externally supplied learned geometry tensors."""
+    owner: weakref.ReferenceType
+    versions: tuple
+    inference_only: bool
+
+    def validate(self):
+        producer=self.owner()
+        if producer is None or self.versions!=producer._versions():
+            raise ValueError("stale shared P-CRAFT feature payload")
+
+
+class PreparedNativeGeometry(Mapping):
+    """Caller-owned geometry snapshot. Only parameter-independent CPU data are memoized."""
+
+    def __init__(self, values, *, copy_arrays):
+        self._data = {}
+        for key, value in values.items():
+            if isinstance(value, np.ndarray):
+                value = value.copy() if copy_arrays else value.view()
+                value.flags.writeable = False
+            self._data[key] = value
+        self._derived = {}
+
+    def __getitem__(self, key):
+        return self._data[key]
+
+    def __len__(self):
+        return len(self._data)
+
+    def __iter__(self):
+        return iter(self._data)
+
+    @classmethod
+    def prepare(cls, geometry, *, borrow=False):
+        if isinstance(geometry, cls):
+            return geometry
+        if "xyz" not in geometry:
+            values = geometry_from_columns(geometry)
+            if "pcraft_grid" in geometry:
+                values["pcraft_grid"] = np.array(geometry["pcraft_grid"], copy=True)
+            return cls(values, copy_arrays=False)
+        return cls(geometry, copy_arrays=not borrow)
+
+    def derived(self, key, build):
+        if key not in self._derived:
+            self._derived[key] = build()
+        return self._derived[key]
+
+    def components(self):
+        return self.derived(("components",), lambda: native_interval_components(self["columns"]))
+
+    def grid(self, size):
+        return self.derived(("grid", size), lambda: conservative_coarse_grid(self, size))
+
+
 def load_geometry(path: str | Path) -> dict:
     with np.load(path, allow_pickle=False) as data:
         values = {key: data[key] for key in data.files}
@@ -473,6 +548,8 @@ class PhysicsStateSlicing(nn.Module):
         n=len(features)
         mass=mass_weights.float()
         mass=mass/mass.sum().clamp_min(1e-30)
+        feature_tiles=features.split(point_chunk_size)
+        mass_tiles=mass.split(point_chunk_size)
         active_slices=self.n_slices
         feature_variation=features.new_zeros(())
         mass_effective_support=features.new_tensor(float(n))
@@ -485,19 +562,23 @@ class PhysicsStateSlicing(nn.Module):
             mass_effective_support=total_mass.square() / mass64.square().sum().clamp_min(1e-15)
             weighted_sum=features.new_zeros((self.width,),dtype=torch.float64)
             weighted_energy=features.new_zeros((),dtype=torch.float64)
-            for start in range(0,n,point_chunk_size):
-                stop=min(start+point_chunk_size,n)
-                f=features[start:stop].to(torch.float64)
-                w=mass64[start:stop]/total_mass
-                weighted_sum=weighted_sum+(f*w[:,None]).sum(0)
-                weighted_energy=weighted_energy+(f.square().mean(-1)*w).sum()
-            mean=weighted_sum
+            weights64=(mass64/total_mass).split(point_chunk_size)
+            def mean_and_energy(f,w):
+                f=f.double()
+                return (f*w[:,None]).sum(0),(f.square().mean(-1)*w).sum()
+            def variance(f,w,mean):
+                return ((f.double()-mean).square().mean(-1)*w).sum()
+            def statistic(fn,*args):
+                if self.training and torch.is_grad_enabled():
+                    return checkpoint_stage("transolver_statistics_recompute",fn,*args)
+                return fn(*args)
+            for f,w in zip(feature_tiles,weights64):
+                chunk_mean,chunk_energy=statistic(mean_and_energy,f,w)
+                weighted_sum=weighted_sum+chunk_mean
+                weighted_energy=weighted_energy+chunk_energy
             weighted_variance=features.new_zeros((),dtype=torch.float64)
-            for start in range(0,n,point_chunk_size):
-                stop=min(start+point_chunk_size,n)
-                f=features[start:stop].to(torch.float64)
-                w=mass64[start:stop]/total_mass
-                weighted_variance=weighted_variance+((f-mean).square().mean(-1)*w).sum()
+            for f,w in zip(feature_tiles,weights64):
+                weighted_variance=weighted_variance+statistic(variance,f,w,weighted_sum)
             feature_variation=(weighted_variance/weighted_energy.clamp_min(1e-12)).clamp(0,1)
             mass_coverage=(mass_effective_support/max(1,n)).clamp(0,1)
             complexity=(0.5*feature_variation+0.5*mass_coverage).clamp(0,1)
@@ -529,11 +610,9 @@ class PhysicsStateSlicing(nn.Module):
         temperature_min_value=float("inf")
         temperature_max_value=float("-inf")
         row_error=features.new_zeros(())
-        for start in range(0,n,point_chunk_size):
-            stop=min(start+point_chunk_size,n)
-            f=features[start:stop]
-            m=mass[start:stop]
+        for f,m in zip(feature_tiles,mass_tiles):
             def pool_fn(f_chunk,m_chunk):
+                profile_count(transolver_pool_chunks=1)
                 x_mid,assignment,temp=project_and_assign(f_chunk,m_chunk)
                 weighted=assignment*m_chunk[:,None,None]
                 sm=weighted.sum(0)
@@ -542,8 +621,8 @@ class PhysicsStateSlicing(nn.Module):
                 tsum=temp.to(torch.float64).sum()
                 return sm,sn,ent,tsum,temp.detach().amin(),temp.detach().amax(),(assignment.sum(-1)-1).abs().max()
             if self.training and torch.is_grad_enabled():
-                sm,sn,ent,tsum,tmin,tmax,rerr=checkpoint(
-                    pool_fn,f,m,use_reentrant=False
+                sm,sn,ent,tsum,tmin,tmax,rerr=checkpoint_stage(
+                    "transolver_pool_recompute",pool_fn,f,m
                 )
             else:
                 sm,sn,ent,tsum,tmin,tmax,rerr=pool_fn(f,m)
@@ -559,22 +638,28 @@ class PhysicsStateSlicing(nn.Module):
         q=self.to_q(slice_tokens).unsqueeze(0)
         k=self.to_k(slice_tokens).unsqueeze(0)
         v=self.to_v(slice_tokens).unsqueeze(0)
-        attended=F.scaled_dot_product_attention(q,k,v).squeeze(0)
+        # Only the global slice axis is quadratic. Math SDPA also supports
+        # double backward through the slice interaction on CPU and CUDA.
+        with torch.nn.attention.sdpa_kernel(torch.nn.attention.SDPBackend.MATH):
+            attended=F.scaled_dot_product_attention(q,k,v).squeeze(0)
 
         output_chunks=[]
-        for start in range(0,n,point_chunk_size):
-            stop=min(start+point_chunk_size,n)
-            f=features[start:stop]
-            m=mass[start:stop]
+        assignments=[]
+        for f,m in zip(feature_tiles,mass_tiles):
             def deslice_fn(f_chunk,m_chunk):
+                profile_count(transolver_deslice_chunks=1)
                 x_mid,assignment,_=project_and_assign(f_chunk,m_chunk)
                 point_update=torch.einsum("hsd,nhs->nhd",attended,assignment).reshape(len(f_chunk),self.width)
                 x=f_chunk+self.attn_dropout(self.to_out(point_update).to(f_chunk.dtype))
-                return x+self.ffn_dropout(self.ffn(self.ffn_norm(x)).to(x.dtype))
+                updated=x+self.ffn_dropout(self.ffn(self.ffn_norm(x)).to(x.dtype))
+                return (updated,assignment) if return_details else updated
             if self.training and torch.is_grad_enabled():
-                updated=checkpoint(deslice_fn,f,m,use_reentrant=False)
+                updated=checkpoint_stage("transolver_deslice_recompute",deslice_fn,f,m)
             else:
                 updated=deslice_fn(f,m)
+            if return_details:
+                updated,assignment=updated
+                assignments.append(assignment)
             output_chunks.append(updated)
         output=torch.cat(output_chunks,dim=0)
 
@@ -598,7 +683,7 @@ class PhysicsStateSlicing(nn.Module):
             "transolver_per_head_near_empty_slices_mean":float(per_head_near_empty.float().mean().detach()),
             "transolver_active_slice_utilization":float((head_effective.mean()/max(1,active_slices)).detach()),
             "transolver_assignment_entropy":float((entropy_sum/(n*self.n_heads)).detach()),
-            "transolver_temperature_mean":float((temperature_sum/(n*self.n_heads*self.dim_head)).detach()),
+            "transolver_temperature_mean":float((temperature_sum/(n*self.n_heads)).detach()),
             "transolver_temperature_min":temperature_min_value,
             "transolver_temperature_max":temperature_max_value,
             "transolver_adaptive_enabled":float(bool(adaptive)),
@@ -611,8 +696,11 @@ class PhysicsStateSlicing(nn.Module):
             "transolver_complexity_score":float(complexity.detach()) if adaptive else 1.0,
             "transolver_point_chunk_size":float(point_chunk_size),
         }
+        assignment=torch.cat(assignments) if return_details else None
+        profile_adjoint("transolver",outputs=(output,assignment,slice_mass if return_details else None),
+                        inputs=(features,mass_weights),parameters=self.parameters())
         if return_details:
-            return output,metrics,None,slice_mass
+            return output,metrics,assignment,slice_mass
         return output,metrics
 
 
@@ -760,21 +848,17 @@ def build_local_neighbor_graph(
             result[indices_global,:]=indices_global[:,None].astype(np.int32)
             continue
         tree=cKDTree(points)
-        _,indices=tree.query(points,k=k,workers=1)
-        if indices.ndim==1:
-            indices=indices[:,None]
-        indices=np.asarray(indices,dtype=np.int64)
-        own=np.arange(len(indices_global),dtype=np.int64)
-        if not np.array_equal(indices[:,0],own):
-            rows_local=[]
-            for i,row in enumerate(indices):
-                rows_local.append(np.concatenate(([i],row[row!=i]))[:k])
-            indices=np.stack(rows_local,axis=0)
-        global_indices=indices_global[indices]
-        if k<neighbors:
-            pad=np.repeat(indices_global[:,None],neighbors-k,axis=1)
-            global_indices=np.concatenate((global_indices,pad),axis=1)
-        result[indices_global]=global_indices[:,:neighbors].astype(np.int32,copy=False)
+        for start in range(0,len(points),32768):
+            stop=min(start+32768,len(points))
+            _,indices=tree.query(points[start:stop],k=k,workers=1)
+            own=np.arange(start,stop,dtype=np.int64)
+            for row in np.flatnonzero(indices[:,0]!=own):
+                original=indices[row]
+                indices[row]=np.concatenate(([own[row]],original[original!=own[row]]))[:k]
+            target=indices_global[start:stop]
+            result[target,:k]=indices_global[indices]
+            if k<neighbors:
+                result[target,k:]=target[:,None]
     return result
 
 
@@ -786,6 +870,9 @@ class PcraftNativeMomentOperator(nn.Module):
         c=self.config; w=c.interval_width
         self.pino_encoder=PINOFeatureEncoder(width=c.pino_width,modes=c.pino_modes,
             n_layers=c.pino_layers,grid_size=c.grid_size,use_gradient_checkpoint=True)
+        if c.checkpoint_intervals:
+            for block in (*self.pino_encoder.enc1,*self.pino_encoder.dec1):
+                block.use_checkpoint=True
         self.pino_global=nn.Sequential(nn.Linear(self.pino_encoder.feature_dim,w),nn.GELU(),nn.Linear(w,w))
         self.pino_local=nn.Linear(c.pino_width,w,bias=False)
         if c.multiscale_enabled:
@@ -846,10 +933,15 @@ class PcraftNativeMomentOperator(nn.Module):
                            convex_potential_amplitude_bound=0.0,
                            convex_potential_effective_amplitude=0.0)
 
-    def _versions(self):
-        return tuple(p._version for p in self.parameters())
+    def geometry_parameters(self):
+        for name,layer in self.named_children():
+            if not name.endswith("_head"):
+                yield from layer.parameters()
 
-    def _get_neighbor_graph(self,geometry_hash,xyz,device,geometry_columns=None):
+    def _versions(self):
+        return parameter_versions(self)
+
+    def _get_neighbor_graph(self,geometry_hash,xyz,device,geometry):
         key=(geometry_hash,self.config.gno_neighbors,str(device))
         if key in self._neighbor_cache:
             graph,size=self._neighbor_cache.pop(key)
@@ -859,14 +951,14 @@ class PcraftNativeMomentOperator(nn.Module):
         graph_start=perf_counter()
         component_ids=None
         if self.config.gno_topology_filter:
-            columns=geometry_columns
+            columns=geometry.get("columns")
             if columns is None:
                 raise ValueError("topology-filtered GNO requires native RLE columns")
-            component_ids=native_interval_components(columns)
+            component_ids=geometry.components()
             self.counters["gno_component_count"]=int(len(np.unique(component_ids)))
-        graph_np=build_local_neighbor_graph(xyz,self.config.gno_neighbors,component_ids=component_ids)
-        graph=torch.as_tensor(graph_np,device=device,dtype=torch.int32)
-        size=graph.numel()*graph.element_size()
+        graph=geometry.derived(("knn",self.config.gno_neighbors,xyz.dtype.str,self.config.gno_topology_filter),
+            lambda: build_local_neighbor_graph(xyz,self.config.gno_neighbors,component_ids=component_ids))
+        size=graph.nbytes
         budget=self.config.gno_cache_mib*1024**2
         if size<=budget:
             while self._neighbor_cache and self._neighbor_cache_bytes+size>budget:
@@ -876,17 +968,22 @@ class PcraftNativeMomentOperator(nn.Module):
             self._neighbor_cache_bytes+=size
         self.counters["gno_graph_builds"]+=1
         self.counters["gno_graph_build_seconds"]+=perf_counter()-graph_start
-        self.counters["gno_edges"]+=int(graph.numel())
+        self.counters["gno_edges"]+=int(graph.size)
         return graph
 
     def _interval_features(self,descriptor,grid,pino_map,context):
-        if isinstance(pino_map,(tuple,list)):
+        # Also used by the stand-alone v1.1 adapter with pre-built sampling grids.
+        maps=pino_map if isinstance(pino_map,(tuple,list)) else (pino_map,)
+        samples=tuple(sample_native_intervals(fmap,grid.reshape(-1,3)) for fmap in maps)
+        return self._features_from_samples(descriptor,samples,context)
+
+    def _features_from_samples(self,descriptor,samples,context):
+        profile_count(interval_feature_chunks=1)
+        if self.config.multiscale_enabled:
             projected=[]
             scores=[]
             ctx=context.expand(len(descriptor),-1)
-            for fmap in pino_map:
-                sampled=F.grid_sample(fmap,grid,mode="bilinear",padding_mode="border",align_corners=True)
-                sampled=sampled.reshape(fmap.shape[1],-1).T
+            for sampled in samples:
                 local=self.pino_local(sampled)
                 projected.append(local)
                 scores.append(self.local_scale_gate(torch.cat((descriptor,ctx,local),dim=-1)))
@@ -897,16 +994,14 @@ class PcraftNativeMomentOperator(nn.Module):
             local_fused=(stacked*gate.unsqueeze(-1)).sum(dim=1)
             h=self.interval_embedding(descriptor)+local_fused
         else:
-            sampled=F.grid_sample(pino_map,grid,mode="bilinear",padding_mode="border",align_corners=True)
-            sampled=sampled.reshape(pino_map.shape[1],-1).T
-            h=self.interval_embedding(descriptor)+self.pino_local(sampled)
+            h=self.interval_embedding(descriptor)+self.pino_local(samples[0])
         h=self.interval_fusion(h+context)
         for block in self.interval_blocks:
             h=block(h)
         return h
 
-    def _chunk_pool(self,descriptor,weights,grid,pino_map,context):
-        h=self._interval_features(descriptor,grid,pino_map,context)
+    def _chunk_pool(self,descriptor,weights,samples,context):
+        h=self._features_from_samples(descriptor,samples,context)
         return (h*weights[:,None]).sum(0)
 
     def _gno_update_chunk(self,center_features,neighbor_features,edge_features,neighbor_weights):
@@ -919,7 +1014,7 @@ class PcraftNativeMomentOperator(nn.Module):
     def encode(self,geometry: Mapping[str,object],chunk: int|None=None,*,retain_interval_features=False):
         c=self.config; w=c.interval_width; chunk=c.chunk_intervals if chunk is None else chunk
         if chunk<1: raise ValueError("chunk must be positive")
-        if "xyz" not in geometry: geometry=geometry_from_columns(geometry)
+        geometry=PreparedNativeGeometry.prepare(geometry,borrow=True)
         xyz_np=np.asarray(geometry["xyz"],dtype=np.float64)
         mass_np=np.asarray(geometry["mass"],dtype=np.float64)
         extent_np=np.asarray(geometry["cell_extent"],dtype=np.float64)
@@ -960,14 +1055,18 @@ class PcraftNativeMomentOperator(nn.Module):
                 if grid_size==c.grid_size and geometry.get("pcraft_grid") is not None:
                     grid_np=np.asarray(geometry["pcraft_grid"],dtype=np.float32)
                 else:
-                    grid_np=conservative_coarse_grid(geometry,grid_size)
+                    grid_np=geometry.grid(grid_size)
                 if grid_np.shape!=(4,grid_size,grid_size,grid_size):
                     raise ValueError(f"invalid conservative P-CRAFT grid at resolution {grid_size}")
                 scale_grids.append(torch.as_tensor(np.array(grid_np,dtype=np.float32,copy=True),
                                                    device=device).unsqueeze(0))
             scale_globals=[]; scale_maps=[]
             for grid_tensor in scale_grids:
-                pooled,fmap=self.pino_encoder.forward_with_map(grid_tensor,preserve_resolution=True)
+                encode_scale=partial(self.pino_encoder.forward_with_map,preserve_resolution=True)
+                if c.checkpoint_intervals and self.training and torch.is_grad_enabled():
+                    pooled,fmap=checkpoint_stage("pcraft_scale_recompute",encode_scale,grid_tensor)
+                else:
+                    pooled,fmap=encode_scale(grid_tensor)
                 scale_globals.append(self.pino_global(pooled))
                 scale_maps.append(fmap)
             global_stack=torch.stack(scale_globals,dim=1)
@@ -982,7 +1081,7 @@ class PcraftNativeMomentOperator(nn.Module):
             self.counters["multiscale_global_weights"]=[float(v) for v in global_weights[0,:,0].detach().cpu()]
         else:
             grid=geometry.get("pcraft_grid")
-            if grid is None: grid=conservative_coarse_grid(geometry,c.grid_size)
+            if grid is None: grid=geometry.grid(c.grid_size)
             grid=torch.as_tensor(np.array(grid,dtype=np.float32,copy=True),device=device).unsqueeze(0)
             if grid.shape!=(1,4,c.grid_size,c.grid_size,c.grid_size): raise ValueError("invalid P-CRAFT conservative grid")
             pino_global,pino_map=self.pino_encoder.forward_with_map(grid)
@@ -995,7 +1094,8 @@ class PcraftNativeMomentOperator(nn.Module):
         span=side*float(geometry["h"])
         normalized=2*(xyz-origin)/span-1
         coords=torch.stack((normalized[:,2],normalized[:,1],normalized[:,0]),-1)
-        pino_dtype=pino_map[0].dtype if isinstance(pino_map,(tuple,list)) else pino_map.dtype
+        maps=pino_map if isinstance(pino_map,(tuple,list)) else (pino_map,)
+        sample_tiles=[sample_native_intervals(fmap,coords).split(chunk) for fmap in maps]
         geom_hash=str(geometry.get("geometry_sha256",""))
         if not geom_hash:
             d=sha256()
@@ -1011,36 +1111,45 @@ class PcraftNativeMomentOperator(nn.Module):
             feature_chunks=[]
             for start in range(0,len(desc),chunk):
                 stop=min(start+chunk,len(desc))
-                sample_grid=coords[start:stop].to(pino_dtype).reshape(1,-1,1,1,3)
-                args=(desc[start:stop],sample_grid,pino_map,context)
+                samples=tuple(parts[start//chunk] for parts in sample_tiles)
+                args=(desc[start:stop],samples,context)
                 if c.checkpoint_intervals and self.training and torch.is_grad_enabled():
-                    h=checkpoint(self._interval_features,*args,use_reentrant=False)
+                    h=checkpoint_stage("pcraft_interval_recompute",self._features_from_samples,*args)
                 else:
-                    h=self._interval_features(*args)
+                    h=self._features_from_samples(*args)
                 feature_chunks.append(h)
             all_features=torch.cat(feature_chunks,dim=0)
+            del feature_chunks
             if c.gno_enabled:
-                neighbor_graph=self._get_neighbor_graph(geom_hash,xyz_np,device,geometry.get("columns"))
+                neighbor_graph=self._get_neighbor_graph(geom_hash,xyz_np,device,geometry)
                 extent_normalized=extent/length
+                feature_tiles=all_features.split(chunk)
                 updated_chunks=[]
-                for start in range(0,len(desc),chunk):
+                for i,tile in enumerate(neighbor_tiles(neighbor_graph,chunk,device)):
+                    start=i*chunk
                     stop=min(start+chunk,len(desc))
-                    idx=neighbor_graph[start:stop].long()
-                    center_xyz=normalized[start:stop]
-                    neighbor_xyz=normalized[idx]
-                    relative_xyz=neighbor_xyz-center_xyz[:,None,:]
-                    relative_extent=torch.log((extent_normalized[idx]/extent_normalized[start:stop,None,:]).clamp_min(1e-6))
-                    relative_mass=torch.log((mass[idx]/mass[start:stop,None]).clamp_min(1e-12)).unsqueeze(-1)
-                    edge_features=torch.cat((relative_xyz,relative_extent,relative_mass),dim=-1).to(p.dtype)
-                    args=(all_features[start:stop],all_features[idx],edge_features,weights[idx])
+                    indices=torch.as_tensor(neighbor_graph[start:stop],device=device)
+                    def update_tile(center,*sources,indices=indices,tile=tile,start=start,stop=stop):
+                        profile_count(gno_chunks=1)
+                        idx=indices.long()
+                        relative_xyz=normalized[idx]-normalized[start:stop,None,:]
+                        relative_extent=torch.log((extent_normalized[idx]/extent_normalized[start:stop,None,:]).clamp_min(1e-6))
+                        relative_mass=torch.log((mass[idx]/mass[start:stop,None]).clamp_min(1e-12)).unsqueeze(-1)
+                        edges=torch.cat((relative_xyz,relative_extent,relative_mass),dim=-1).to(p.dtype)
+                        source_table=sources[0] if len(sources)==1 else torch.cat(sources)
+                        neighbors=source_table[tile.indices.long()]
+                        return self._gno_update_chunk(center,neighbors,edges,weights[idx])
+                    args=(feature_tiles[i],*(feature_tiles[j] for j in tile.sources))
                     if c.checkpoint_intervals and self.training and torch.is_grad_enabled():
-                        updated=checkpoint(self._gno_update_chunk,*args,use_reentrant=False)
+                        updated=checkpoint_stage("pcraft_gno_recompute",update_tile,*args)
                     else:
-                        updated=self._gno_update_chunk(*args)
+                        updated=update_tile(*args)
                     updated_chunks.append(updated)
-                all_features=torch.cat(updated_chunks,dim=0)
+                all_features=torch.cat(updated_chunks)
+                del feature_tiles, updated_chunks
             if c.transolver_enabled:
-                all_features,tm=self.transolver(all_features,weights,
+                with profile_stage("transolver",native_intervals=len(weights)):
+                    all_features,tm=self.transolver(all_features,weights,
                     adaptive=c.transolver_adaptive,min_slices=c.transolver_min_slices,
                     adaptive_temperature=c.transolver_adaptive_temperature,
                     temperature_min=c.transolver_temperature_min,
@@ -1048,23 +1157,27 @@ class PcraftNativeMomentOperator(nn.Module):
                 self.counters["transolver_calls"]+=1
                 for key,value in tm.items():
                     self.counters[key]=value
-            latent=(all_features*weights[:,None].to(all_features.dtype)).sum(0)
+            latent=torch.matmul(weights.to(all_features.dtype),all_features)
         else:
             for start in range(0,len(desc),chunk):
                 stop=min(start+chunk,len(desc))
-                sample_grid=coords[start:stop].to(pino_dtype).reshape(1,-1,1,1,3)
-                args=(desc[start:stop],weights[start:stop],sample_grid,pino_map,context)
+                samples=tuple(parts[start//chunk] for parts in sample_tiles)
+                args=(desc[start:stop],weights[start:stop],samples,context)
                 if c.checkpoint_intervals and self.training and torch.is_grad_enabled():
                     latent=latent+checkpoint(self._chunk_pool,*args,use_reentrant=False)
                 else:
                     latent=latent+self._chunk_pool(*args)
         self.counters["encode_calls"]+=1; self.counters["intervals"]+=len(xyz_np)
-        return EncodedNativeGeometry(latent[None],stats,fixed,design,absolute,scale,coord,
+        cache=EncodedNativeGeometry(latent[None],stats,fixed,design,absolute,scale,coord,
             torch.stack((lo/length,hi/length)),geom_hash,side,len(xyz_np),id(self),self._versions(),
             all_features if (c.gno_enabled or c.transolver_enabled or retain_interval_features) else None,
             context,weights,desc,normalized,
             global_weights.squeeze(0) if global_weights is not None else None,
             scale_features,scale_ids)
+        profile_adjoint("pcraft_native_encoding",outputs=(cache.latent,cache.interval_features,
+            cache.global_context,cache.global_scale_weights,cache.scale_features),
+            parameters=self.geometry_parameters())
+        return cache
 
     def export_shared_geometry_features(self,cache: EncodedNativeGeometry):
         """Export encoded P-CRAFT interval features for a compatible SQNO branch.
@@ -1083,6 +1196,8 @@ class PcraftNativeMomentOperator(nn.Module):
         if cache.interval_features.shape[0]!=cache.native_intervals:
             raise ValueError("shared interval feature count mismatch")
         return {
+            "native_feature_source":NativeFeatureSource(weakref.ref(self),cache.versions,
+                not cache.latent.requires_grad and any(p.requires_grad for p in self.geometry_parameters())),
             "local_features":cache.interval_features,
             "global_context":cache.global_context,
             "global_scale_weights":cache.global_scale_weights,

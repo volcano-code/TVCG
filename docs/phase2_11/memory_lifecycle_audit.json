@@ -1,0 +1,502 @@
+{
+  "schema": "tvcg.phase2_11.memory-lifecycle-audit.v1",
+  "historical_baseline": "a21a200075a6703f5c7adef43058af43457a6aa5",
+  "scope": "full_v1_candidate, complete geometry-query training path and optional smoke verification",
+  "evidence_type": "Source comparison unless explicitly linked to measured evidence",
+  "symbol_table": {
+    "N": "native editable RLE interval count",
+    "Q": "all queries of one record",
+    "W": "P-CRAFT interval width",
+    "P": "PINO feature map channels",
+    "g": "one configured conservative-grid side",
+    "S": "number of multiscale tokens",
+    "K": "neighbors per target in this module",
+    "D_l": "GNN layer l output width",
+    "D_f": "final GNN output width",
+    "L": "number of returned GNN layers including initial",
+    "A": "connected components",
+    "R": "quadrature order",
+    "M": "N × R³ native quadrature nodes",
+    "T": "Transolver slice count",
+    "H": "heads in the named module",
+    "d": "W/H",
+    "C": "interval tile length in the named module",
+    "B": "query tile length",
+    "J": "quadrature-node tile length",
+    "U": "count of distinct neighbor source tiles referenced by a target tile",
+    "r": "stored maximum restricted tangent dimension",
+    "p": "shape of one trainable parameter"
+  },
+  "modules": [
+    {
+      "module": "native_pcraft.py",
+      "source": "research/NeuralMoments/models/pcraft_ufno/spin_pino/native_pcraft.py",
+      "symbols": [
+        "PreparedNativeGeometry",
+        "PcraftNativeMomentOperator.encode",
+        "PhysicsStateSlicing.forward",
+        "export_shared_geometry_features"
+      ],
+      "profile_stages": [
+        "pcraft_native_encoding",
+        "transolver"
+      ],
+      "inputs": "RLE columns, physical moments and conservative grids; parameter-independent geometry snapshot.",
+      "outputs": "EncodedNativeGeometry including native interval features, global context, scale summaries, physical statistics and normalized masses.",
+      "baseline_lifecycle": "Multiscale sampling inside each interval checkpoint referenced each whole feature map repeatedly. GNO built all_features[idx], edge geometry and neighbor weights outside the checkpoint for every target tile. Transolver already tiled assignment/aggregation and replayed both pool and deslice.",
+      "current_lifecycle": "One grid sample and map adjoint per scale at fixed coordinates. Interval checkpoints receive sampled feature views. GNO checkpoints gather learned neighbors and build edge descriptors inside replay. Exact mass-weighted slice pooling precedes attention over the slice axis. Optional adaptive statistics checkpoint FP64 reductions.",
+      "retention": "Encoder uses dense per-scale maps, sampled [N,P] tables, full per-layer interval outputs and checkpoint inputs. A split view pins its source storage. The Transolver assignment [C,H,T] is local to pool/deslice. The per-head slice summaries are global. The full model keeps the final interval table for SQNO and query attention.",
+      "recompute": [
+        "pcraft_scale_recompute",
+        "pcraft_interval_recompute",
+        "pcraft_gno_recompute",
+        "transolver_pool_recompute",
+        "transolver_deslice_recompute",
+        "transolver_statistics_recompute (adaptive only)"
+      ],
+      "release_boundary": "Transient gathered edges and assignments become reclaimable after a tile. Chunk lists and concatenated tables may briefly coexist. Saved inputs remain until backward finishes or the graph dies. Detached inference cache still owns tensor storage.",
+      "verification": "The cache records interval_features; profile encode_geometry.cache_storage for aliases. GeometryTiles._SampleMap/_SampleMapAdjoint retain sampling coordinates and shape and propagate to the map. The checkpoint graph may still retain outputs/inputs for other branches.",
+      "measured_n002_boundaries": [
+        {
+          "name": "pcraft_native_encoding",
+          "phase": "forward",
+          "peak_allocated_bytes": 4881750528,
+          "peak_reserved_bytes": 5832179712,
+          "inclusive_seconds": 19.629009461030364
+        },
+        {
+          "name": "transolver",
+          "phase": "forward",
+          "peak_allocated_bytes": 4881750528,
+          "peak_reserved_bytes": 5832179712,
+          "inclusive_seconds": 0.1649497749749571
+        }
+      ]
+    },
+    {
+      "module": "spin_quadrann_v11.py",
+      "source": "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/spin_quadrann_v11.py",
+      "symbols": [
+        "SpinQuadrANNV11._gnn_features"
+      ],
+      "profile_stages": [
+        "sqno_gnn"
+      ],
+      "inputs": "Native XYZ, mass argument, component IDs and component-filtered neighbor indices.",
+      "outputs": "List of [N,D_l] layer outputs and final [N,D_f] (the same tensor as the final list entry).",
+      "baseline_lifecycle": "Per-target checkpoints received the full source feature table and expanded full-graph context. Multiple references shared storage, but reverse-mode indexing could produce a full-source adjoint for each target tile. v1.2 already requested the list of layer features.",
+      "current_lifecycle": "Remap each target block to the source blocks it needs. Checkpoint initial and propagation message passing and gather the source table within each propagation replay. Each layer computes its global mean over all N intervals.",
+      "retention": "All layer outputs are consumed by SQNO fusion through split views. The full-model path does not concatenate all N rows across layers. The standalone return_layer_features=False API still concatenates them. Integer edge lists and densities are retained for replay. A scattered neighborhood can reference many source tiles.",
+      "recompute": [
+        "sqno_gnn_initial_recompute",
+        "sqno_gnn_layer_recompute"
+      ],
+      "release_boundary": "Edge messages are tile-local; checkpoint input views, integer edges and layer history survive through fusion backward.",
+      "verification": "sqno_gnn.final_gnn_features measures the final table; it excludes the earlier live layers and graph-only references.",
+      "measured_n002_boundaries": [
+        {
+          "name": "sqno_gnn",
+          "phase": "forward",
+          "peak_allocated_bytes": 5530306048,
+          "peak_reserved_bytes": 6941573120,
+          "inclusive_seconds": 6.993124184082262
+        }
+      ]
+    },
+    {
+      "module": "spin_quadrann_v12.py",
+      "source": "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/spin_quadrann_v12.py",
+      "symbols": [
+        "SpinQuadrANNV12.encode_geometry",
+        "SpinQuadrANNV12.evaluate_queries",
+        "SQNOGeometryCache",
+        "prepared_quadrature"
+      ],
+      "profile_stages": [
+        "sqno_fusion",
+        "sqno_quadrature"
+      ],
+      "inputs": "Shared P-CRAFT feature export, native XYZ, component IDs and returned GNN layers.",
+      "outputs": "Globally normalized learned interval masses, nodes and differentiable node weights; SQNOGeometryCache.",
+      "baseline_lifecycle": "Fusion already concatenated GNN features and gathered component context per tile and checkpointed the tile MLP. Quadrature generated full host arrays and audited a full node basis. Full query-precision copies appeared on mixed-precision evaluation.",
+      "current_lifecycle": "Keep one component table. Fusion takes views from layer-wise split and gathers component summaries inside the checkpoint. Compute softmax(logits + log(physical mass)) over all N rows. Build and audit Gaussian quadrature in blocks of 8192 intervals, retain only coordinates, physical base weights and per-interval base mass in the prepared CPU object.",
+      "retention": "Shared/local features alias when devices and dtypes match. Physical interval mass exported to SQNO is a new allocation from normalized native weights. Base geometry and trainable node weights have different lifetimes. FP64 query copies can coexist with neural-precision cached nodes/weights.",
+      "recompute": [
+        "sqno_fusion_recompute",
+        "static quadrature reused by geometry/precision/order key"
+      ],
+      "release_boundary": "Fusion activations die per tile. A training cache keeps logits, probabilities, final features, node coordinates, node weights and component table until release. Prepared geometry can outlive an update.",
+      "verification": "Inspect shared_interval_features/sqno_pcraft_local_features in encode_geometry.cache_storage. RLE and quadrature retain all native rows and nodes.",
+      "measured_n002_boundaries": [
+        {
+          "name": "sqno_fusion",
+          "phase": "forward",
+          "peak_allocated_bytes": 5175885312,
+          "peak_reserved_bytes": 6941573120,
+          "inclusive_seconds": 0.4577584210783243
+        },
+        {
+          "name": "sqno_quadrature",
+          "phase": "forward",
+          "peak_allocated_bytes": 5421901824,
+          "peak_reserved_bytes": 6941573120,
+          "inclusive_seconds": 2.029700525919907
+        }
+      ]
+    },
+    {
+      "module": "unified_m80_sqno.py",
+      "source": "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/unified_m80_sqno.py",
+      "symbols": [
+        "UnifiedM80SQNO.encode_geometry",
+        "evaluate_queries",
+        "_joint_task_losses_and_metadata",
+        "train_step"
+      ],
+      "profile_stages": [
+        "encode_geometry",
+        "m80_coefficient_jacobian",
+        "geometry_query_jacobian",
+        "cross_scale_attention",
+        "Loss",
+        "Backward",
+        "Optimizer Update"
+      ],
+      "inputs": "One prepared/native geometry, one batch of raw coefficients, targets and masks.",
+      "outputs": "One shared cache pair, fused and branch moments and raw coefficient Jacobians, task losses and scalar metrics.",
+      "baseline_lifecycle": "Geometry attention used per-query checkpoint plus ten reverse-mode output-row VJPs. M80 and cross-scale derivatives also used row VJPs. Existing model already shared one P-CRAFT encoding between branches.",
+      "current_lifecycle": "Prepared snapshot separates parameter-independent reuse from an encoded cache. The latter stores owner/parameter versions and remains attached during training. M80 and scale attention still compute row derivatives. The geometry correction contributes an analytic raw-query Jacobian. The query gate adds the gradient of the mixture weight times the branch difference.",
+      "retention": "Both entire branch outputs are needed for fusion and optional branch losses. Fused jacobian_q/jacobian_coefficients are compatibility aliases. Parameter-version signatures include identity/version/storage pointer/dtype/device and reject stale caches. UQ/event heads are part of the model and prediction interface; the default optimizer objective here includes moment, derivative and optional branch auxiliary terms.",
+      "recompute": [
+        "re-encode learned features after each optimizer update",
+        "cross-scale checkpoint per independent block of ≤64 queries",
+        "M80 ten row VJPs"
+      ],
+      "release_boundary": "Backward consumes saved differentiable activations. Python cache references may keep outputs alive after update; training/preflight explicitly release their local cache. Inference builds a separate no-grad cache and disallows training/higher-order use.",
+      "verification": "See stale-cache and checkpoint checks in preflight. Numerical equivalence comparisons use per-output, parameter-gradient and mixed-HVP tests.",
+      "measured_n002_boundaries": [
+        {
+          "name": "encode_geometry",
+          "phase": "forward",
+          "peak_allocated_bytes": 5553812992,
+          "peak_reserved_bytes": 6941573120,
+          "inclusive_seconds": 29.36404182505794
+        },
+        {
+          "name": "m80_coefficient_jacobian",
+          "phase": "forward",
+          "peak_allocated_bytes": 5449648640,
+          "peak_reserved_bytes": 6941573120,
+          "inclusive_seconds": 4.02216866298113
+        },
+        {
+          "name": "geometry_query_jacobian",
+          "phase": "forward",
+          "peak_allocated_bytes": 5767127552,
+          "peak_reserved_bytes": 6941573120,
+          "inclusive_seconds": 0.8347616060636938
+        },
+        {
+          "name": "cross_scale_attention",
+          "phase": "forward",
+          "peak_allocated_bytes": 5790023168,
+          "peak_reserved_bytes": 6941573120,
+          "inclusive_seconds": 0.11881086602807045
+        },
+        {
+          "name": "Loss",
+          "phase": "forward",
+          "peak_allocated_bytes": 5789638144,
+          "peak_reserved_bytes": 6941573120,
+          "inclusive_seconds": 0.005840008030645549
+        },
+        {
+          "name": "Backward",
+          "phase": "backward",
+          "peak_allocated_bytes": 10871928320,
+          "peak_reserved_bytes": 10947133440,
+          "inclusive_seconds": 36.829026538995095
+        },
+        {
+          "name": "Optimizer Update",
+          "phase": "optimizer",
+          "peak_allocated_bytes": 1664857600,
+          "peak_reserved_bytes": 10947133440,
+          "inclusive_seconds": 0.03394402901176363
+        }
+      ]
+    },
+    {
+      "module": "geometry_physics_attention.py",
+      "source": "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/geometry_physics_attention.py",
+      "symbols": [
+        "GeometryPhysicsCrossAttention.forward_with_query_jacobian",
+        "_StreamingMoments.forward",
+        "_StreamingMoments.backward"
+      ],
+      "profile_stages": [
+        "geometry_query_jacobian",
+        "geometry_physics_attention",
+        "attention_moments"
+      ],
+      "inputs": "Raw coefficients [Q,10], shared physical feature table, normalized positive interval masses and learned projections.",
+      "outputs": "Correction [Q,10], raw Jacobian [Q,10,10] and entropy/support diagnostics.",
+      "baseline_lifecycle": "Online normalization was global, but K/V were projected per query. Computing ten differentiated output rows through all chunks under the outer query checkpoint retained/replayed the interval computation.",
+      "current_lifecycle": "Compute q and its ten raw-coordinate tangents through unit normalization, both MLPs, Q projection and exact LayerNorm derivative. Project K/V once per interval block across all query tiles. Accumulate global E[v], E[t], E[v tᵀ], E[z] and log Z. Covariance yields the context Jacobian; global log Z reconstructs probabilities for the backward VJP.",
+      "retention": "Saved inputs include one shared feature reference, the log-mass vector, q, dq, projections and five small global reductions. No K/V, per-interval scores or direction tiles are saved by the custom forward. One full grad_features is necessary when the encoder is trained. Explicit double backward can build a new graph through replay; the ordinary Jacobian-loss backward does not request that graph.",
+      "recompute": [
+        "attention_key_value_projection",
+        "attention_scores_and_directions"
+      ],
+      "release_boundary": "One score/direction tile at a time; custom-autograd saves live until VJP completion. The integration entry detaches diagnostics before packaging them.",
+      "verification": "FP64 dense oracle and saved_tensors_hooks regression in tests/test_geometry_physics_attention_analytic.py. Full-size replay counts and tile observations belong to memory_profile.json.",
+      "measured_n002_boundaries": [
+        {
+          "name": "geometry_query_jacobian",
+          "phase": "forward",
+          "peak_allocated_bytes": 5767127552,
+          "peak_reserved_bytes": 6941573120,
+          "inclusive_seconds": 0.8347616060636938
+        },
+        {
+          "name": "geometry_physics_attention",
+          "phase": "forward",
+          "peak_allocated_bytes": 5767127552,
+          "peak_reserved_bytes": 6941573120,
+          "inclusive_seconds": 0.8344366609817371
+        },
+        {
+          "name": "attention_moments",
+          "phase": "forward",
+          "peak_allocated_bytes": 5767127552,
+          "peak_reserved_bytes": 6941573120,
+          "inclusive_seconds": 0.8311585710616782
+        },
+        {
+          "name": "attention_moments",
+          "phase": "backward",
+          "peak_allocated_bytes": 6709746688,
+          "peak_reserved_bytes": 7256145920,
+          "inclusive_seconds": 2.4782870440976694
+        }
+      ]
+    },
+    {
+      "module": "cross_scale_attention.py",
+      "source": "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/cross_scale_attention.py",
+      "symbols": [
+        "QueryConditionedCrossScaleAttention.forward",
+        "UnifiedM80SQNO.evaluate_queries"
+      ],
+      "profile_stages": [
+        "cross_scale_attention"
+      ],
+      "inputs": "Unit query, [S,W] cached scale summaries, native resolution IDs and masks.",
+      "outputs": "Correction, raw Jacobian, detached per-scale weights/entropy/effective support.",
+      "baseline_lifecycle": "Small-token attention already used a per-query checkpoint, ten reverse-mode output channels and a second no-grad diagnostic forward.",
+      "current_lifecycle": "The unified entry batches up to 64 independent queries per call. Ten channel-sum VJPs yield one raw Jacobian per query. Scale summaries retain their global masked softmax across S tokens (three for the production preset). The same forward yields diagnostics.",
+      "retention": "Ten VJPs per query block hold query/scale inputs in a non-reentrant checkpoint. Diagnostics are detached in that call. The output-head/encoder gradient path remains active.",
+      "recompute": [
+        "cross_scale_recompute"
+      ],
+      "release_boundary": "Score tensors die within the active block/replay. Scale summaries live with shared geometry; concatenated corrections survive until loss backward.",
+      "verification": "Cross-scale profiler stage is inclusive of row VJPs and same-pass diagnostics. See tests/test_unified_m80_sqno.py.",
+      "measured_n002_boundaries": [
+        {
+          "name": "cross_scale_attention",
+          "phase": "forward",
+          "peak_allocated_bytes": 5790023168,
+          "peak_reserved_bytes": 6941573120,
+          "inclusive_seconds": 0.11881086602807045
+        }
+      ]
+    },
+    {
+      "module": "batched_moment_operator.py",
+      "source": "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/batched_moment_operator.py",
+      "symbols": [
+        "BatchedSpinMomentOperator.evaluate",
+        "_integrate_block"
+      ],
+      "profile_stages": [
+        "Moment Operator"
+      ],
+      "inputs": "Physical quadrature coordinates/learned node weights in coefficient dtype and raw coefficients.",
+      "outputs": "Potential [Q], moments [Q,10], internal/normalized/raw Jacobians [Q,10,10].",
+      "baseline_lifecycle": "The checkpointed node block materialized a [J,B,10,10] Hessian. A separate slice operation per block referenced the full geometry; row-wise graph costs recur in backward.",
+      "current_lifecycle": "Contract weighted basis and numerator Grams over nodes using matmul. Largest feature terms scale as [B,J,10]; output is [B,10,10]. Split node/weight storage once and checkpoint each node/query pair without RNG snapshots. Transform from internal q to normalized coefficients, then raw coefficients.",
+      "retention": "Persistent geometry includes dense FP64 query_xyz/query_weights when cache dtype differs. Split views alias these buffers. Block outputs, summation graph and checkpoint metadata scale with the number of blocks. Only the query-size Jacobian survives as the reported result.",
+      "recompute": [
+        "Moment Operator"
+      ],
+      "release_boundary": "Basis, score, smooth denominator and numerator die with each tile/replay. The learned-weight gradient returns through any dtype cast and the global mass-prior softmax.",
+      "verification": "Moment Operator counts actual Nnodes, Q and blocks. tests/test_batched_moment_operator.py checks the dense Hessian formula and derivative paths.",
+      "measured_n002_boundaries": [
+        {
+          "name": "Moment Operator",
+          "phase": "forward",
+          "peak_allocated_bytes": 5781210112,
+          "peak_reserved_bytes": 6941573120,
+          "inclusive_seconds": 17.008255659020506
+        }
+      ]
+    },
+    {
+      "module": "training_v13/train_unified.py",
+      "source": "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/training_v13/train_unified.py",
+      "symbols": [
+        "_load_training_batch",
+        "_train_geometry",
+        "training loop"
+      ],
+      "profile_stages": [
+        "rle_decode",
+        "training_batch_transfer",
+        "encode_geometry",
+        "train_step",
+        "Loss",
+        "Backward",
+        "Optimizer Update"
+      ],
+      "inputs": "One full manifest record including native geometry and raw coefficient/target/mask tensors.",
+      "outputs": "One update, detached scalar metrics, and caller-owned cache only for immediate checks.",
+      "baseline_lifecycle": "Training already encoded a single geometry per batch. A cache returned from a preceding iteration could remain bound until the next encode finished.",
+      "current_lifecycle": "Load full geometry/labels, move query tensors to the model device, encode once, compute masked losses, propagate and update. Delete cache, batch and tensors before advancing the record. Retain normalizer, model parameters and optimizer state between steps.",
+      "retention": "FP64 labels and raw query are small relative to N. Persistent AdamW moments and parameter gradients are distinct from cache storage. Fixed mode uses one total.backward; optional PCGrad retains separate task gradients and has a different memory profile.",
+      "recompute": [
+        "encoder/attention/moment tile replay during backward"
+      ],
+      "release_boundary": "Per-record caches are discarded; inference split evaluation constructs independent no-grad geometry caches. Returned train metrics are Python scalars/metadata.",
+      "verification": "memory_profile.json is the selected real-record runtime artifact. profile_cache_tensors deduplicates cache fields at encoder return; it excludes graph-only allocations.",
+      "measured_n002_boundaries": [
+        {
+          "name": "rle_decode",
+          "phase": "other",
+          "peak_allocated_bytes": 24223232,
+          "peak_reserved_bytes": 44040192,
+          "inclusive_seconds": 1.849063680972904
+        },
+        {
+          "name": "training_batch_transfer",
+          "phase": "other",
+          "peak_allocated_bytes": 24368640,
+          "peak_reserved_bytes": 44040192,
+          "inclusive_seconds": 0.000675820978358388
+        },
+        {
+          "name": "encode_geometry",
+          "phase": "forward",
+          "peak_allocated_bytes": 5553812992,
+          "peak_reserved_bytes": 6941573120,
+          "inclusive_seconds": 29.36404182505794
+        },
+        {
+          "name": "train_step",
+          "phase": "forward",
+          "peak_allocated_bytes": 10871928320,
+          "peak_reserved_bytes": 10947133440,
+          "inclusive_seconds": 59.29356598202139
+        },
+        {
+          "name": "Loss",
+          "phase": "forward",
+          "peak_allocated_bytes": 5789638144,
+          "peak_reserved_bytes": 6941573120,
+          "inclusive_seconds": 0.005840008030645549
+        },
+        {
+          "name": "Backward",
+          "phase": "backward",
+          "peak_allocated_bytes": 10871928320,
+          "peak_reserved_bytes": 10947133440,
+          "inclusive_seconds": 36.829026538995095
+        },
+        {
+          "name": "Optimizer Update",
+          "phase": "optimizer",
+          "peak_allocated_bytes": 1664857600,
+          "peak_reserved_bytes": 10947133440,
+          "inclusive_seconds": 0.03394402901176363
+        }
+      ]
+    },
+    {
+      "module": "training_v13/preflight_unified.py",
+      "source": "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/training_v13/preflight_unified.py",
+      "symbols": [
+        "preflight",
+        "_checkpoint_predictions",
+        "_compare_predictions"
+      ],
+      "profile_stages": [
+        "geometry_metadata_cache",
+        "one_optimizer_update",
+        "cache_invalidation_check",
+        "checkpoint_save",
+        "checkpoint_resume",
+        "checkpoint_prediction_comparison"
+      ],
+      "inputs": "Actual corpus record and manifest support counts; one model, optimizer and scheduler.",
+      "outputs": "Verified update metrics, stale-cache check, saved/resumed state and prediction equivalence when smoke succeeds.",
+      "baseline_lifecycle": "Preflight saved a parameter snapshot on the model device and retained the training cache through additional checks; checkpoint validation compared model state.",
+      "current_lifecycle": "Snapshot trainable parameters to CPU, create a prepared geometry, run one normal training update, check active label counts/nonzero parameter changes, attempt stale-cache read and release it. Resume model/optimizer/scheduler/RNG using a CPU-loaded state and compare predictions using newly encoded inference caches.",
+      "retention": "The restored model and its optimizer coexist with the original during checkpoint validation. Host parameter snapshots, serialized payload and prepared geometry affect RSS. Verification memory is a separate stage from optimizer-update peak.",
+      "recompute": [
+        "independent inference encodes for original and restored models"
+      ],
+      "release_boundary": "Delete parameter snapshot after delta validation and stale training cache before checkpoint prediction validation. Prepared physical metadata can be shared across those encodes; trained features are always rebuilt.",
+      "verification": "A phase whose runtime status is incomplete has no measured success or peak-rank claim here. Read the separate profile/status report.",
+      "measured_n002_boundaries": [
+        {
+          "name": "geometry_metadata_cache",
+          "phase": "cache",
+          "peak_allocated_bytes": 24369152,
+          "peak_reserved_bytes": 44040192,
+          "inclusive_seconds": 1.1738671499770135
+        },
+        {
+          "name": "one_optimizer_update",
+          "phase": "forward",
+          "peak_allocated_bytes": 10871928320,
+          "peak_reserved_bytes": 10947133440,
+          "inclusive_seconds": 88.65796779398806
+        },
+        {
+          "name": "cache_invalidation_check",
+          "phase": "cache",
+          "peak_allocated_bytes": 1644108288,
+          "peak_reserved_bytes": 10947133440,
+          "inclusive_seconds": 0.0005579449934884906
+        },
+        {
+          "name": "checkpoint_save",
+          "phase": "other",
+          "peak_allocated_bytes": 103579648,
+          "peak_reserved_bytes": 10947133440,
+          "inclusive_seconds": 0.7845675150165334
+        },
+        {
+          "name": "checkpoint_resume",
+          "phase": "other",
+          "peak_allocated_bytes": 169399296,
+          "peak_reserved_bytes": 10947133440,
+          "inclusive_seconds": 0.1685906529892236
+        }
+      ]
+    }
+  ],
+  "ownership": {
+    "geometry": "PreparedNativeGeometry owns parameter-independent CPU arrays and cached grids/topology/quadrature. A prepared owner may be retained across updates; ordinary batches use a per-geometry owner.",
+    "learned": "Model/version/geometry-specific encoded buffers may be used by all queries of the current update. Recreate after update, device/dtype change or parameter replacement.",
+    "autograd": "A Python alias, checkpoint input or saved view can keep an entire storage live. Releasing a reference does not imply allocator reserved bytes fall.",
+    "standalone_and_external": "A learned SQNO cache checks its own model/version. Native feature exports also carry their upstream P-CRAFT producer and version; SQNO checks this metadata both on encoding and on query evaluation.",
+    "gradient_mode": "Training and higher-order calls reject a graph-free cache when it omitted trainable geometry paths. Explicitly frozen geometry remains reusable for query-head training under the version contract."
+  },
+  "evidence": {
+    "tensor_fields": "tensor_retention_inventory.json",
+    "diagram": "architecture_memory_diagram.md",
+    "real_profile": "memory_profile.json",
+    "peak_interpretation": "peak_memory_profile.md",
+    "reference_comparison": "compare_revisions.py"
+  }
+}

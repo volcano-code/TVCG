@@ -4,13 +4,16 @@ from __future__ import annotations
 import numpy as np
 import torch
 from torch import nn
-from torch.utils.checkpoint import checkpoint
 from torch_scatter import scatter_mean
 
 from .pcraft_feature_adapter import PcraftFeatureAdapter
+from .memory_profile import profile_count
+from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import (
+    build_local_neighbor_graph, checkpoint_stage,
+)
+from research.NeuralMoments.models.pcraft_ufno.spin_pino.geometry_tiles import neighbor_tiles
 from .quadrann_3d import (
     SpinQuadrANN3D,
-    make_topology_graph,
     interval_component_ids,
 )
 from .rle_quadrature import rle_gauss_quadrature
@@ -96,7 +99,7 @@ class SpinQuadrANNV11(nn.Module):
 
         self.quadrature_order = quadrature_order
 
-    def _gnn_features(self, xyz, mass, components, *, return_layer_features=False):
+    def _gnn_features(self, xyz, mass, components, *, return_layer_features=False, graph=None):
         """Chunk QuadrANN message passing over target intervals.
 
         The topology graph retains global source indices, while each target
@@ -107,94 +110,51 @@ class SpinQuadrANNV11(nn.Module):
         """
         n = len(xyz)
         chunk_size = self.gnn_chunk_size
-        edge_np = make_topology_graph(
-            xyz.detach().cpu().numpy(),
-            np.asarray(components),
-            neighbors=self.gnn.neighbors,
-        )
-        edges_per_target = edge_np.shape[1] // n
-        if edges_per_target * n != edge_np.shape[1]:
-            raise RuntimeError("topology graph must have a fixed neighbor count per target")
-
+        if graph is None:
+            graph = build_local_neighbor_graph(xyz.detach().cpu().numpy(), self.gnn.neighbors, components)
+        tiles = list(neighbor_tiles(graph, chunk_size, xyz.device))
+        xyz_parts = xyz.split(chunk_size)
         center = xyz.amin(dim=0)
         span = (xyz.amax(dim=0) - center).amax().clamp_min(1e-12)
-        coords = 2 * (xyz - center) / span - 1
+        coords = ((xyz - center) * 2 / span - 1).split(chunk_size)
+        edges, densities = [], []
+        for i, tile in enumerate(tiles):
+            indices = tile.indices.long()
+            source = indices.reshape(-1)
+            target = torch.arange(len(indices), device=xyz.device).repeat_interleave(indices.shape[1])
+            edges.append(torch.stack((source, target)))
+            xyz_source = tile.gather_source_table(xyz_parts)
+            distance = torch.linalg.vector_norm(xyz_source[source] - xyz_parts[i][target], dim=-1)
+            mean_distance = scatter_mean(distance, target, dim=0, dim_size=len(indices))
+            densities.append(torch.log1p(1 / mean_distance.clamp_min(1e-8)).unsqueeze(-1))
 
-        initial_chunks = []
-        for start in range(0, n, chunk_size):
-            stop = min(start + chunk_size, n)
-            edge_slice = edge_np[:, start * edges_per_target:stop * edges_per_target].copy()
-            edge_slice[1] -= start
-            edge = torch.as_tensor(edge_slice, dtype=torch.long, device=xyz.device)
-            source, target_local = edge
-            xyz_target = xyz[start:stop]
-            distance = torch.linalg.vector_norm(
-                xyz[source] - xyz_target[target_local], dim=-1
-            )
-            mean_distance = scatter_mean(
-                distance, target_local, dim=0, dim_size=stop-start
-            )
-            density_target = torch.log1p(
-                1.0 / mean_distance.clamp_min(1e-8)
-            ).unsqueeze(-1)
-            initial_chunks.append((start, stop, density_target))
-
-        # Assemble per-node density in chunks, then perform initial messages.
-        density = torch.cat([item[2] for item in initial_chunks], dim=0)
-        first_features = []
-        for start, stop, _ in initial_chunks:
-            edge_slice = edge_np[:, start * edges_per_target:stop * edges_per_target].copy()
-            edge_slice[1] -= start
-            edge = torch.as_tensor(edge_slice, dtype=torch.long, device=xyz.device)
-            def initial_chunk_fn(xyz_all, density_all, xyz_local, density_local, edge_index=edge):
-                return self.gnn.initial.forward_chunk(
-                    xyz_all, density_all, xyz_local, density_local,
-                    edge_index, source_count=n,
-                )
-            if self.training and torch.is_grad_enabled():
-                features = checkpoint(
-                    initial_chunk_fn, coords, density,
-                    coords[start:stop], density[start:stop],
-                    use_reentrant=False,
-                )
-            else:
-                features = initial_chunk_fn(
-                    coords, density, coords[start:stop], density[start:stop]
-                )
-            first_features.append(features)
-        features = torch.cat(first_features, dim=0)
+        first = []
+        for i, tile in enumerate(tiles):
+            xyz_source = tile.gather_source_table(coords)
+            density_source = tile.gather_source_table(densities)
+            def initial_chunk(xs, ds, xt, dt, edge, layer=self.gnn.initial):
+                profile_count(gnn_initial_chunks=1)
+                return layer.forward_chunk(xs, ds, xt, dt, edge, source_count=len(xs))
+            args = (xyz_source, density_source, coords[i], densities[i], edges[i])
+            first.append(checkpoint_stage("sqno_gnn_initial_recompute",initial_chunk,*args)
+                         if self.training and torch.is_grad_enabled() else initial_chunk(*args))
+        features = torch.cat(first)
+        del first
         layer_outputs = [features]
-
         for layer in self.gnn.layers:
             global_mean = features.mean(dim=0, keepdim=True)
-            global_context = global_mean.expand(n, -1)
-            updated_chunks = []
-            for start, stop, _ in initial_chunks:
-                edge_slice = edge_np[:, start * edges_per_target:stop * edges_per_target].copy()
-                edge_slice[1] -= start
-                edge = torch.as_tensor(edge_slice, dtype=torch.long, device=xyz.device)
-                def propagation_chunk_fn(source_features, target_features,
-                                          source_context, target_context,
-                                          layer_module=layer, edge_index=edge):
-                    return layer_module.forward_chunk(
-                        source_features, target_features,
-                        source_context, target_context,
-                        edge_index, source_count=n,
-                    )
-                if self.training and torch.is_grad_enabled():
-                    updated = checkpoint(
-                        propagation_chunk_fn,
-                        features, features[start:stop],
-                        global_context, global_context[start:stop],
-                        use_reentrant=False,
-                    )
-                else:
-                    updated = propagation_chunk_fn(
-                        features, features[start:stop],
-                        global_context, global_context[start:stop],
-                    )
-                updated_chunks.append(updated)
-            features = torch.cat(updated_chunks, dim=0)
+            parts = features.split(chunk_size)
+            updated = []
+            for i, tile in enumerate(tiles):
+                def propagate(target, mean, edge, *sources, layer=layer):
+                    profile_count(gnn_propagation_chunks=1)
+                    src = sources[0] if len(sources)==1 else torch.cat(sources)
+                    return layer.forward_chunk(src,target,mean.expand_as(src),mean.expand_as(target),
+                                               edge,source_count=len(src))
+                args = (parts[i],global_mean,edges[i],*(parts[j] for j in tile.sources))
+                updated.append(checkpoint_stage("sqno_gnn_layer_recompute",propagate,*args)
+                               if self.training and torch.is_grad_enabled() else propagate(*args))
+            features = torch.cat(updated)
             layer_outputs.append(features)
 
         if return_layer_features:

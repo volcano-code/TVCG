@@ -236,11 +236,8 @@ class UnifiedOperatorCorpus:
 
     def load(self, row: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
         geometry_path = self._resolve_asset(row["geometry_file"])
-        labels_path = self._resolve_asset(row["labels_file"])
         if file_sha256(geometry_path) != row["geometry_sha256"]:
             raise ValueError(f"{row['id']}: geometry SHA-256 mismatch")
-        if file_sha256(labels_path) != row["labels_sha256"]:
-            raise ValueError(f"{row['id']}: labels SHA-256 mismatch")
 
         raw_geometry = self._load_npz(geometry_path)
         missing_geometry = self.GEOMETRY_REQUIRED - set(raw_geometry)
@@ -265,6 +262,16 @@ class UnifiedOperatorCorpus:
             raise ValueError(f"{row['id']}: native side must be divisible by grid_size")
         geometry["pcraft_grid"] = conservative_coarse_grid(geometry, self.grid_size)
 
+        for value in geometry.values():
+            if isinstance(value, np.ndarray):
+                value.flags.writeable = False
+        return geometry, self.load_labels(row)
+
+    def load_labels(self, row: dict[str, Any]) -> dict[str, Any]:
+        """Verify and decode a query bank without constructing a native geometry."""
+        labels_path = self._resolve_asset(row["labels_file"])
+        if file_sha256(labels_path) != row["labels_sha256"]:
+            raise ValueError(f"{row['id']}: labels SHA-256 mismatch")
         raw_labels = self._load_npz(labels_path)
         missing_labels = self.LABEL_REQUIRED - set(raw_labels)
         if missing_labels:
@@ -389,10 +396,7 @@ class UnifiedOperatorCorpus:
                 for nested in value.values():
                     if isinstance(nested, np.ndarray):
                         nested.flags.writeable = False
-        for value in geometry.values():
-            if isinstance(value, np.ndarray):
-                value.flags.writeable = False
-        return geometry, labels
+        return labels
 
     def to_training_batch(self, row: dict[str, Any]) -> dict[str, Any]:
         geometry, labels = self.load(row)

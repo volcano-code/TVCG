@@ -10,8 +10,9 @@ import torch
 from torch import Tensor, nn
 from torch.utils.checkpoint import checkpoint
 from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import (
-    EncodedNativeGeometry, PcraftNativeMomentOperator,
+    EncodedNativeGeometry, PcraftNativeMomentOperator, PreparedNativeGeometry, parameter_versions,
 )
+from .memory_profile import profile_adjoint, profile_count, profile_stage, profile_recompute
 from .spin_quadrann_v12 import SpinQuadrANNV12, SQNOGeometryCache
 from .geometry_physics_attention import GeometryPhysicsCrossAttention
 from .cross_scale_attention import QueryConditionedCrossScaleAttention
@@ -30,7 +31,7 @@ class UnifiedGeometryCache:
     shared_cache: EncodedNativeGeometry
     sqno_cache: SQNOGeometryCache
     owner: int
-    versions: tuple[int,...]
+    versions: tuple
     native_intervals: int
     inference_only: bool = False
 
@@ -39,6 +40,8 @@ def _source_fingerprints():
     pcraft_root=here.parents[2]/"spin_pino"
     files={
       "native_pcraft.py":pcraft_root/"native_pcraft.py",
+      "geometry_tiles.py":pcraft_root/"geometry_tiles.py",
+      "prepared_quadrature.py":here/"prepared_quadrature.py",
       "spin_quadrann_v11.py":here/"spin_quadrann_v11.py",
       "spin_quadrann_v12.py":here/"spin_quadrann_v12.py",
       "batched_moment_operator.py":here/"batched_moment_operator.py",
@@ -142,7 +145,12 @@ class UnifiedM80SQNO(nn.Module):
         return torch.sigmoid(self.fusion_logit)
 
     def _versions(self):
-        return tuple(p._version for p in self.parameters())
+        return parameter_versions(self)
+
+    @staticmethod
+    def prepare_geometry(geometry):
+        """Own a parameter-independent snapshot, reusable across optimizer steps."""
+        return PreparedNativeGeometry.prepare(geometry)
 
     def encode_geometry(self,geometry:Mapping[str,Any],*,chunk:int|None=None,inference:bool=False):
         """Encode one geometry.
@@ -153,17 +161,16 @@ class UnifiedM80SQNO(nn.Module):
         """
         if inference and self.training:
             raise ValueError("inference=True requires model.eval()")
-        if "xyz" not in geometry:
-            from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import geometry_from_columns
-            geometry=geometry_from_columns(geometry)
+        geometry=PreparedNativeGeometry.prepare(geometry, borrow=True)
         context=torch.no_grad() if inference else nullcontext()
         with context:
-            shared=self.shared_encoder.encode(geometry,chunk,retain_interval_features=True)
+            with profile_stage("pcraft_native_encoding", native_intervals=len(geometry["xyz"])):
+                shared=self.shared_encoder.encode(geometry,chunk,retain_interval_features=True)
             payload=self.shared_encoder.export_shared_geometry_features(shared)
             sqno_cache=self.sqno.encode_geometry(geometry,pcraft_features=payload)
         self.geometry_encode_calls+=1
         return UnifiedGeometryCache(shared.geometry_sha256,shared,sqno_cache,id(self),
-                                     self._versions(),shared.native_intervals,bool(inference))
+                                     self._versions(),shared.native_intervals,bool(inference or sqno_cache.inference_only))
 
     def evaluate_queries(self,cache:UnifiedGeometryCache,coefficients:Tensor,*,
                          create_graph=False,with_jacobian=True):
@@ -178,7 +185,12 @@ class UnifiedM80SQNO(nn.Module):
         if qb.ndim!=2 or qb.shape[1]!=10: raise ValueError("coefficients must be [10] or [Q,10]")
         if not torch.isfinite(qb).all() or (qb.abs().amax(-1)<=0).any():
             raise ValueError("coefficients must be finite and nonzero")
-        m80,j80=self.shared_encoder.moments_and_jacobian(cache.shared_cache,qb,create_graph=create_graph)
+        with profile_stage("m80_coefficient_jacobian", queries=len(qb)):
+            m80,j80=self.shared_encoder.moments_and_jacobian(cache.shared_cache,qb,create_graph=create_graph)
+            head = (self.shared_encoder.convex_potential_head if self.shared_encoder.config.convex_potential_enabled
+                    else self.shared_encoder.query_head)
+            profile_adjoint("m80_coefficient_jacobian", (m80, j80), (cache.shared_cache.latent, qb),
+                            head.parameters())
         sq=self.sqno.evaluate_queries(cache.sqno_cache,qb,with_jacobian=True)
         ms=sq["moments"]
         # M80.moments_and_jacobian differentiates with respect to the raw
@@ -228,79 +240,55 @@ class UnifiedM80SQNO(nn.Module):
             if alpha_jacobian is not None: alpha_jacobian=alpha_jacobian.detach()
         attention_diagnostics={}
         corrections=[]; correction_jacobians=[]; branch_names=[]
-        attention_query_chunk=1
 
-        # Higher-order query Jacobians are evaluated one query at a time.
-        # Non-reentrant checkpointing recomputes interval attention activations
-        # during the outer parameter backward instead of retaining them.
         if self.geometry_physics_attention is not None:
-            correction_parts=[]; jacobian_parts=[]; diagnostic_parts={}
-            for q_start in range(0,len(qb),attention_query_chunk):
-                q_part=qb[q_start:q_start+attention_query_chunk]
-                def geometry_attention_with_jacobian(q_input, interval_input, mass_input):
-                    with torch.enable_grad():
-                        q_local=q_input if q_input.requires_grad else q_input.detach().requires_grad_(True)
-                        corr,diag=self.geometry_physics_attention(q_local,interval_input,mass_input)
-                        jac=torch.stack([
-                            torch.autograd.grad(corr[:,k].sum(),q_local,
-                                create_graph=create_graph,retain_graph=True)[0]
-                            for k in range(10)
-                        ],dim=1)
-                    return (corr,jac,*tuple(diag[key] for key in sorted(diag)))
-                inputs=(q_part,cache.shared_cache.interval_features,
-                        cache.shared_cache.interval_mass)
-                if create_graph and torch.is_grad_enabled():
-                    outputs=checkpoint(
-                        geometry_attention_with_jacobian,*inputs,use_reentrant=False)
-                else:
-                    outputs=geometry_attention_with_jacobian(*inputs)
-                corr,jac,*diag_values=outputs
-                correction_parts.append(corr); jacobian_parts.append(jac)
-                for key,value in zip(sorted(("attention_effective_support",
-                        "attention_entropy","attention_mass_sum",
-                        "attention_query_norm")),diag_values):
-                    diagnostic_parts.setdefault(key,[]).append(value.detach())
-            corrections.append(torch.cat(correction_parts,dim=0))
-            correction_jacobians.append(torch.cat(jacobian_parts,dim=0))
+            with profile_stage("geometry_query_jacobian", queries=len(qb)):
+                corr,jac,diag=self.geometry_physics_attention.forward_with_query_jacobian(
+                    qb,cache.shared_cache.interval_features,cache.shared_cache.interval_mass)
+                profile_adjoint("geometry_query_jacobian", (corr, jac),
+                    (qb, cache.shared_cache.interval_features, cache.shared_cache.interval_mass),
+                    self.geometry_physics_attention.parameters())
+            corrections.append(corr)
+            correction_jacobians.append(jac if create_graph else jac.detach())
             branch_names.append("geometry")
-            attention_diagnostics.update({key:torch.cat(values,dim=0)
-                for key,values in diagnostic_parts.items()})
+            attention_diagnostics.update({key:value.detach() for key,value in diag.items()})
 
         if self.cross_scale_attention is not None:
-            correction_parts=[]; jacobian_parts=[]; diagnostic_parts={}
-            for q_start in range(0,len(qb),attention_query_chunk):
-                q_part=qb[q_start:q_start+attention_query_chunk]
-                def scale_attention_with_jacobian(q_input, scale_input, scale_id_input):
+            with profile_stage("cross_scale_attention", queries=len(qb)):
+                def scale_attention_with_jacobian(raw, scales, ids):
+                    # Each query normalizes across scale tokens independently.
+                    # Summing a channel over queries gives one VJP for all rows.
                     with torch.enable_grad():
-                        q_local=q_input if q_input.requires_grad else q_input.detach().requires_grad_(True)
-                        corr,diag=self.cross_scale_attention(q_local,scale_input,scale_id_input,
-                            disabled_scale_ids=self.cross_scale_disabled_ids)
-                        jac=torch.stack([
-                            torch.autograd.grad(corr[:,k].sum(),q_local,
-                                create_graph=create_graph,retain_graph=True)[0]
-                            for k in range(10)
-                        ],dim=1)
-                    return (corr,jac)
-                inputs=(q_part,cache.shared_cache.scale_features,
-                        cache.shared_cache.scale_ids)
-                if create_graph and torch.is_grad_enabled():
-                    corr,jac=checkpoint(
-                        scale_attention_with_jacobian,*inputs,use_reentrant=False)
-                else:
-                    corr,jac=scale_attention_with_jacobian(*inputs)
-                correction_parts.append(corr); jacobian_parts.append(jac)
-                with torch.no_grad():
-                    _,diag=self.cross_scale_attention(q_part.detach(),
-                        cache.shared_cache.scale_features.detach(),
-                        cache.shared_cache.scale_ids,
-                        disabled_scale_ids=self.cross_scale_disabled_ids)
-                for key,value in diag.items():
-                    diagnostic_parts.setdefault(key,[]).append(value.detach())
-            corrections.append(torch.cat(correction_parts,dim=0))
-            correction_jacobians.append(torch.cat(jacobian_parts,dim=0))
-            branch_names.append("scale")
-            attention_diagnostics.update({key:torch.cat(values,dim=0)
-                for key,values in diagnostic_parts.items()})
+                        query = raw if raw.requires_grad else raw.detach().requires_grad_(True)
+                        correction, diagnostics = self.cross_scale_attention(
+                            query, scales, ids, disabled_scale_ids=self.cross_scale_disabled_ids)
+                        rows = [torch.autograd.grad(channel.sum(), query,
+                                    create_graph=create_graph, retain_graph=True)[0]
+                                for channel in correction.unbind(-1)]
+                    return correction, torch.stack(rows, dim=1), {
+                        name: value.detach() for name, value in diagnostics.items()}
+
+                correction_parts, jacobian_parts, diagnostic_parts = [], [], {}
+                for query_block in qb.split(64):
+                    inputs = (query_block, cache.shared_cache.scale_features, cache.shared_cache.scale_ids)
+                    if create_graph and torch.is_grad_enabled():
+                        corr, jac, diagnostics = checkpoint(scale_attention_with_jacobian, *inputs,
+                            use_reentrant=False, context_fn=lambda: (
+                                nullcontext(), profile_recompute("cross_scale_recompute")))
+                    else:
+                        corr, jac, diagnostics = scale_attention_with_jacobian(*inputs)
+                    correction_parts.append(corr)
+                    jacobian_parts.append(jac)
+                    for name, value in diagnostics.items():
+                        diagnostic_parts.setdefault(name, []).append(value)
+                corrections.append(torch.cat(correction_parts))
+                correction_jacobians.append(torch.cat(jacobian_parts))
+                profile_count(query_chunks=len(correction_parts), scales=len(cache.shared_cache.scale_ids))
+                profile_adjoint("cross_scale_attention", (corrections[-1], correction_jacobians[-1]),
+                                (qb, cache.shared_cache.scale_features), self.cross_scale_attention.parameters())
+                branch_names.append("scale")
+                attention_diagnostics.update({name: torch.cat(values)
+                                              for name, values in diagnostic_parts.items()})
         if corrections:
             if self.interaction_variant=="parallel_gno_attention" and len(corrections)==2:
                 gate=torch.sigmoid(self.parallel_interaction_logit).to(device=qb.device,dtype=qb.dtype)
@@ -401,33 +389,38 @@ class UnifiedM80SQNO(nn.Module):
             value=result[key]
             if value.ndim==2:value=value.unsqueeze(0)
             return value
-        mask=valid_mask
-        jmask=jacobian_valid_mask if jacobian_valid_mask is not None else (valid_mask if target_j is not None else None)
-        derivative_options=dict(derivative_valid=jmask,restricted_basis=restricted_basis,
-            restricted_target=restricted_jacobian,restricted_valid=restricted_valid,
-            restricted_dimension=restricted_dimension,jacobian_scale=jacobian_scale,
-            restricted_scale=restricted_scale)
-        fm=self._masked_mean_square(norm_m("moments")-target_m_norm,mask,name="moment")
-        m80m=self._masked_mean_square(norm_m("m80_moments")-target_m_norm,mask,name="M80 moment")
-        sqnom=self._masked_mean_square(norm_m("sqno_moments")-target_m_norm,mask,name="SQNO moment")
-        fused=derivative_supervision_loss(raw_j("jacobian_q"),target_j,**derivative_options)
-        m80=derivative_supervision_loss(raw_j("m80_jacobian_q"),target_j,**derivative_options)
-        sqno=derivative_supervision_loss(raw_j("sqno_jacobian_q"),target_j,**derivative_options)
-        fj,m80j,sqnoj=fused["loss"],m80["loss"],sqno["loss"]
-        branch=(m80m+sqnom+jacobian_weight*(m80j+sqnoj))*0.5
-        tasks={"moment":fm,"jacobian":fj,"branch_aux":branch,
-            "m80_moment":m80m,"sqno_moment":sqnom,"m80_jacobian":m80j,"sqno_jacobian":sqnoj}
-        for prefix,report in (("",fused),("m80_",m80),("sqno_",sqno)):
-            tasks[prefix+"full_jacobian"]=report["full_loss"]
-            tasks[prefix+"restricted_jacobian"]=report["restricted_loss"]
-        def valid_count(value):
-            return (torch.tensor(qn,device=q.device,dtype=torch.int64) if value is None
-                    else torch.as_tensor(value,device=q.device,dtype=torch.bool).sum())
-        metadata={"fusion_weight":result["fusion_weight"].detach(),
-            "valid_queries":valid_count(mask),"valid_jacobian_queries":fused["full_count"],
-            "valid_restricted_queries":fused["restricted_count"],
-            "valid_derivative_queries":fused["full_count"]+fused["restricted_count"],
-            "restricted_dimensions":fused["restricted_dimensions"]}
+        from .memory_profile import profile_stage, profile_tensors
+        with profile_stage("Loss", queries=qn):
+            profile_tensors(moments=result["moments"], jacobian=result["jacobian_q"])
+            mask=valid_mask
+            jmask=jacobian_valid_mask if jacobian_valid_mask is not None else (valid_mask if target_j is not None else None)
+            derivative_options=dict(derivative_valid=jmask,restricted_basis=restricted_basis,
+                restricted_target=restricted_jacobian,restricted_valid=restricted_valid,
+                restricted_dimension=restricted_dimension,jacobian_scale=jacobian_scale,
+                restricted_scale=restricted_scale)
+            fm=self._masked_mean_square(norm_m("moments")-target_m_norm,mask,name="moment")
+            m80m=self._masked_mean_square(norm_m("m80_moments")-target_m_norm,mask,name="M80 moment")
+            sqnom=self._masked_mean_square(norm_m("sqno_moments")-target_m_norm,mask,name="SQNO moment")
+            fused=derivative_supervision_loss(raw_j("jacobian_q"),target_j,**derivative_options)
+            m80=derivative_supervision_loss(raw_j("m80_jacobian_q"),target_j,**derivative_options)
+            sqno=derivative_supervision_loss(raw_j("sqno_jacobian_q"),target_j,**derivative_options)
+            fj,m80j,sqnoj=fused["loss"],m80["loss"],sqno["loss"]
+            branch=(m80m+sqnom+jacobian_weight*(m80j+sqnoj))*0.5
+            tasks={"moment":fm,"jacobian":fj,"branch_aux":branch,
+                "m80_moment":m80m,"sqno_moment":sqnom,"m80_jacobian":m80j,"sqno_jacobian":sqnoj}
+            for prefix,report in (("",fused),("m80_",m80),("sqno_",sqno)):
+                tasks[prefix+"full_jacobian"]=report["full_loss"]
+                tasks[prefix+"restricted_jacobian"]=report["restricted_loss"]
+            def valid_count(value):
+                return (torch.tensor(qn,device=q.device,dtype=torch.int64) if value is None
+                        else torch.as_tensor(value,device=q.device,dtype=torch.bool).sum())
+            metadata={"fusion_weight":result["fusion_weight"].detach(),
+                "valid_queries":valid_count(mask),"valid_jacobian_queries":fused["full_count"],
+                "valid_restricted_queries":fused["restricted_count"],
+                "valid_derivative_queries":fused["full_count"]+fused["restricted_count"],
+                "restricted_dimensions":fused["restricted_dimensions"]}
+            profile_adjoint("Loss", (fm, fj, branch), tuple(result[key] for key in
+                ("moments", "jacobian_q", "m80_moments", "m80_jacobian_q", "sqno_moments", "sqno_jacobian_q")))
         return tasks,metadata
 
     def joint_task_losses(
@@ -507,25 +500,28 @@ class UnifiedM80SQNO(nn.Module):
         total=sum((task_losses[k]*weights[k] for k in active),
                   torch.zeros((),device=task_losses["moment"].device,dtype=task_losses["moment"].dtype))
         parameters=[p for p in self.parameters() if p.requires_grad]
-        if gradient_mode=="pcgrad":
-            from research.NeuralMoments.models.pcraft_ufno.spin_pino.multitask import pcgrad_assign_gradients
-            named=dict(self.named_parameters())
-            partition=contract["parameter_partition"]
-            shared=[named[name] for name in partition["shared"]]
-            private=[named[name] for name in partition["private"]]
-            multitask_report=pcgrad_assign_gradients(task_losses,weights,shared,private,reduction=pcgrad_reduction)
-            multitask_report["diagnostics_available"]=True
-        else:
-            total.backward()
-            multitask_report={"task_names":active,"task_count":len(active),
-                "projection_counts":[0]*len(active),"cosine_matrix":[],
-                "shared_gradient_norms":{},"private_gradient_norms":{},
-                "reduction":"sum","diagnostics_available":False}
-        grad_norm=torch.nn.utils.clip_grad_norm_(parameters,gradient_clip,error_if_nonfinite=True)
-        if not torch.isfinite(grad_norm):
-            optimizer.zero_grad(set_to_none=True)
-            raise FloatingPointError("nonfinite unified gradient norm")
-        optimizer.step()
+        from .memory_profile import profile_stage
+        with profile_stage("Backward", phase="backward"):
+            if gradient_mode=="pcgrad":
+                from research.NeuralMoments.models.pcraft_ufno.spin_pino.multitask import pcgrad_assign_gradients
+                named=dict(self.named_parameters())
+                partition=contract["parameter_partition"]
+                shared=[named[name] for name in partition["shared"]]
+                private=[named[name] for name in partition["private"]]
+                multitask_report=pcgrad_assign_gradients(task_losses,weights,shared,private,reduction=pcgrad_reduction)
+                multitask_report["diagnostics_available"]=True
+            else:
+                total.backward()
+                multitask_report={"task_names":active,"task_count":len(active),
+                    "projection_counts":[0]*len(active),"cosine_matrix":[],
+                    "shared_gradient_norms":{},"private_gradient_norms":{},
+                    "reduction":"sum","diagnostics_available":False}
+            grad_norm=torch.nn.utils.clip_grad_norm_(parameters,gradient_clip,error_if_nonfinite=True)
+            if not torch.isfinite(grad_norm):
+                optimizer.zero_grad(set_to_none=True)
+                raise FloatingPointError("nonfinite unified gradient norm")
+        with profile_stage("Optimizer Update", phase="optimizer"):
+            optimizer.step()
         self._last_training_contract=contract
         out={key:float(value.detach()) for key,value in task_losses.items()}
         out.update({key+"_loss":value for key,value in list(out.items())})

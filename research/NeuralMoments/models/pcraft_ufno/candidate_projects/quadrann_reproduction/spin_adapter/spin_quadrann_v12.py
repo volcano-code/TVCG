@@ -6,15 +6,18 @@ The geometry cache deliberately retains its autograd graph during training.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from itertools import chain
 import numpy as np
 import torch
 from torch import nn
-from torch.utils.checkpoint import checkpoint
+from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import (
+    NativeFeatureSource, PreparedNativeGeometry, build_local_neighbor_graph, checkpoint_stage, parameter_versions,
+)
+from .memory_profile import profile_stage, profile_count, profile_tensors, profile_adjoint
 
 from .spin_quadrann_v11 import SpinQuadrANNV11
 from .batched_moment_operator import BatchedSpinMomentOperator
-from .quadrann_3d import interval_component_ids
-from .rle_quadrature import rle_gauss_quadrature
+from .prepared_quadrature import prepared_quadrature
 
 
 @dataclass
@@ -34,6 +37,10 @@ class SQNOGeometryCache:
     global_scale_weights: torch.Tensor
     n_intervals: int
     n_nodes: int
+    owner: int
+    versions: tuple
+    native_feature_source: NativeFeatureSource | None
+    inference_only: bool
 
 
 class SpinQuadrANNV12(SpinQuadrANNV11):
@@ -50,8 +57,8 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
 
         self.batched_moment_operator = BatchedSpinMomentOperator(
             temperature=self.moment_operator.temperature,
-            chunk_nodes=min(self.moment_operator.chunk_nodes, 2048),
-            chunk_queries=min(int(query_chunk), 1),
+            chunk_nodes=min(self.moment_operator.chunk_nodes, 8192),
+            chunk_queries=int(query_chunk),
         )
 
         self.share_pcraft_encoder=bool(share_pcraft_encoder)
@@ -67,11 +74,7 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
 
         self.geometry_encode_calls += 1
 
-        if "xyz" not in geometry:
-            from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import (
-                geometry_from_columns,
-            )
-            geometry = geometry_from_columns(geometry)
+        geometry = PreparedNativeGeometry.prepare(geometry,borrow=True)
 
         parameter = next(self.parameters())
         device = parameter.device
@@ -79,12 +82,18 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
 
         # P-CRAFT may be supplied by the shared UG-PINO encoder. In that
         # mode this SQNO branch performs only its topology/GNN and query work.
+        native_source=None
         if pcraft_features is None:
             if self.share_pcraft_encoder:
                 raise ValueError("shared P-CRAFT mode requires externally encoded pcraft_features")
             pcraft = self.pcraft(geometry)
         else:
             pcraft = dict(pcraft_features)
+            native_source=pcraft.get("native_feature_source")
+            if native_source is not None:
+                if not isinstance(native_source,NativeFeatureSource):
+                    raise ValueError("invalid shared P-CRAFT feature source")
+                native_source.validate()
             required=("local_features","global_context","global_scale_weights","interval_mass")
             missing=[key for key in required if key not in pcraft]
             if missing:
@@ -127,10 +136,9 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
             dtype=dtype,
         )
 
+        supplied_components = component_ids is not None
         if component_ids is None:
-            component_ids = interval_component_ids(
-                geometry["columns"]
-            )
+            component_ids = geometry.components()
 
         component_ids = np.asarray(component_ids)
 
@@ -138,12 +146,16 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
             raise ValueError("component_ids shape mismatch")
 
         # QuadrANN branch: exactly one topology/GNN encoding.
-        q_feature_layers, final_features = self._gnn_features(
-            xyz,
-            interval_mass,
-            component_ids,
-            return_layer_features=True,
-        )
+        with profile_stage("sqno_gnn", native_intervals=len(xyz)):
+            xyz_np=xyz.detach().cpu().numpy()
+            graph=(None if supplied_components else geometry.derived(
+                ("knn",self.gnn.neighbors,xyz_np.dtype.str,True),
+                lambda: build_local_neighbor_graph(xyz_np,self.gnn.neighbors,component_ids)))
+            q_feature_layers, final_features = self._gnn_features(
+                xyz,interval_mass,component_ids,return_layer_features=True,graph=graph)
+            profile_tensors(final_gnn_features=final_features)
+            profile_adjoint("sqno_gnn",outputs=q_feature_layers,inputs=(xyz,),
+                            parameters=self.gnn.parameters())
 
         _, inverse_np = np.unique(
             component_ids,
@@ -186,42 +198,47 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
         # The concatenated per-interval fusion tensor is several GiB at
         # million-interval resolution. Evaluate the exact same pointwise
         # fusion MLP in chunks and checkpoint each chunk during training.
-        logit_chunks = []
-        n_gnn_layers = len(q_feature_layers)
-        for start in range(0, len(xyz), self.fusion_chunk_size):
-            stop = min(start + self.fusion_chunk_size, len(xyz))
-            layer_chunks = [layer[start:stop] for layer in q_feature_layers]
-            p_chunk = p_local[start:stop]
-            inverse_chunk = inverse[start:stop]
+        with profile_stage("sqno_fusion", native_intervals=len(xyz)):
+            logit_chunks = []
+            n_gnn_layers = len(q_feature_layers)
+            split_layers = [layer.split(self.fusion_chunk_size) for layer in q_feature_layers]
+            split_local = p_local.split(self.fusion_chunk_size)
+            for i,start in enumerate(range(0, len(xyz), self.fusion_chunk_size)):
+                stop = min(start + self.fusion_chunk_size, len(xyz))
+                layer_chunks = [layer[i] for layer in split_layers]
+                p_chunk = split_local[i]
+                inverse_chunk = inverse[start:stop]
 
-            def fusion_chunk_fn(*inputs,
-                                n_layers=n_gnn_layers,
-                                fusion_module=self.fusion,
-                                weight_module=self.weight_head,
-                                global_context=p_global,
-                                component_summary=component_context):
-                layer_inputs = inputs[:n_layers]
-                local_p = inputs[n_layers]
-                inv = inputs[n_layers + 1]
-                qf = torch.cat(layer_inputs, dim=-1)
-                ff = layer_inputs[-1]
-                component_local = component_summary[inv]
-                global_local = global_context.unsqueeze(0).expand(len(qf), -1)
-                fused_chunk = fusion_module(torch.cat(
-                    (qf, ff, local_p, global_local, component_local), dim=-1
-                ))
-                return weight_module(fused_chunk).squeeze(-1)
+                def fusion_chunk_fn(*inputs,
+                                    n_layers=n_gnn_layers,
+                                    fusion_module=self.fusion,
+                                    weight_module=self.weight_head,
+                                    global_context=p_global,
+                                    component_summary=component_context):
+                    profile_count(fusion_chunks=1)
+                    layer_inputs = inputs[:n_layers]
+                    local_p = inputs[n_layers]
+                    inv = inputs[n_layers + 1]
+                    qf = torch.cat(layer_inputs, dim=-1)
+                    ff = layer_inputs[-1]
+                    component_local = component_summary[inv]
+                    global_local = global_context.unsqueeze(0).expand(len(qf), -1)
+                    fused_chunk = fusion_module(torch.cat(
+                        (qf, ff, local_p, global_local, component_local), dim=-1
+                    ))
+                    return weight_module(fused_chunk).squeeze(-1)
 
-            checkpoint_inputs = (*layer_chunks, p_chunk, inverse_chunk)
-            if self.training and torch.is_grad_enabled():
-                chunk_logits = checkpoint(
-                    fusion_chunk_fn, *checkpoint_inputs, use_reentrant=False,
-                )
-            else:
-                chunk_logits = fusion_chunk_fn(*checkpoint_inputs)
-            logit_chunks.append(chunk_logits)
+                checkpoint_inputs = (*layer_chunks, p_chunk, inverse_chunk)
+                if self.training and torch.is_grad_enabled():
+                    chunk_logits = checkpoint_stage("sqno_fusion_recompute",fusion_chunk_fn,*checkpoint_inputs)
+                else:
+                    chunk_logits = fusion_chunk_fn(*checkpoint_inputs)
+                logit_chunks.append(chunk_logits)
 
-        logits = torch.cat(logit_chunks, dim=0)
+            logits = torch.cat(logit_chunks, dim=0)
+            profile_adjoint("sqno_fusion",outputs=logits,
+                            inputs=(*q_feature_layers,p_local,p_global,component_context),
+                            parameters=chain(self.fusion.parameters(),self.weight_head.parameters()))
 
         # Exactly one mass-prior softmax, once per geometry.
         probabilities = torch.softmax(
@@ -231,38 +248,16 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
 
         learned_mass = interval_mass.sum() * probabilities
 
-        quadrature = rle_gauss_quadrature(
-            geometry,
-            order=self.quadrature_order,
-        )
-
-        node_xyz = torch.as_tensor(
-            quadrature["xyz"].copy(),
-            device=device,
-            dtype=dtype,
-        )
-
-        base_weights = torch.as_tensor(
-            quadrature["weights"].copy(),
-            device=device,
-            dtype=dtype,
-        )
-
-        interval_ids = torch.as_tensor(
-            quadrature["interval_ids"].copy(),
-            device=device,
-            dtype=torch.long,
-        )
-
-        base_interval_mass = torch.as_tensor(
-            np.bincount(
-                np.asarray(quadrature["interval_ids"]),
-                weights=np.asarray(quadrature["weights"]),
-                minlength=len(interval_mass),
-            ),
-            device=device,
-            dtype=dtype,
-        )
+        with profile_stage("sqno_quadrature", native_intervals=len(xyz)):
+            storage_dtype=np.float64 if dtype==torch.float64 else np.float32
+            node_array, weight_array, mass_array=geometry.derived(
+                ("quadrature",self.quadrature_order,np.dtype(storage_dtype).str),
+                lambda: prepared_quadrature(geometry,self.quadrature_order,storage_dtype))
+            node_xyz=torch.as_tensor(node_array,device=device,dtype=dtype)
+            base_weights=torch.as_tensor(weight_array,device=device,dtype=dtype)
+            base_interval_mass=torch.as_tensor(mass_array,device=device,dtype=dtype)
+            interval_ids=torch.arange(len(xyz),device=device).repeat_interleave(self.quadrature_order**3)
+            profile_tensors(quadrature_coordinates=node_xyz)
 
         local_fraction = (
             base_weights / base_interval_mass[interval_ids]
@@ -285,6 +280,12 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
         if mass_error.item() > 1e-6:
             raise RuntimeError("geometry cache mass conservation failed")
 
+        inference_only=bool(native_source and native_source.inference_only)
+        if not torch.is_grad_enabled():
+            trainable=chain(self.gnn.parameters(),self.fusion.parameters(),self.weight_head.parameters(),
+                            self.pcraft.operator.geometry_parameters() if self.pcraft is not None else ())
+            inference_only=inference_only or p_local.requires_grad or p_global.requires_grad or any(
+                p.requires_grad for p in trainable)
         return SQNOGeometryCache(
             geometry_id=str(
                 geometry.get("geometry_sha256", "")
@@ -310,6 +311,10 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
             global_scale_weights=pcraft["global_scale_weights"],
             n_intervals=len(interval_mass),
             n_nodes=len(node_xyz),
+            owner=id(self),
+            versions=parameter_versions(self),
+            native_feature_source=native_source,
+            inference_only=inference_only,
         )
 
     def evaluate_queries(
@@ -321,6 +326,12 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
     ):
         """Evaluate many queries without rerunning geometry encoders."""
 
+        if cache.owner!=id(self) or cache.versions!=parameter_versions(self):
+            raise ValueError("foreign or stale SQNO geometry cache")
+        if cache.native_feature_source is not None:
+            cache.native_feature_source.validate()
+        if cache.inference_only and self.training and torch.is_grad_enabled():
+            raise ValueError("inference-only SQNO geometry cache cannot be used for training")
         self.query_evaluation_calls += 1
 
         if coefficients.ndim == 1:

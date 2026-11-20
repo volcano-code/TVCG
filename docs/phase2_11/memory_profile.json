@@ -1,0 +1,2080 @@
+{
+  "schema": "tvcg.unified-memory-profile.v1",
+  "status": "complete",
+  "device": "cuda",
+  "torch_version": "2.8.0+cu128",
+  "cuda_version": "12.8",
+  "cuda_measurements_available": true,
+  "baseline": {
+    "allocated_bytes": 24223232,
+    "reserved_bytes": 44040192,
+    "rss_bytes": 941932544
+  },
+  "peak_allocated_bytes": 10871928320,
+  "peak_reserved_bytes": 10947133440,
+  "rss_max_boundary_bytes": 4347629568,
+  "elapsed_seconds": 138.51104304403998,
+  "exclusive_phase_seconds": {
+    "other": 3.103055696003139,
+    "cache": 1.174425094970502,
+    "forward": 51.794997225981206,
+    "backward": 36.829026538995095,
+    "optimizer": 0.03394402901176363,
+    "verification": 45.575594459078275
+  },
+  "recompute_regions": {
+    "cross_scale_recompute": {
+      "calls": 11,
+      "cpu_wall_seconds": 0.1017515838611871,
+      "cuda_stream_seconds": 0.10149369692802429
+    },
+    "attention_key_value_projection": {
+      "calls": 1151,
+      "cpu_wall_seconds": 0.03316968120634556,
+      "cuda_stream_seconds": 0.03825264013931167
+    },
+    "attention_scores_and_directions": {
+      "calls": 4604,
+      "cpu_wall_seconds": 1.3025578246451914,
+      "cuda_stream_seconds": 0.2889298882670687
+    },
+    "Moment Operator": {
+      "calls": 4604,
+      "cpu_wall_seconds": 13.953756395960227,
+      "cuda_stream_seconds": 17.286951364815224
+    },
+    "sqno_fusion_recompute": {
+      "calls": 1151,
+      "cpu_wall_seconds": 0.27543809707276523,
+      "cuda_stream_seconds": 0.08406390427798004
+    },
+    "sqno_gnn_layer_recompute": {
+      "calls": 2302,
+      "cpu_wall_seconds": 0.8222917878301814,
+      "cuda_stream_seconds": 0.776875296190379
+    },
+    "sqno_gnn_initial_recompute": {
+      "calls": 1151,
+      "cpu_wall_seconds": 0.5171701135113835,
+      "cuda_stream_seconds": 0.5003268799930808
+    },
+    "transolver_deslice_recompute": {
+      "calls": 72,
+      "cpu_wall_seconds": 0.03080981515813619,
+      "cuda_stream_seconds": 0.031481823921203606
+    },
+    "transolver_pool_recompute": {
+      "calls": 72,
+      "cpu_wall_seconds": 0.03884993144311011,
+      "cuda_stream_seconds": 0.05601446419954302
+    },
+    "pcraft_gno_recompute": {
+      "calls": 2301,
+      "cpu_wall_seconds": 1.0144484707852826,
+      "cuda_stream_seconds": 0.9729445444643523
+    },
+    "pcraft_interval_recompute": {
+      "calls": 2301,
+      "cpu_wall_seconds": 1.9062278948258609,
+      "cuda_stream_seconds": 1.8653017269968954
+    },
+    "pcraft_scale_recompute": {
+      "calls": 3,
+      "cpu_wall_seconds": 0.06856970000080764,
+      "cuda_stream_seconds": 0.2643950138092041
+    }
+  },
+  "adjoint_spans": {
+    "transolver": {
+      "status": "measured",
+      "started_spans": 1,
+      "completed_spans": 1,
+      "output_gradients": 1,
+      "input_gradients": 1,
+      "parameter_gradients": 22,
+      "cpu_wall_seconds": 0.26804712100420147,
+      "cuda_stream_seconds": 0.2826179809570312
+    },
+    "pcraft_native_encoding": {
+      "status": "measured",
+      "started_spans": 1,
+      "completed_spans": 1,
+      "output_gradients": 4,
+      "input_gradients": 0,
+      "parameter_gradients": 168,
+      "cpu_wall_seconds": 8.610757962916978,
+      "cuda_stream_seconds": 8.610712890625
+    },
+    "sqno_gnn": {
+      "status": "measured",
+      "started_spans": 1,
+      "completed_spans": 1,
+      "output_gradients": 3,
+      "input_gradients": 0,
+      "parameter_gradients": 14,
+      "cpu_wall_seconds": 3.4792814570246264,
+      "cuda_stream_seconds": 3.47675341796875
+    },
+    "sqno_fusion": {
+      "status": "measured",
+      "started_spans": 1,
+      "completed_spans": 1,
+      "output_gradients": 1,
+      "input_gradients": 6,
+      "parameter_gradients": 10,
+      "cpu_wall_seconds": 12.3936158309225,
+      "cuda_stream_seconds": 12.3281044921875
+    },
+    "m80_coefficient_jacobian": {
+      "status": "measured",
+      "started_spans": 1,
+      "completed_spans": 1,
+      "output_gradients": 2,
+      "input_gradients": 1,
+      "parameter_gradients": 6,
+      "cpu_wall_seconds": 4.451111210975796,
+      "cuda_stream_seconds": 4.38403125
+    },
+    "Moment Operator": {
+      "status": "measured",
+      "started_spans": 1,
+      "completed_spans": 1,
+      "output_gradients": 3,
+      "input_gradients": 1,
+      "parameter_gradients": 0,
+      "cpu_wall_seconds": 20.719694940024056,
+      "cuda_stream_seconds": 20.7866640625
+    },
+    "geometry_query_jacobian": {
+      "status": "measured",
+      "started_spans": 1,
+      "completed_spans": 1,
+      "output_gradients": 2,
+      "input_gradients": 1,
+      "parameter_gradients": 13,
+      "cpu_wall_seconds": 27.652743984013796,
+      "cuda_stream_seconds": 27.654833984375
+    },
+    "cross_scale_attention": {
+      "status": "measured",
+      "started_spans": 1,
+      "completed_spans": 1,
+      "output_gradients": 2,
+      "input_gradients": 1,
+      "parameter_gradients": 14,
+      "cpu_wall_seconds": 27.65843697602395,
+      "cuda_stream_seconds": 27.658279296875
+    },
+    "Loss": {
+      "status": "measured",
+      "started_spans": 1,
+      "completed_spans": 1,
+      "output_gradients": 3,
+      "input_gradients": 6,
+      "parameter_gradients": 0,
+      "cpu_wall_seconds": 23.24142713006586,
+      "cuda_stream_seconds": 23.30822265625
+    }
+  },
+  "stages": [
+    {
+      "name": "rle_decode",
+      "phase": "other",
+      "calls": 1,
+      "allocated_before_bytes": 24223232,
+      "reserved_before_bytes": 44040192,
+      "peak_allocated_bytes": 24223232,
+      "peak_reserved_bytes": 44040192,
+      "rss_first_bytes": 941940736,
+      "rss_max_boundary_bytes": 1322639360,
+      "inclusive_seconds": 1.849063680972904,
+      "exclusive_seconds": 1.849063680972904,
+      "counts": {
+        "active_intervals": 1177764
+      },
+      "tensor_observations": {
+        "xyz": {
+          "count": 1,
+          "total_elements": 3533292,
+          "max_elements": 3533292,
+          "first_shape": [
+            1177764,
+            3
+          ],
+          "first_dtype": "float64",
+          "first_device": "cpu",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 28266336
+        },
+        "mass": {
+          "count": 1,
+          "total_elements": 1177764,
+          "max_elements": 1177764,
+          "first_shape": [
+            1177764
+          ],
+          "first_dtype": "float64",
+          "first_device": "cpu",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 9422112
+        },
+        "moment_basis": {
+          "count": 1,
+          "total_elements": 11777640,
+          "max_elements": 11777640,
+          "first_shape": [
+            1177764,
+            10
+          ],
+          "first_dtype": "float64",
+          "first_device": "cpu",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 94221120
+        },
+        "cell_extent": {
+          "count": 1,
+          "total_elements": 3533292,
+          "max_elements": 3533292,
+          "first_shape": [
+            1177764,
+            3
+          ],
+          "first_dtype": "float64",
+          "first_device": "cpu",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 28266336
+        },
+        "fixed_moments": {
+          "count": 1,
+          "total_elements": 10,
+          "max_elements": 10,
+          "first_shape": [
+            10
+          ],
+          "first_dtype": "float64",
+          "first_device": "cpu",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 80
+        },
+        "original_moments": {
+          "count": 1,
+          "total_elements": 10,
+          "max_elements": 10,
+          "first_shape": [
+            10
+          ],
+          "first_dtype": "float64",
+          "first_device": "cpu",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 80
+        },
+        "native_resolution": {
+          "count": 1,
+          "total_elements": 1,
+          "max_elements": 1,
+          "first_shape": [],
+          "first_dtype": "int64",
+          "first_device": "cpu",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 8
+        },
+        "columns": {
+          "count": 1,
+          "total_elements": 4711056,
+          "max_elements": 4711056,
+          "first_shape": [
+            1177764,
+            4
+          ],
+          "first_dtype": "int64",
+          "first_device": "cpu",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 37688448
+        },
+        "origin": {
+          "count": 1,
+          "total_elements": 3,
+          "max_elements": 3,
+          "first_shape": [
+            3
+          ],
+          "first_dtype": "float64",
+          "first_device": "cpu",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 24
+        },
+        "pcraft_grid": {
+          "count": 1,
+          "total_elements": 1048576,
+          "max_elements": 1048576,
+          "first_shape": [
+            4,
+            64,
+            64,
+            64
+          ],
+          "first_dtype": "float32",
+          "first_device": "cpu",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 4194304
+        }
+      },
+      "observed_tensor_count": 10,
+      "observed_elements": 25781644,
+      "allocated_after_bytes": 24223232,
+      "reserved_after_bytes": 44040192,
+      "rss_last_bytes": 1322639360
+    },
+    {
+      "name": "training_batch_transfer",
+      "phase": "other",
+      "calls": 1,
+      "allocated_before_bytes": 24223232,
+      "reserved_before_bytes": 44040192,
+      "peak_allocated_bytes": 24368640,
+      "peak_reserved_bytes": 44040192,
+      "rss_first_bytes": 1322655744,
+      "rss_max_boundary_bytes": 1322684416,
+      "inclusive_seconds": 0.000675820978358388,
+      "exclusive_seconds": 0.000675820978358388,
+      "counts": {
+        "queries": 64
+      },
+      "tensor_observations": {
+        "coefficients": {
+          "count": 1,
+          "total_elements": 640,
+          "max_elements": 640,
+          "first_shape": [
+            64,
+            10
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 5120
+        },
+        "target_moments": {
+          "count": 1,
+          "total_elements": 640,
+          "max_elements": 640,
+          "first_shape": [
+            64,
+            10
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 5120
+        },
+        "valid_mask": {
+          "count": 1,
+          "total_elements": 64,
+          "max_elements": 64,
+          "first_shape": [
+            64
+          ],
+          "first_dtype": "torch.bool",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 64
+        },
+        "target_jacobian": {
+          "count": 1,
+          "total_elements": 6400,
+          "max_elements": 6400,
+          "first_shape": [
+            64,
+            10,
+            10
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 51200
+        },
+        "jacobian_valid_mask": {
+          "count": 1,
+          "total_elements": 64,
+          "max_elements": 64,
+          "first_shape": [
+            64
+          ],
+          "first_dtype": "torch.bool",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 64
+        },
+        "restricted_basis": {
+          "count": 1,
+          "total_elements": 5120,
+          "max_elements": 5120,
+          "first_shape": [
+            64,
+            10,
+            8
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 40960
+        },
+        "restricted_jacobian": {
+          "count": 1,
+          "total_elements": 5120,
+          "max_elements": 5120,
+          "first_shape": [
+            64,
+            10,
+            8
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 40960
+        },
+        "restricted_valid": {
+          "count": 1,
+          "total_elements": 64,
+          "max_elements": 64,
+          "first_shape": [
+            64
+          ],
+          "first_dtype": "torch.bool",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 64
+        },
+        "restricted_dimension": {
+          "count": 1,
+          "total_elements": 64,
+          "max_elements": 64,
+          "first_shape": [
+            64
+          ],
+          "first_dtype": "torch.int16",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 128
+        }
+      },
+      "observed_tensor_count": 9,
+      "observed_elements": 18176,
+      "allocated_after_bytes": 24368640,
+      "reserved_after_bytes": 44040192,
+      "rss_last_bytes": 1322684416
+    },
+    {
+      "name": "geometry_metadata_cache",
+      "phase": "cache",
+      "calls": 1,
+      "allocated_before_bytes": 24369152,
+      "reserved_before_bytes": 44040192,
+      "peak_allocated_bytes": 24369152,
+      "peak_reserved_bytes": 44040192,
+      "rss_first_bytes": 1393889280,
+      "rss_max_boundary_bytes": 1592434688,
+      "inclusive_seconds": 1.1738671499770135,
+      "exclusive_seconds": 1.1738671499770135,
+      "counts": {},
+      "tensor_observations": {},
+      "observed_tensor_count": 0,
+      "observed_elements": 0,
+      "allocated_after_bytes": 24369152,
+      "reserved_after_bytes": 44040192,
+      "rss_last_bytes": 1592434688
+    },
+    {
+      "name": "one_optimizer_update",
+      "phase": "forward",
+      "calls": 1,
+      "allocated_before_bytes": 24369152,
+      "reserved_before_bytes": 44040192,
+      "peak_allocated_bytes": 10871928320,
+      "peak_reserved_bytes": 10947133440,
+      "rss_first_bytes": 1592446976,
+      "rss_max_boundary_bytes": 4293275648,
+      "inclusive_seconds": 88.65796779398806,
+      "exclusive_seconds": 0.00035998690873384476,
+      "counts": {},
+      "tensor_observations": {},
+      "observed_tensor_count": 0,
+      "observed_elements": 0,
+      "allocated_after_bytes": 1644108288,
+      "reserved_after_bytes": 10947133440,
+      "rss_last_bytes": 4293275648
+    },
+    {
+      "name": "encode_geometry",
+      "phase": "forward",
+      "calls": 1,
+      "allocated_before_bytes": 24369152,
+      "reserved_before_bytes": 44040192,
+      "peak_allocated_bytes": 5553812992,
+      "peak_reserved_bytes": 6941573120,
+      "rss_first_bytes": 1592459264,
+      "rss_max_boundary_bytes": 3850928128,
+      "inclusive_seconds": 29.36404182505794,
+      "exclusive_seconds": 0.2544492329470813,
+      "counts": {},
+      "tensor_observations": {
+        "shared_latent": {
+          "count": 1,
+          "total_elements": 192,
+          "max_elements": 192,
+          "first_shape": [
+            1,
+            192
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "UnsqueezeBackward0",
+          "first_storage_bytes": 768
+        },
+        "shared_statistics": {
+          "count": 1,
+          "total_elements": 36,
+          "max_elements": 36,
+          "first_shape": [
+            1,
+            36
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 144
+        },
+        "shared_fixed_moments": {
+          "count": 1,
+          "total_elements": 10,
+          "max_elements": 10,
+          "first_shape": [
+            10
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 80
+        },
+        "shared_design_moments": {
+          "count": 1,
+          "total_elements": 10,
+          "max_elements": 10,
+          "first_shape": [
+            10
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 80
+        },
+        "shared_absolute_moments": {
+          "count": 1,
+          "total_elements": 10,
+          "max_elements": 10,
+          "first_shape": [
+            10
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 80
+        },
+        "shared_moment_scales": {
+          "count": 1,
+          "total_elements": 10,
+          "max_elements": 10,
+          "first_shape": [
+            10
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 80
+        },
+        "shared_coordinate_scales": {
+          "count": 1,
+          "total_elements": 10,
+          "max_elements": 10,
+          "first_shape": [
+            10
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 80
+        },
+        "shared_normalized_bounds": {
+          "count": 1,
+          "total_elements": 6,
+          "max_elements": 6,
+          "first_shape": [
+            2,
+            3
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 48
+        },
+        "shared_interval_features": {
+          "count": 1,
+          "total_elements": 226130688,
+          "max_elements": 226130688,
+          "first_shape": [
+            1177764,
+            192
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "CatBackward0",
+          "first_storage_bytes": 904522752
+        },
+        "shared_global_context": {
+          "count": 1,
+          "total_elements": 192,
+          "max_elements": 192,
+          "first_shape": [
+            192
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "SqueezeBackward1",
+          "first_storage_bytes": 768
+        },
+        "shared_interval_mass": {
+          "count": 1,
+          "total_elements": 1177764,
+          "max_elements": 1177764,
+          "first_shape": [
+            1177764
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 4711056
+        },
+        "shared_descriptor": {
+          "count": 1,
+          "total_elements": 15310932,
+          "max_elements": 15310932,
+          "first_shape": [
+            1177764,
+            13
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 61243728
+        },
+        "shared_normalized_xyz": {
+          "count": 1,
+          "total_elements": 3533292,
+          "max_elements": 3533292,
+          "first_shape": [
+            1177764,
+            3
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 28266336
+        },
+        "shared_global_scale_weights": {
+          "count": 1,
+          "total_elements": 3,
+          "max_elements": 3,
+          "first_shape": [
+            3,
+            1
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "SqueezeBackward1",
+          "first_storage_bytes": 12
+        },
+        "shared_scale_features": {
+          "count": 1,
+          "total_elements": 576,
+          "max_elements": 576,
+          "first_shape": [
+            3,
+            192
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "SqueezeBackward1",
+          "first_storage_bytes": 2304
+        },
+        "shared_scale_ids": {
+          "count": 1,
+          "total_elements": 3,
+          "max_elements": 3,
+          "first_shape": [
+            3
+          ],
+          "first_dtype": "torch.int64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 24
+        },
+        "sqno_node_xyz": {
+          "count": 1,
+          "total_elements": 28266336,
+          "max_elements": 28266336,
+          "first_shape": [
+            9422112,
+            3
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 113065344
+        },
+        "sqno_node_weights": {
+          "count": 1,
+          "total_elements": 9422112,
+          "max_elements": 9422112,
+          "first_shape": [
+            9422112
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "MulBackward0",
+          "first_storage_bytes": 37688448
+        },
+        "sqno_interval_mass": {
+          "count": 1,
+          "total_elements": 1177764,
+          "max_elements": 1177764,
+          "first_shape": [
+            1177764
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 4711056
+        },
+        "sqno_fixed_moments": {
+          "count": 1,
+          "total_elements": 10,
+          "max_elements": 10,
+          "first_shape": [
+            10
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 40
+        },
+        "sqno_interval_ids": {
+          "count": 1,
+          "total_elements": 9422112,
+          "max_elements": 9422112,
+          "first_shape": [
+            9422112
+          ],
+          "first_dtype": "torch.int64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 75376896
+        },
+        "sqno_logits": {
+          "count": 1,
+          "total_elements": 1177764,
+          "max_elements": 1177764,
+          "first_shape": [
+            1177764
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "CatBackward0",
+          "first_storage_bytes": 4711056
+        },
+        "sqno_probabilities": {
+          "count": 1,
+          "total_elements": 1177764,
+          "max_elements": 1177764,
+          "first_shape": [
+            1177764
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "SoftmaxBackward0",
+          "first_storage_bytes": 4711056
+        },
+        "sqno_pcraft_local_features": {
+          "count": 1,
+          "total_elements": 226130688,
+          "max_elements": 226130688,
+          "first_shape": [
+            1177764,
+            192
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "CatBackward0",
+          "first_storage_bytes": 904522752
+        },
+        "sqno_pcraft_global_context": {
+          "count": 1,
+          "total_elements": 192,
+          "max_elements": 192,
+          "first_shape": [
+            192
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "SqueezeBackward1",
+          "first_storage_bytes": 768
+        },
+        "sqno_quadrann_features": {
+          "count": 1,
+          "total_elements": 75376896,
+          "max_elements": 75376896,
+          "first_shape": [
+            1177764,
+            64
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "CatBackward0",
+          "first_storage_bytes": 301507584
+        },
+        "sqno_component_context": {
+          "count": 1,
+          "total_elements": 192,
+          "max_elements": 192,
+          "first_shape": [
+            3,
+            64
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "DivBackward0",
+          "first_storage_bytes": 768
+        },
+        "sqno_global_scale_weights": {
+          "count": 1,
+          "total_elements": 3,
+          "max_elements": 3,
+          "first_shape": [
+            3,
+            1
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "SqueezeBackward1",
+          "first_storage_bytes": 12
+        }
+      },
+      "observed_tensor_count": 28,
+      "observed_elements": 598305567,
+      "cache_storage": {
+        "tensor_fields": 28,
+        "distinct_storages": 25,
+        "distinct_storage_bytes": 1540520588,
+        "alias_groups": [
+          {
+            "device": "cuda:0",
+            "bytes": 904522752,
+            "fields": [
+              "shared_interval_features",
+              "sqno_pcraft_local_features"
+            ]
+          },
+          {
+            "device": "cuda:0",
+            "bytes": 768,
+            "fields": [
+              "shared_global_context",
+              "sqno_pcraft_global_context"
+            ]
+          },
+          {
+            "device": "cuda:0",
+            "bytes": 12,
+            "fields": [
+              "shared_global_scale_weights",
+              "sqno_global_scale_weights"
+            ]
+          }
+        ],
+        "scope": "tensor-valued fields of shared_cache and sqno_cache at encoder return"
+      },
+      "allocated_after_bytes": 5421900800,
+      "reserved_after_bytes": 6941573120,
+      "rss_last_bytes": 3850928128
+    },
+    {
+      "name": "pcraft_native_encoding",
+      "phase": "forward",
+      "calls": 1,
+      "allocated_before_bytes": 24369152,
+      "reserved_before_bytes": 44040192,
+      "peak_allocated_bytes": 4881750528,
+      "peak_reserved_bytes": 5832179712,
+      "rss_first_bytes": 1592479744,
+      "rss_max_boundary_bytes": 3107139584,
+      "inclusive_seconds": 19.629009461030364,
+      "exclusive_seconds": 19.464059686055407,
+      "counts": {
+        "native_intervals": 1177764,
+        "interval_feature_chunks": 2301,
+        "gno_chunks": 2301
+      },
+      "tensor_observations": {},
+      "observed_tensor_count": 0,
+      "observed_elements": 0,
+      "allocated_after_bytes": 3491601408,
+      "reserved_after_bytes": 5832179712,
+      "rss_last_bytes": 3107139584
+    },
+    {
+      "name": "transolver",
+      "phase": "forward",
+      "calls": 1,
+      "allocated_before_bytes": 3067649024,
+      "reserved_before_bytes": 4175429632,
+      "peak_allocated_bytes": 4881750528,
+      "peak_reserved_bytes": 5832179712,
+      "rss_first_bytes": 3006160896,
+      "rss_max_boundary_bytes": 3107016704,
+      "inclusive_seconds": 0.1649497749749571,
+      "exclusive_seconds": 0.1649497749749571,
+      "counts": {
+        "native_intervals": 1177764,
+        "transolver_pool_chunks": 72,
+        "transolver_deslice_chunks": 72
+      },
+      "tensor_observations": {},
+      "observed_tensor_count": 0,
+      "observed_elements": 0,
+      "allocated_after_bytes": 3977064960,
+      "reserved_after_bytes": 5832179712,
+      "rss_last_bytes": 3107016704
+    },
+    {
+      "name": "sqno_gnn",
+      "phase": "forward",
+      "calls": 1,
+      "allocated_before_bytes": 3510446592,
+      "reserved_before_bytes": 6733955072,
+      "peak_allocated_bytes": 5530306048,
+      "peak_reserved_bytes": 6941573120,
+      "rss_first_bytes": 3149651968,
+      "rss_max_boundary_bytes": 3600187392,
+      "inclusive_seconds": 6.993124184082262,
+      "exclusive_seconds": 6.993124184082262,
+      "counts": {
+        "native_intervals": 1177764,
+        "gnn_initial_chunks": 1151,
+        "gnn_propagation_chunks": 2302
+      },
+      "tensor_observations": {
+        "final_gnn_features": {
+          "count": 1,
+          "total_elements": 75376896,
+          "max_elements": 75376896,
+          "first_shape": [
+            1177764,
+            64
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "CatBackward0",
+          "first_storage_bytes": 301507584
+        }
+      },
+      "observed_tensor_count": 1,
+      "observed_elements": 75376896,
+      "allocated_after_bytes": 5153366528,
+      "reserved_after_bytes": 6941573120,
+      "rss_last_bytes": 3600187392
+    },
+    {
+      "name": "sqno_fusion",
+      "phase": "forward",
+      "calls": 1,
+      "allocated_before_bytes": 5162790400,
+      "reserved_before_bytes": 6941573120,
+      "peak_allocated_bytes": 5175885312,
+      "peak_reserved_bytes": 6941573120,
+      "rss_first_bytes": 3639656448,
+      "rss_max_boundary_bytes": 3670691840,
+      "inclusive_seconds": 0.4577584210783243,
+      "exclusive_seconds": 0.4577584210783243,
+      "counts": {
+        "native_intervals": 1177764,
+        "fusion_chunks": 1151
+      },
+      "tensor_observations": {},
+      "observed_tensor_count": 0,
+      "observed_elements": 0,
+      "allocated_after_bytes": 5172213248,
+      "reserved_after_bytes": 6941573120,
+      "rss_last_bytes": 3670691840
+    },
+    {
+      "name": "sqno_quadrature",
+      "phase": "forward",
+      "calls": 1,
+      "allocated_before_bytes": 5181636608,
+      "reserved_before_bytes": 6941573120,
+      "peak_allocated_bytes": 5421901824,
+      "peak_reserved_bytes": 6941573120,
+      "rss_first_bytes": 3670704128,
+      "rss_max_boundary_bytes": 3850854400,
+      "inclusive_seconds": 2.029700525919907,
+      "exclusive_seconds": 2.029700525919907,
+      "counts": {
+        "native_intervals": 1177764
+      },
+      "tensor_observations": {
+        "quadrature_coordinates": {
+          "count": 1,
+          "total_elements": 28266336,
+          "max_elements": 28266336,
+          "first_shape": [
+            9422112,
+            3
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 113065344
+        }
+      },
+      "observed_tensor_count": 1,
+      "observed_elements": 28266336,
+      "allocated_after_bytes": 5412479488,
+      "reserved_after_bytes": 6941573120,
+      "rss_last_bytes": 3850854400
+    },
+    {
+      "name": "train_step",
+      "phase": "forward",
+      "calls": 1,
+      "allocated_before_bytes": 5421900800,
+      "reserved_before_bytes": 6941573120,
+      "peak_allocated_bytes": 10871928320,
+      "peak_reserved_bytes": 10947133440,
+      "rss_first_bytes": 3850940416,
+      "rss_max_boundary_bytes": 4293275648,
+      "inclusive_seconds": 59.29356598202139,
+      "exclusive_seconds": 0.4407586118904874,
+      "counts": {},
+      "tensor_observations": {},
+      "observed_tensor_count": 0,
+      "observed_elements": 0,
+      "allocated_after_bytes": 1644108288,
+      "reserved_after_bytes": 10947133440,
+      "rss_last_bytes": 4293275648
+    },
+    {
+      "name": "m80_coefficient_jacobian",
+      "phase": "forward",
+      "calls": 1,
+      "allocated_before_bytes": 5421905920,
+      "reserved_before_bytes": 6941573120,
+      "peak_allocated_bytes": 5449648640,
+      "peak_reserved_bytes": 6941573120,
+      "rss_first_bytes": 3851116544,
+      "rss_max_boundary_bytes": 3874938880,
+      "inclusive_seconds": 4.02216866298113,
+      "exclusive_seconds": 4.02216866298113,
+      "counts": {
+        "queries": 64
+      },
+      "tensor_observations": {},
+      "observed_tensor_count": 0,
+      "observed_elements": 0,
+      "allocated_after_bytes": 5449597440,
+      "reserved_after_bytes": 6941573120,
+      "rss_last_bytes": 3874938880
+    },
+    {
+      "name": "Moment Operator",
+      "phase": "forward",
+      "calls": 1,
+      "allocated_before_bytes": 5751117312,
+      "reserved_before_bytes": 6941573120,
+      "peak_allocated_bytes": 5781210112,
+      "peak_reserved_bytes": 6941573120,
+      "rss_first_bytes": 3874951168,
+      "rss_max_boundary_bytes": 4034400256,
+      "inclusive_seconds": 17.008255659020506,
+      "exclusive_seconds": 17.008255659020506,
+      "counts": {
+        "chunks": 4604,
+        "nodes": 9422112,
+        "queries": 64
+      },
+      "tensor_observations": {
+        "node_xyz": {
+          "count": 1,
+          "total_elements": 28266336,
+          "max_elements": 28266336,
+          "first_shape": [
+            9422112,
+            3
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 226130688
+        },
+        "node_weights": {
+          "count": 1,
+          "total_elements": 9422112,
+          "max_elements": 9422112,
+          "first_shape": [
+            9422112
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "ToCopyBackward0",
+          "first_storage_bytes": 75376896
+        },
+        "convex_queries": {
+          "count": 1,
+          "total_elements": 640,
+          "max_elements": 640,
+          "first_shape": [
+            64,
+            10
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 5120
+        }
+      },
+      "observed_tensor_count": 3,
+      "observed_elements": 37689088,
+      "allocated_after_bytes": 5751191552,
+      "reserved_after_bytes": 6941573120,
+      "rss_last_bytes": 4034400256
+    },
+    {
+      "name": "geometry_query_jacobian",
+      "phase": "forward",
+      "calls": 1,
+      "allocated_before_bytes": 5751719424,
+      "reserved_before_bytes": 6941573120,
+      "peak_allocated_bytes": 5767127552,
+      "peak_reserved_bytes": 6941573120,
+      "rss_first_bytes": 4071829504,
+      "rss_max_boundary_bytes": 4072202240,
+      "inclusive_seconds": 0.8347616060636938,
+      "exclusive_seconds": 0.0003249450819566846,
+      "counts": {
+        "queries": 64
+      },
+      "tensor_observations": {},
+      "observed_tensor_count": 0,
+      "observed_elements": 0,
+      "allocated_after_bytes": 5764046336,
+      "reserved_after_bytes": 6941573120,
+      "rss_last_bytes": 4072202240
+    },
+    {
+      "name": "geometry_physics_attention",
+      "phase": "forward",
+      "calls": 1,
+      "allocated_before_bytes": 5751719424,
+      "reserved_before_bytes": 6941573120,
+      "peak_allocated_bytes": 5767127552,
+      "peak_reserved_bytes": 6941573120,
+      "rss_first_bytes": 4071841792,
+      "rss_max_boundary_bytes": 4072181760,
+      "inclusive_seconds": 0.8344366609817371,
+      "exclusive_seconds": 0.0032780899200588465,
+      "counts": {},
+      "tensor_observations": {},
+      "observed_tensor_count": 0,
+      "observed_elements": 0,
+      "allocated_after_bytes": 5764046336,
+      "reserved_after_bytes": 6941573120,
+      "rss_last_bytes": 4072181760
+    },
+    {
+      "name": "attention_moments",
+      "phase": "forward",
+      "calls": 1,
+      "allocated_before_bytes": 5759917568,
+      "reserved_before_bytes": 6941573120,
+      "peak_allocated_bytes": 5767127552,
+      "peak_reserved_bytes": 6941573120,
+      "rss_first_bytes": 4072058880,
+      "rss_max_boundary_bytes": 4072124416,
+      "inclusive_seconds": 0.8311585710616782,
+      "exclusive_seconds": 0.8311585710616782,
+      "counts": {
+        "interval_chunks": 1151,
+        "projected_intervals": 1177764,
+        "query_tiles": 4604
+      },
+      "tensor_observations": {
+        "score_tile": {
+          "count": 1,
+          "total_elements": 32768,
+          "max_elements": 32768,
+          "first_shape": [
+            16,
+            2,
+            1024
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 131072
+        },
+        "direction_tile": {
+          "count": 1,
+          "total_elements": 327680,
+          "max_elements": 327680,
+          "first_shape": [
+            16,
+            2,
+            1024,
+            10
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 1310720
+        },
+        "key_tile": {
+          "count": 1,
+          "total_elements": 196608,
+          "max_elements": 196608,
+          "first_shape": [
+            1024,
+            2,
+            96
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 786432
+        }
+      },
+      "observed_tensor_count": 3,
+      "observed_elements": 557056,
+      "allocated_after_bytes": 5760632320,
+      "reserved_after_bytes": 6941573120,
+      "rss_last_bytes": 4072124416
+    },
+    {
+      "name": "cross_scale_attention",
+      "phase": "forward",
+      "calls": 1,
+      "allocated_before_bytes": 5764046336,
+      "reserved_before_bytes": 6941573120,
+      "peak_allocated_bytes": 5790023168,
+      "peak_reserved_bytes": 6941573120,
+      "rss_first_bytes": 4072222720,
+      "rss_max_boundary_bytes": 4079017984,
+      "inclusive_seconds": 0.11881086602807045,
+      "exclusive_seconds": 0.11881086602807045,
+      "counts": {
+        "queries": 64,
+        "query_chunks": 1,
+        "scales": 3
+      },
+      "tensor_observations": {},
+      "observed_tensor_count": 0,
+      "observed_elements": 0,
+      "allocated_after_bytes": 5789635072,
+      "reserved_after_bytes": 6941573120,
+      "rss_last_bytes": 4079017984
+    },
+    {
+      "name": "Loss",
+      "phase": "forward",
+      "calls": 1,
+      "allocated_before_bytes": 5789362688,
+      "reserved_before_bytes": 6941573120,
+      "peak_allocated_bytes": 5789638144,
+      "peak_reserved_bytes": 6941573120,
+      "rss_first_bytes": 4079017984,
+      "rss_max_boundary_bytes": 4079259648,
+      "inclusive_seconds": 0.005840008030645549,
+      "exclusive_seconds": 0.005840008030645549,
+      "counts": {
+        "queries": 64
+      },
+      "tensor_observations": {
+        "moments": {
+          "count": 1,
+          "total_elements": 640,
+          "max_elements": 640,
+          "first_shape": [
+            64,
+            10
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "AddBackward0",
+          "first_storage_bytes": 5120
+        },
+        "jacobian": {
+          "count": 1,
+          "total_elements": 6400,
+          "max_elements": 6400,
+          "first_shape": [
+            64,
+            10,
+            10
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": true,
+          "first_grad_fn": "AddBackward0",
+          "first_storage_bytes": 51200
+        }
+      },
+      "observed_tensor_count": 2,
+      "observed_elements": 7040,
+      "allocated_after_bytes": 5789579264,
+      "reserved_after_bytes": 6941573120,
+      "rss_last_bytes": 4079259648
+    },
+    {
+      "name": "Backward",
+      "phase": "backward",
+      "calls": 1,
+      "allocated_before_bytes": 5789508608,
+      "reserved_before_bytes": 6941573120,
+      "peak_allocated_bytes": 10871928320,
+      "peak_reserved_bytes": 10947133440,
+      "rss_first_bytes": 4079263744,
+      "rss_max_boundary_bytes": 4209688576,
+      "inclusive_seconds": 36.829026538995095,
+      "exclusive_seconds": 34.350739494897425,
+      "counts": {
+        "fusion_chunks": 1151,
+        "gnn_propagation_chunks": 2302,
+        "gnn_initial_chunks": 1151,
+        "transolver_deslice_chunks": 72,
+        "transolver_pool_chunks": 72,
+        "gno_chunks": 2301,
+        "interval_feature_chunks": 2301
+      },
+      "tensor_observations": {},
+      "observed_tensor_count": 0,
+      "observed_elements": 0,
+      "allocated_after_bytes": 1602686976,
+      "reserved_after_bytes": 10947133440,
+      "rss_last_bytes": 4209688576
+    },
+    {
+      "name": "attention_moments",
+      "phase": "backward",
+      "calls": 1,
+      "allocated_before_bytes": 6697303040,
+      "reserved_before_bytes": 7256145920,
+      "peak_allocated_bytes": 6709746688,
+      "peak_reserved_bytes": 7256145920,
+      "rss_first_bytes": 4150603776,
+      "rss_max_boundary_bytes": 4156440576,
+      "inclusive_seconds": 2.4782870440976694,
+      "exclusive_seconds": 2.4782870440976694,
+      "counts": {
+        "interval_chunks": 1151,
+        "projected_intervals": 1177764,
+        "query_tiles": 4604
+      },
+      "tensor_observations": {},
+      "observed_tensor_count": 0,
+      "observed_elements": 0,
+      "allocated_after_bytes": 6698730496,
+      "reserved_after_bytes": 7256145920,
+      "rss_last_bytes": 4156440576
+    },
+    {
+      "name": "Optimizer Update",
+      "phase": "optimizer",
+      "calls": 1,
+      "allocated_before_bytes": 1602686976,
+      "reserved_before_bytes": 10947133440,
+      "peak_allocated_bytes": 1664857600,
+      "peak_reserved_bytes": 10947133440,
+      "rss_first_bytes": 4209688576,
+      "rss_max_boundary_bytes": 4293275648,
+      "inclusive_seconds": 0.03394402901176363,
+      "exclusive_seconds": 0.03394402901176363,
+      "counts": {},
+      "tensor_observations": {},
+      "observed_tensor_count": 0,
+      "observed_elements": 0,
+      "allocated_after_bytes": 1644134400,
+      "reserved_after_bytes": 10947133440,
+      "rss_last_bytes": 4293275648
+    },
+    {
+      "name": "cache_invalidation_check",
+      "phase": "cache",
+      "calls": 1,
+      "allocated_before_bytes": 1644108288,
+      "reserved_before_bytes": 10947133440,
+      "peak_allocated_bytes": 1644108288,
+      "peak_reserved_bytes": 10947133440,
+      "rss_first_bytes": 4296142848,
+      "rss_max_boundary_bytes": 4296142848,
+      "inclusive_seconds": 0.0005579449934884906,
+      "exclusive_seconds": 0.0005579449934884906,
+      "counts": {},
+      "tensor_observations": {},
+      "observed_tensor_count": 0,
+      "observed_elements": 0,
+      "allocated_after_bytes": 1644108288,
+      "reserved_after_bytes": 10947133440,
+      "rss_last_bytes": 4296142848
+    },
+    {
+      "name": "checkpoint_save",
+      "phase": "other",
+      "calls": 1,
+      "allocated_before_bytes": 103579648,
+      "reserved_before_bytes": 10947133440,
+      "peak_allocated_bytes": 103579648,
+      "peak_reserved_bytes": 10947133440,
+      "rss_first_bytes": 4296142848,
+      "rss_max_boundary_bytes": 4296142848,
+      "inclusive_seconds": 0.7845675150165334,
+      "exclusive_seconds": 0.7845675150165334,
+      "counts": {},
+      "tensor_observations": {},
+      "observed_tensor_count": 0,
+      "observed_elements": 0,
+      "allocated_after_bytes": 103579648,
+      "reserved_after_bytes": 10947133440,
+      "rss_last_bytes": 4296142848
+    },
+    {
+      "name": "checkpoint_resume",
+      "phase": "other",
+      "calls": 1,
+      "allocated_before_bytes": 103579648,
+      "reserved_before_bytes": 10947133440,
+      "peak_allocated_bytes": 169399296,
+      "peak_reserved_bytes": 10947133440,
+      "rss_first_bytes": 4296142848,
+      "rss_max_boundary_bytes": 4296290304,
+      "inclusive_seconds": 0.1685906529892236,
+      "exclusive_seconds": 0.1685906529892236,
+      "counts": {},
+      "tensor_observations": {},
+      "observed_tensor_count": 0,
+      "observed_elements": 0,
+      "allocated_after_bytes": 169250304,
+      "reserved_after_bytes": 10947133440,
+      "rss_last_bytes": 4296290304
+    },
+    {
+      "name": "checkpoint_prediction_comparison",
+      "phase": "verification",
+      "calls": 1,
+      "allocated_before_bytes": 169250304,
+      "reserved_before_bytes": 10947133440,
+      "peak_allocated_bytes": 4900168192,
+      "peak_reserved_bytes": 10947133440,
+      "rss_first_bytes": 4296290304,
+      "rss_max_boundary_bytes": 4347629568,
+      "inclusive_seconds": 45.575594459078275,
+      "exclusive_seconds": 0.13235432701185346,
+      "counts": {},
+      "tensor_observations": {},
+      "observed_tensor_count": 0,
+      "observed_elements": 0,
+      "allocated_after_bytes": 169255424,
+      "reserved_after_bytes": 10947133440,
+      "rss_last_bytes": 4347629568
+    },
+    {
+      "name": "pcraft_native_encoding",
+      "phase": "verification",
+      "calls": 2,
+      "allocated_before_bytes": 169250304,
+      "reserved_before_bytes": 10947133440,
+      "peak_allocated_bytes": 4900168192,
+      "peak_reserved_bytes": 10947133440,
+      "rss_first_bytes": 4296290304,
+      "rss_max_boundary_bytes": 4347449344,
+      "inclusive_seconds": 7.071544977021404,
+      "exclusive_seconds": 6.859192333184183,
+      "counts": {
+        "native_intervals": 2355528,
+        "interval_feature_chunks": 4602,
+        "gno_chunks": 4602
+      },
+      "tensor_observations": {},
+      "observed_tensor_count": 0,
+      "observed_elements": 0,
+      "allocated_after_bytes": 1168004096,
+      "reserved_after_bytes": 10947133440,
+      "rss_last_bytes": 4347449344
+    },
+    {
+      "name": "transolver",
+      "phase": "verification",
+      "calls": 2,
+      "allocated_before_bytes": 3086225920,
+      "reserved_before_bytes": 10947133440,
+      "peak_allocated_bytes": 4900168192,
+      "peak_reserved_bytes": 10947133440,
+      "rss_first_bytes": 4322787328,
+      "rss_max_boundary_bytes": 4347449344,
+      "inclusive_seconds": 0.21235264383722097,
+      "exclusive_seconds": 0.21235264383722097,
+      "counts": {
+        "native_intervals": 2355528,
+        "transolver_pool_chunks": 144,
+        "transolver_deslice_chunks": 144
+      },
+      "tensor_observations": {},
+      "observed_tensor_count": 0,
+      "observed_elements": 0,
+      "allocated_after_bytes": 3086225920,
+      "reserved_after_bytes": 10947133440,
+      "rss_last_bytes": 4347449344
+    },
+    {
+      "name": "sqno_gnn",
+      "phase": "verification",
+      "calls": 2,
+      "allocated_before_bytes": 1186849280,
+      "reserved_before_bytes": 10947133440,
+      "peak_allocated_bytes": 2788683776,
+      "peak_reserved_bytes": 10947133440,
+      "rss_first_bytes": 4336918528,
+      "rss_max_boundary_bytes": 4347449344,
+      "inclusive_seconds": 2.1957056240644306,
+      "exclusive_seconds": 2.1957056240644306,
+      "counts": {
+        "native_intervals": 2355528,
+        "gnn_initial_chunks": 2302,
+        "gnn_propagation_chunks": 4604
+      },
+      "tensor_observations": {
+        "final_gnn_features": {
+          "count": 2,
+          "total_elements": 150753792,
+          "max_elements": 75376896,
+          "first_shape": [
+            1177764,
+            64
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 301507584
+        }
+      },
+      "observed_tensor_count": 2,
+      "observed_elements": 150753792,
+      "allocated_after_bytes": 2091372032,
+      "reserved_after_bytes": 10947133440,
+      "rss_last_bytes": 4347449344
+    },
+    {
+      "name": "sqno_fusion",
+      "phase": "verification",
+      "calls": 2,
+      "allocated_before_bytes": 2100795904,
+      "reserved_before_bytes": 10947133440,
+      "peak_allocated_bytes": 2113890816,
+      "peak_reserved_bytes": 10947133440,
+      "rss_first_bytes": 4347518976,
+      "rss_max_boundary_bytes": 4347518976,
+      "inclusive_seconds": 0.1790060029597953,
+      "exclusive_seconds": 0.1790060029597953,
+      "counts": {
+        "native_intervals": 2355528,
+        "fusion_chunks": 2302
+      },
+      "tensor_observations": {},
+      "observed_tensor_count": 0,
+      "observed_elements": 0,
+      "allocated_after_bytes": 2110218752,
+      "reserved_after_bytes": 10947133440,
+      "rss_last_bytes": 4347449344
+    },
+    {
+      "name": "sqno_quadrature",
+      "phase": "verification",
+      "calls": 2,
+      "allocated_before_bytes": 2119641600,
+      "reserved_before_bytes": 10947133440,
+      "peak_allocated_bytes": 2359906816,
+      "peak_reserved_bytes": 10947133440,
+      "rss_first_bytes": 4347518976,
+      "rss_max_boundary_bytes": 4347518976,
+      "inclusive_seconds": 0.05267093004658818,
+      "exclusive_seconds": 0.05267093004658818,
+      "counts": {
+        "native_intervals": 2355528
+      },
+      "tensor_observations": {
+        "quadrature_coordinates": {
+          "count": 2,
+          "total_elements": 56532672,
+          "max_elements": 28266336,
+          "first_shape": [
+            9422112,
+            3
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 113065344
+        }
+      },
+      "observed_tensor_count": 2,
+      "observed_elements": 56532672,
+      "allocated_after_bytes": 2350484480,
+      "reserved_after_bytes": 10947133440,
+      "rss_last_bytes": 4347449344
+    },
+    {
+      "name": "m80_coefficient_jacobian",
+      "phase": "verification",
+      "calls": 2,
+      "allocated_before_bytes": 1709778944,
+      "reserved_before_bytes": 10947133440,
+      "peak_allocated_bytes": 1711563264,
+      "peak_reserved_bytes": 10947133440,
+      "rss_first_bytes": 4347518976,
+      "rss_max_boundary_bytes": 4347518976,
+      "inclusive_seconds": 0.015387587016448379,
+      "exclusive_seconds": 0.015387587016448379,
+      "counts": {
+        "queries": 128
+      },
+      "tensor_observations": {},
+      "observed_tensor_count": 0,
+      "observed_elements": 0,
+      "allocated_after_bytes": 1710564864,
+      "reserved_after_bytes": 10947133440,
+      "rss_last_bytes": 4347449344
+    },
+    {
+      "name": "Moment Operator",
+      "phase": "verification",
+      "calls": 2,
+      "allocated_before_bytes": 2012084736,
+      "reserved_before_bytes": 10947133440,
+      "peak_allocated_bytes": 2042177536,
+      "peak_reserved_bytes": 10947133440,
+      "rss_first_bytes": 4347518976,
+      "rss_max_boundary_bytes": 4347518976,
+      "inclusive_seconds": 34.144344356958754,
+      "exclusive_seconds": 34.144344356958754,
+      "counts": {
+        "chunks": 9208,
+        "nodes": 18844224,
+        "queries": 128
+      },
+      "tensor_observations": {
+        "node_xyz": {
+          "count": 2,
+          "total_elements": 56532672,
+          "max_elements": 28266336,
+          "first_shape": [
+            9422112,
+            3
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 226130688
+        },
+        "node_weights": {
+          "count": 2,
+          "total_elements": 18844224,
+          "max_elements": 9422112,
+          "first_shape": [
+            9422112
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 75376896
+        },
+        "convex_queries": {
+          "count": 2,
+          "total_elements": 1280,
+          "max_elements": 640,
+          "first_shape": [
+            64,
+            10
+          ],
+          "first_dtype": "torch.float64",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 5120
+        }
+      },
+      "observed_tensor_count": 6,
+      "observed_elements": 75378176,
+      "allocated_after_bytes": 2012158976,
+      "reserved_after_bytes": 10947133440,
+      "rss_last_bytes": 4347445248
+    },
+    {
+      "name": "geometry_query_jacobian",
+      "phase": "verification",
+      "calls": 2,
+      "allocated_before_bytes": 1710246400,
+      "reserved_before_bytes": 10947133440,
+      "peak_allocated_bytes": 1723906048,
+      "peak_reserved_bytes": 10947133440,
+      "rss_first_bytes": 4347465728,
+      "rss_max_boundary_bytes": 4347465728,
+      "inclusive_seconds": 1.766768186003901,
+      "exclusive_seconds": 0.00044408999383449554,
+      "counts": {
+        "queries": 128
+      },
+      "tensor_observations": {},
+      "observed_tensor_count": 0,
+      "observed_elements": 0,
+      "allocated_after_bytes": 1710302208,
+      "reserved_after_bytes": 10947133440,
+      "rss_last_bytes": 4347445248
+    },
+    {
+      "name": "geometry_physics_attention",
+      "phase": "verification",
+      "calls": 2,
+      "allocated_before_bytes": 1710246400,
+      "reserved_before_bytes": 10947133440,
+      "peak_allocated_bytes": 1723906048,
+      "peak_reserved_bytes": 10947133440,
+      "rss_first_bytes": 4347465728,
+      "rss_max_boundary_bytes": 4347465728,
+      "inclusive_seconds": 1.7663240960100666,
+      "exclusive_seconds": 0.003612866043113172,
+      "counts": {},
+      "tensor_observations": {},
+      "observed_tensor_count": 0,
+      "observed_elements": 0,
+      "allocated_after_bytes": 1710302208,
+      "reserved_after_bytes": 10947133440,
+      "rss_last_bytes": 4347445248
+    },
+    {
+      "name": "attention_moments",
+      "phase": "verification",
+      "calls": 2,
+      "allocated_before_bytes": 1716696064,
+      "reserved_before_bytes": 10947133440,
+      "peak_allocated_bytes": 1723906048,
+      "peak_reserved_bytes": 10947133440,
+      "rss_first_bytes": 4347465728,
+      "rss_max_boundary_bytes": 4347465728,
+      "inclusive_seconds": 1.7627112299669534,
+      "exclusive_seconds": 1.7627112299669534,
+      "counts": {
+        "interval_chunks": 2302,
+        "projected_intervals": 2355528,
+        "query_tiles": 9208
+      },
+      "tensor_observations": {
+        "score_tile": {
+          "count": 2,
+          "total_elements": 65536,
+          "max_elements": 32768,
+          "first_shape": [
+            16,
+            2,
+            1024
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 131072
+        },
+        "direction_tile": {
+          "count": 2,
+          "total_elements": 655360,
+          "max_elements": 327680,
+          "first_shape": [
+            16,
+            2,
+            1024,
+            10
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 1310720
+        },
+        "key_tile": {
+          "count": 2,
+          "total_elements": 393216,
+          "max_elements": 196608,
+          "first_shape": [
+            1024,
+            2,
+            96
+          ],
+          "first_dtype": "torch.float32",
+          "first_device": "cuda:0",
+          "first_requires_grad": false,
+          "first_grad_fn": null,
+          "first_storage_bytes": 786432
+        }
+      },
+      "observed_tensor_count": 6,
+      "observed_elements": 1114112,
+      "allocated_after_bytes": 1717410816,
+      "reserved_after_bytes": 10947133440,
+      "rss_last_bytes": 4347445248
+    },
+    {
+      "name": "cross_scale_attention",
+      "phase": "verification",
+      "calls": 2,
+      "allocated_before_bytes": 1710302208,
+      "reserved_before_bytes": 10947133440,
+      "peak_allocated_bytes": 1711916032,
+      "peak_reserved_bytes": 10947133440,
+      "rss_first_bytes": 4347465728,
+      "rss_max_boundary_bytes": 4347465728,
+      "inclusive_seconds": 0.017812467995099723,
+      "exclusive_seconds": 0.017812467995099723,
+      "counts": {
+        "queries": 128,
+        "query_chunks": 2,
+        "scales": 6
+      },
+      "tensor_observations": {},
+      "observed_tensor_count": 0,
+      "observed_elements": 0,
+      "allocated_after_bytes": 1710926336,
+      "reserved_after_bytes": 10947133440,
+      "rss_last_bytes": 4347445248
+    }
+  ],
+  "metadata": {
+    "geometry_id": "N002",
+    "manifest_sha256": "a0f914df030228b0f7fc930141b97968238250e43dd671e6f64e88ed882e42ee",
+    "geometry_sha256": "bac895b5af674119bc20c02948d364710dac04445f8e0f7ebef7832146612291",
+    "labels_sha256": "c226e8b2490016713d81a67546a44fd1d7ce982abf4850062b3b3d815b4d329d",
+    "config": "full_v1_candidate",
+    "seed": 830251,
+    "model_manifest": {
+      "schema": "tvcg.spin-neural-moments.v1",
+      "name": "full_v1_candidate",
+      "config": {
+        "name": "full_v1_candidate",
+        "pcraft_preset": "xl_ms_gno_transolver",
+        "sqno_hidden_dim": 32,
+        "sqno_final_hidden_dim": 128,
+        "sqno_num_layers": 3,
+        "sqno_neighbors": 16,
+        "sqno_temperature": 0.04,
+        "quadrature_order": 2,
+        "sqno_chunk_intervals": 512,
+        "sqno_chunk_nodes": 65536,
+        "query_chunk": 16,
+        "fusion_mode": "query_conditioned",
+        "fusion_initial_weight": 0.5,
+        "query_fusion_hidden": 32,
+        "geometry_cross_attention": true,
+        "geometry_attention_heads": 2,
+        "geometry_attention_chunk": 1024,
+        "geometry_attention_output_scale": 0.05,
+        "cross_scale_attention": true,
+        "cross_scale_heads": 2,
+        "cross_scale_max_scales": 16,
+        "interaction_variant": "parallel_gno_attention",
+        "uq_enabled": true,
+        "event_enabled": true
+      },
+      "config_fingerprint": "10d79334834607823243b34d393c96e3d018b583e10a1b498bbfac7507a1a63e",
+      "pcraft_config": {
+        "grid_size": 64,
+        "pino_width": 32,
+        "pino_modes": 12,
+        "pino_layers": 6,
+        "interval_width": 192,
+        "interval_depth": 4,
+        "chunk_intervals": 512,
+        "min_native_resolution": 512,
+        "checkpoint_intervals": true,
+        "gno_enabled": true,
+        "gno_neighbors": 8,
+        "gno_cache_mib": 512,
+        "gno_topology_filter": true,
+        "transolver_enabled": true,
+        "transolver_slices": 32,
+        "transolver_heads": 8,
+        "transolver_adaptive": false,
+        "transolver_min_slices": 4,
+        "transolver_adaptive_temperature": false,
+        "transolver_temperature_min": 0.05,
+        "transolver_temperature_max": 2.0,
+        "multiscale_enabled": true,
+        "multiscale_grids": [
+          32,
+          64,
+          128
+        ],
+        "convex_potential_enabled": false,
+        "convex_potential_components": 4,
+        "convex_amplitude_mode": "sigmoid",
+        "event_validity_head_enabled": true,
+        "uq_enabled": true,
+        "uq_hidden": 64,
+        "uq_min_log_std": -7.0,
+        "uq_max_log_std": 4.0
+      },
+      "modules": {
+        "shared_pcraft": true,
+        "m80": true,
+        "sqno": true,
+        "gno": true,
+        "transolver_physics_slicing": true,
+        "geometry_physics_cross_attention": true,
+        "cross_scale_attention": true,
+        "query_conditioned_fusion": true,
+        "moment_jacobian_uq": true,
+        "event_validity": true
+      },
+      "scientific_status": "candidate_configuration_not_performance_validated"
+    },
+    "batch": {
+      "geometry_id": "N002",
+      "source_group_id": "trellis/imagegen-sheet/e60739dc2685affa5f70a6e2fd5ede8e7be3a433341d0fe98e0a763e177ed198",
+      "geometry_sha256": "bac895b5af674119bc20c02948d364710dac04445f8e0f7ebef7832146612291",
+      "labels_sha256": "c226e8b2490016713d81a67546a44fd1d7ce982abf4850062b3b3d815b4d329d",
+      "queries": 64,
+      "moment_labels": 64,
+      "full_jacobian_labels": 38,
+      "restricted_jacobian_labels": 26,
+      "restricted_by_dimension": {
+        "3": 13,
+        "8": 13
+      },
+      "native_resolution": 1024,
+      "native_intervals": 1177764,
+      "full_batch": true
+    },
+    "update": {
+      "loss": 0.22954777548053193,
+      "moment_loss": 0.15204767026361898,
+      "jacobian_loss": 3.0306081671777093e-05,
+      "full_jacobian_loss": 3.318655567307962e-05,
+      "restricted_jacobian_loss": 2.6096158131411857e-05,
+      "gradient_norm": 406.6504312339405,
+      "parameter_delta_l2": 0.23342499864866031,
+      "changed_parameter_tensors": 226,
+      "elapsed_seconds": 88.65807101898827,
+      "peak_memory_bytes": 10871928320,
+      "peak_reserved_bytes": 10947133440,
+      "optimizer_steps": 1,
+      "consumed_moment_queries": 64,
+      "consumed_full_jacobians": 38,
+      "consumed_restricted_jacobians": 26,
+      "consumed_restricted_directions": 143
+    },
+    "cache_invalidated": true,
+    "checkpoint_resume_roundtrip": {
+      "predictions": {
+        "moments": {
+          "shape": [
+            64,
+            10
+          ],
+          "max_abs": 5.464938918064988e-10,
+          "max_rel": 1.2350500458591528e-07
+        },
+        "jacobian_coefficients": {
+          "shape": [
+            64,
+            10,
+            10
+          ],
+          "max_abs": 3.907219429943876e-09,
+          "max_rel": 0.00048305655358790966
+        }
+      },
+      "prediction_rtol": 1e-05,
+      "prediction_atol": 1e-08,
+      "relative_error_denominator": "max(abs(original_output), dtype_epsilon)",
+      "restored_parameters": 245,
+      "global_step": 1,
+      "optimizer_state_entries": 230,
+      "scheduler_last_epoch": 1,
+      "rng_restored": true
+    }
+  },
+  "measurement": "CUDA allocator peaks merge adjacent synchronized segments, including nested scopes. Stage times are inclusive, phase times exclusive. RSS is current process RSS sampled at boundaries. Repeated stages aggregate counts, durations, first entry, last exit and maxima. Named tensor observations count logical elements each time objects are observed. Fine-grained recompute regions measure host wall time and current-stream CUDA event time inside their parent phase; their times may overlap and must not be added to wall time. A missing timing region is unmeasured. The Backward stage covers the entire autograd call. Named replay regions only cover recomputation, not the surrounding gradient kernels. Adjoint spans run from first observed output gradient to last observed input or parameter gradient inside the training backward. Shared inputs/parameters can extend and overlap spans. These are inclusive gradient-arrival spans and must not be summed. I/O, optimizer update, and immutable metadata have no parameter backward."
+}
