@@ -4,6 +4,7 @@ from __future__ import annotations
 import numpy as np
 import torch
 from torch import nn
+from torch.utils.checkpoint import checkpoint
 from torch_scatter import scatter_mean
 
 from .pcraft_feature_adapter import PcraftFeatureAdapter
@@ -30,7 +31,7 @@ class SpinQuadrANNV11(nn.Module):
         chunk_intervals=512,
         chunk_nodes=65536,
         pcraft_width=None,
-        gnn_chunk_size=8192,
+        gnn_chunk_size=1024,
     ):
         super().__init__()
         self.external_pcraft_width = None if pcraft_width is None else int(pcraft_width)
@@ -145,10 +146,21 @@ class SpinQuadrANNV11(nn.Module):
             edge_slice = edge_np[:, start * edges_per_target:stop * edges_per_target].copy()
             edge_slice[1] -= start
             edge = torch.as_tensor(edge_slice, dtype=torch.long, device=xyz.device)
-            features = self.gnn.initial.forward_chunk(
-                coords, density, coords[start:stop], density[start:stop],
-                edge, source_count=n,
-            )
+            def initial_chunk_fn(xyz_all, density_all, xyz_local, density_local):
+                return self.gnn.initial.forward_chunk(
+                    xyz_all, density_all, xyz_local, density_local,
+                    edge, source_count=n,
+                )
+            if self.training and torch.is_grad_enabled():
+                features = checkpoint(
+                    initial_chunk_fn, coords, density,
+                    coords[start:stop], density[start:stop],
+                    use_reentrant=False,
+                )
+            else:
+                features = initial_chunk_fn(
+                    coords, density, coords[start:stop], density[start:stop]
+                )
             first_features.append(features)
         features = torch.cat(first_features, dim=0)
         layer_outputs = [features]
@@ -161,10 +173,25 @@ class SpinQuadrANNV11(nn.Module):
                 edge_slice = edge_np[:, start * edges_per_target:stop * edges_per_target].copy()
                 edge_slice[1] -= start
                 edge = torch.as_tensor(edge_slice, dtype=torch.long, device=xyz.device)
-                updated = layer.forward_chunk(
-                    features, features[start:stop], global_context,
-                    global_context[start:stop], edge, source_count=n,
-                )
+                def propagation_chunk_fn(source_features, target_features,
+                                          source_context, target_context):
+                    return layer.forward_chunk(
+                        source_features, target_features,
+                        source_context, target_context,
+                        edge, source_count=n,
+                    )
+                if self.training and torch.is_grad_enabled():
+                    updated = checkpoint(
+                        propagation_chunk_fn,
+                        features, features[start:stop],
+                        global_context, global_context[start:stop],
+                        use_reentrant=False,
+                    )
+                else:
+                    updated = propagation_chunk_fn(
+                        features, features[start:stop],
+                        global_context, global_context[start:stop],
+                    )
                 updated_chunks.append(updated)
             features = torch.cat(updated_chunks, dim=0)
             layer_outputs.append(features)
