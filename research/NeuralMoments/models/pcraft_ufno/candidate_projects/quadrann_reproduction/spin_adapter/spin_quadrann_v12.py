@@ -50,8 +50,8 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
 
         self.batched_moment_operator = BatchedSpinMomentOperator(
             temperature=self.moment_operator.temperature,
-            chunk_nodes=self.moment_operator.chunk_nodes,
-            chunk_queries=query_chunk,
+            chunk_nodes=min(self.moment_operator.chunk_nodes, 2048),
+            chunk_queries=min(int(query_chunk), 1),
         )
 
         self.share_pcraft_encoder=bool(share_pcraft_encoder)
