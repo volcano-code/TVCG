@@ -85,15 +85,13 @@ class GeometryPhysicsCrossAttention(nn.Module):
                     local_score=(weights*scores).sum(dim=-1,keepdim=True)
                     return local_max,local_denom,local_value,local_score
 
-                if self.training and torch.is_grad_enabled():
-                    chunk_max,chunk_denom,chunk_value,chunk_score=checkpoint(
-                        project_score_chunk,qc,feature_chunk,log_mass_chunk,
-                        use_reentrant=False
-                    )
-                else:
-                    chunk_max,chunk_denom,chunk_value,chunk_score=project_score_chunk(
-                        qc,feature_chunk,log_mass_chunk
-                    )
+                # The caller checkpoints the complete attention-plus-query-
+                # Jacobian function. Avoid nested per-interval checkpoints here:
+                # nested checkpoint recomputation under create_graph=True caused
+                # repeated replay of thousands of chunks and exhausted memory.
+                chunk_max,chunk_denom,chunk_value,chunk_score=project_score_chunk(
+                    qc,feature_chunk,log_mass_chunk
+                )
                 next_max=torch.maximum(running_max,chunk_max)
                 old_scale=torch.exp(running_max-next_max)
                 chunk_scale=torch.exp(chunk_max-next_max)
