@@ -8,6 +8,7 @@ from typing import Any, Mapping
 import numpy as np
 import torch
 from torch import Tensor, nn
+from torch.utils.checkpoint import checkpoint
 from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import (
     EncodedNativeGeometry, PcraftNativeMomentOperator,
 )
@@ -248,7 +249,7 @@ class UnifiedM80SQNO(nn.Module):
                 inputs=(q_part,cache.shared_cache.interval_features,
                         cache.shared_cache.interval_mass)
                 if create_graph and torch.is_grad_enabled():
-                    outputs=torch.utils.checkpoint.checkpoint(
+                    outputs=checkpoint(
                         geometry_attention_with_jacobian,*inputs,use_reentrant=False)
                 else:
                     outputs=geometry_attention_with_jacobian(*inputs)
