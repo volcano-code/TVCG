@@ -227,24 +227,79 @@ class UnifiedM80SQNO(nn.Module):
             if alpha_jacobian is not None: alpha_jacobian=alpha_jacobian.detach()
         attention_diagnostics={}
         corrections=[]; correction_jacobians=[]; branch_names=[]
+        attention_query_chunk=1
+
+        # Higher-order query Jacobians are evaluated one query at a time.
+        # Non-reentrant checkpointing recomputes interval attention activations
+        # during the outer parameter backward instead of retaining them.
         if self.geometry_physics_attention is not None:
-            with torch.enable_grad():
-                q_attention=qb if qb.requires_grad else qb.detach().requires_grad_(True)
-                correction,diag=self.geometry_physics_attention(q_attention,
-                    cache.shared_cache.interval_features,cache.shared_cache.interval_mass)
-                jac=torch.stack([torch.autograd.grad(correction[:,k].sum(),q_attention,
-                    create_graph=create_graph,retain_graph=True)[0] for k in range(10)],dim=1)
-            corrections.append(correction); correction_jacobians.append(jac); branch_names.append("geometry")
-            attention_diagnostics.update(diag)
+            correction_parts=[]; jacobian_parts=[]; diagnostic_parts={}
+            for q_start in range(0,len(qb),attention_query_chunk):
+                q_part=qb[q_start:q_start+attention_query_chunk]
+                def geometry_attention_with_jacobian(q_input, interval_input, mass_input):
+                    q_local=q_input if q_input.requires_grad else q_input.detach().requires_grad_(True)
+                    corr,diag=self.geometry_physics_attention(q_local,interval_input,mass_input)
+                    jac=torch.stack([
+                        torch.autograd.grad(corr[:,k].sum(),q_local,
+                            create_graph=create_graph,retain_graph=True)[0]
+                        for k in range(10)
+                    ],dim=1)
+                    return (corr,jac,*tuple(diag[key] for key in sorted(diag)))
+                inputs=(q_part,cache.shared_cache.interval_features,
+                        cache.shared_cache.interval_mass)
+                if create_graph and torch.is_grad_enabled():
+                    outputs=torch.utils.checkpoint.checkpoint(
+                        geometry_attention_with_jacobian,*inputs,use_reentrant=False)
+                else:
+                    outputs=geometry_attention_with_jacobian(*inputs)
+                corr,jac,*diag_values=outputs
+                correction_parts.append(corr); jacobian_parts.append(jac)
+                with torch.no_grad():
+                    _,diag=self.geometry_physics_attention(
+                        q_part.detach(),cache.shared_cache.interval_features.detach(),
+                        cache.shared_cache.interval_mass.detach())
+                for key,value in diag.items():
+                    diagnostic_parts.setdefault(key,[]).append(value.detach())
+            corrections.append(torch.cat(correction_parts,dim=0))
+            correction_jacobians.append(torch.cat(jacobian_parts,dim=0))
+            branch_names.append("geometry")
+            attention_diagnostics.update({key:torch.cat(values,dim=0)
+                for key,values in diagnostic_parts.items()})
+
         if self.cross_scale_attention is not None:
-            with torch.enable_grad():
-                q_scale=qb if qb.requires_grad else qb.detach().requires_grad_(True)
-                correction,diag=self.cross_scale_attention(q_scale,cache.shared_cache.scale_features,
-                    cache.shared_cache.scale_ids,disabled_scale_ids=self.cross_scale_disabled_ids)
-                jac=torch.stack([torch.autograd.grad(correction[:,k].sum(),q_scale,
-                    create_graph=create_graph,retain_graph=True)[0] for k in range(10)],dim=1)
-            corrections.append(correction); correction_jacobians.append(jac); branch_names.append("scale")
-            attention_diagnostics.update(diag)
+            correction_parts=[]; jacobian_parts=[]; diagnostic_parts={}
+            for q_start in range(0,len(qb),attention_query_chunk):
+                q_part=qb[q_start:q_start+attention_query_chunk]
+                def scale_attention_with_jacobian(q_input, scale_input, scale_id_input):
+                    q_local=q_input if q_input.requires_grad else q_input.detach().requires_grad_(True)
+                    corr,diag=self.cross_scale_attention(q_local,scale_input,scale_id_input,
+                        disabled_scale_ids=self.cross_scale_disabled_ids)
+                    jac=torch.stack([
+                        torch.autograd.grad(corr[:,k].sum(),q_local,
+                            create_graph=create_graph,retain_graph=True)[0]
+                        for k in range(10)
+                    ],dim=1)
+                    return (corr,jac)
+                inputs=(q_part,cache.shared_cache.scale_features,
+                        cache.shared_cache.scale_ids)
+                if create_graph and torch.is_grad_enabled():
+                    corr,jac=torch.utils.checkpoint.checkpoint(
+                        scale_attention_with_jacobian,*inputs,use_reentrant=False)
+                else:
+                    corr,jac=scale_attention_with_jacobian(*inputs)
+                correction_parts.append(corr); jacobian_parts.append(jac)
+                with torch.no_grad():
+                    _,diag=self.cross_scale_attention(q_part.detach(),
+                        cache.shared_cache.scale_features.detach(),
+                        cache.shared_cache.scale_ids,
+                        disabled_scale_ids=self.cross_scale_disabled_ids)
+                for key,value in diag.items():
+                    diagnostic_parts.setdefault(key,[]).append(value.detach())
+            corrections.append(torch.cat(correction_parts,dim=0))
+            correction_jacobians.append(torch.cat(jacobian_parts,dim=0))
+            branch_names.append("scale")
+            attention_diagnostics.update({key:torch.cat(values,dim=0)
+                for key,values in diagnostic_parts.items()})
         if corrections:
             if self.interaction_variant=="parallel_gno_attention" and len(corrections)==2:
                 gate=torch.sigmoid(self.parallel_interaction_logit).to(device=qb.device,dtype=qb.dtype)
