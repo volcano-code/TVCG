@@ -8,7 +8,7 @@ merit/fallback callbacks.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 
 import torch
 from torch import Tensor
@@ -19,12 +19,42 @@ from research.NeuralMoments.phase2_4_neural_newton import (
     NewtonDirection,
     S9Chart,
     StepAcceptance,
+    make_s9_chart,
 )
 from research.NeuralMoments.phase2_5_end_to_end_solver import (
     accept_m69_neural_newton_step,
     propose_m69_neural_newton_step,
 )
 
+
+
+@dataclass(frozen=True)
+class M69GyroscopeContext:
+    """Validated optimization context from one initial gyroscope and TaskSpec."""
+    beta_anchor: Tensor
+    original_moments: Tensor
+    task: Mapping[str, Any]
+    length_scale: float
+    active_mask: Tensor
+
+    def validate(self) -> None:
+        if self.beta_anchor.shape != (10,) or not torch.isfinite(self.beta_anchor).all():
+            raise ValueError("beta_anchor must be finite [10]")
+        norm = torch.linalg.vector_norm(self.beta_anchor)
+        if not torch.isclose(norm, torch.ones_like(norm), atol=1e-8, rtol=1e-8):
+            raise ValueError("beta_anchor must be unit norm in the projective S9 contract")
+        if self.original_moments.shape != (10,) or not torch.isfinite(self.original_moments).all():
+            raise ValueError("original_moments must be finite [10]")
+        if float(self.original_moments[0]) <= 0:
+            raise ValueError("original_moments must have positive mass")
+        if self.active_mask.shape != (10,) or self.active_mask.dtype != torch.bool:
+            raise ValueError("active_mask must be boolean [10]")
+        if self.beta_anchor.device != self.original_moments.device or self.beta_anchor.dtype != self.original_moments.dtype:
+            raise ValueError("beta_anchor and original_moments must share device and dtype")
+        if self.task.get("schema") != "m69.fixed-axis-task.v1":
+            raise ValueError("task must be the reviewed m69.fixed-axis-task.v1 TaskSpec")
+        if not self.length_scale > 0:
+            raise ValueError("length_scale must be positive")
 
 @dataclass
 class UnifiedM69Proposal:
@@ -97,8 +127,11 @@ def propose_unified_m69_step(
         device=cache.shared_cache.latent.device,
         dtype=torch.float64,
     )
+    if local.shape != (9,):
+        raise ValueError("local must be the current 9D S9 chart coordinate")
+    current_beta = make_s9_chart(beta_anchor).decode(local)
     preview = predict_full(
-        model, cache, beta_anchor.unsqueeze(0), create_graph=False
+        model, cache, current_beta.unsqueeze(0), create_graph=False
     )
     if not bool(preview.prediction_finite.all()):
         raise ValueError("unified prediction is nonfinite; exact fallback required")
@@ -132,7 +165,7 @@ def propose_unified_m69_step(
         chart=chart,
         kkt_system=system,
         direction=direction,
-        current_beta=beta_anchor.detach().clone(),
+        current_beta=current_beta.detach().clone(),
         prediction_diagnostics={
             "prediction_finite": preview.prediction_finite.detach(),
             "event_probability": None if preview.event_probability is None else preview.event_probability.detach(),
@@ -163,6 +196,7 @@ def accept_unified_m69_step(
 
 
 __all__ = [
+    "M69GyroscopeContext",
     "UnifiedM69Proposal",
     "make_unified_moment_callback",
     "propose_unified_m69_step",
