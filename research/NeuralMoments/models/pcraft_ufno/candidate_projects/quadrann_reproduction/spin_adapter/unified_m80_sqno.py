@@ -60,6 +60,11 @@ class UnifiedM80SQNO(nn.Module):
 
     Global scalar and query-conditioned convex fusion share the same raw
     coefficient Jacobian and training/checkpoint contracts.
+
+    attention_mixing controls attention residuals independently of GNO when
+    interaction_variant="independent". "legacy" preserves variant behavior;
+    "sum" adds residuals; "gated" fixes geometry and scale coefficients to
+    beta and 1-beta respectively, including when one branch is disabled.
     """
     def __init__(self,shared_encoder:PcraftNativeMomentOperator,sqno:SpinQuadrANNV12,
                  *,fusion_initial_weight=.5,architecture_metadata:Mapping[str,Any]|None=None,
@@ -67,7 +72,7 @@ class UnifiedM80SQNO(nn.Module):
                  cross_attention_chunk:int=1024,cross_attention_output_scale:float=.05,
                  cross_scale_attention_enabled:bool=False,cross_scale_heads:int=2,
                  cross_scale_max_scales:int=16,cross_scale_disabled_ids:tuple[int,...]=(),
-                 interaction_variant:str="independent",
+                 interaction_variant:str="independent",attention_mixing:str="legacy",
                  fusion_mode:str="global_scalar",query_fusion_hidden:int=32):
         super().__init__()
         if not isinstance(shared_encoder,PcraftNativeMomentOperator):
@@ -79,6 +84,8 @@ class UnifiedM80SQNO(nn.Module):
         width=shared_encoder.config.interval_width
         if sqno.pcraft_width!=width: raise ValueError("shared P-CRAFT feature width mismatch")
         if not 0<float(fusion_initial_weight)<1: raise ValueError("fusion weight must be between zero and one")
+        if attention_mixing not in {"legacy","sum","gated"}:
+            raise ValueError("attention_mixing must be legacy, sum or gated")
         valid_variants={"independent","gno_only","geometry_attention_only","cross_scale_only","gno_then_attention","parallel_gno_attention"}
         if interaction_variant not in valid_variants:
             raise ValueError(f"unsupported interaction_variant: {interaction_variant}")
@@ -98,6 +105,7 @@ class UnifiedM80SQNO(nn.Module):
             raise ValueError("fusion_mode must be global_scalar or query_conditioned")
         if query_fusion_hidden<1: raise ValueError("query_fusion_hidden must be positive")
         self.interaction_variant=interaction_variant
+        self.attention_mixing=attention_mixing
         self.fusion_mode=fusion_mode
         self.query_fusion_hidden=int(query_fusion_hidden)
         self.shared_encoder=shared_encoder
@@ -111,7 +119,9 @@ class UnifiedM80SQNO(nn.Module):
         self.cross_scale_heads=int(cross_scale_heads)
         self.cross_scale_max_scales=int(cross_scale_max_scales)
         self.cross_scale_disabled_ids=tuple(int(v) for v in cross_scale_disabled_ids)
-        if interaction_variant=="parallel_gno_attention":
+        gated_attention=(attention_mixing=="gated" or
+            (attention_mixing=="legacy" and interaction_variant=="parallel_gno_attention"))
+        if gated_attention and (self.cross_attention_enabled or self.cross_scale_attention_enabled):
             self.parallel_interaction_logit=nn.Parameter(torch.tensor(0.0,dtype=torch.float64))
         else:
             self.register_parameter("parallel_interaction_logit",None)
@@ -290,10 +300,16 @@ class UnifiedM80SQNO(nn.Module):
                 attention_diagnostics.update({name: torch.cat(values)
                                               for name, values in diagnostic_parts.items()})
         if corrections:
-            if self.interaction_variant=="parallel_gno_attention" and len(corrections)==2:
+            if self.parallel_interaction_logit is not None:
                 gate=torch.sigmoid(self.parallel_interaction_logit).to(device=qb.device,dtype=qb.dtype)
-                attention_correction=gate*corrections[0]+(1-gate)*corrections[1]
-                attention_jacobian=gate*correction_jacobians[0]+(1-gate)*correction_jacobians[1]
+                # Slots are identified by branch, not by position among the
+                # enabled branches. Disabling one term never renormalizes the
+                # surviving term or assigns the scale branch geometry's gate.
+                weights={"geometry":gate,"scale":1-gate}
+                attention_correction=sum(weights[name]*value
+                    for name,value in zip(branch_names,corrections))
+                attention_jacobian=sum(weights[name]*value
+                    for name,value in zip(branch_names,correction_jacobians))
                 attention_diagnostics["parallel_attention_gate"]=gate.detach()
             else:
                 attention_correction=sum(corrections)
@@ -581,6 +597,7 @@ class UnifiedM80SQNO(nn.Module):
             "heads":self.cross_scale_heads,"max_scales":self.cross_scale_max_scales,
             "disabled_ids":self.cross_scale_disabled_ids},
           "interaction_variant":self.interaction_variant,
+          "attention_mixing":self.attention_mixing,
           "metadata":self.architecture_metadata,
         }
 
@@ -610,10 +627,14 @@ class UnifiedM80SQNO(nn.Module):
             raise ValueError("incompatible unified checkpoint schema")
         saved_architecture=payload.get("architecture",{})
         current_architecture=self.architecture_contract()
+        saved_compare=dict(saved_architecture)
+        # A missing mixing field denotes the historical variant-based rule.
+        # This only normalizes architecture metadata; source checks below
+        # retain their existing strictness and migration scope.
+        saved_compare.setdefault("attention_mixing","legacy")
         legacy_global=(not self.cross_attention_enabled
             and "geometry_physics_attention" not in saved_architecture)
-        if saved_architecture!=current_architecture:
-            saved_compare=dict(saved_architecture)
+        if saved_compare!=current_architecture:
             current_compare=dict(current_architecture)
             # Phase 2.8.5.3 adds opt-in adaptive slicing config defaults.
             # Normalize absent fields from older Phase 2.8.4 checkpoints.

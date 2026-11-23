@@ -1,5 +1,11 @@
 # Phase 3.2.1 — Executable Jacobian Diagnostics and Verified Scope
 
+Historical scope through commit `7a522c5`. The subsequent model simplification,
+implemented on 2026-11-24, is documented in
+[Phase 3.2.2 Work instructions](../phase3_2_2/WORK_INSTRUCTIONS.md).
+Statements below about the diagnostics-only revision do not describe that
+subsequent implementation.
+
 ## Baseline
 
 - Repository: `volcano-code/TVCG`

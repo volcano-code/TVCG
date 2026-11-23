@@ -24,6 +24,7 @@ from research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_repro
 from research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.unified_prediction import (
     predict_full,
 )
+from ..spin_adapter.ablation_initialization import initialize_from_reference
 from ..spin_adapter.memory_profile import MemoryProfile, profile_cache_tensors, profile_count, profile_stage, profile_tensors
 from .unified_corpus import UnifiedOperatorCorpus
 
@@ -195,9 +196,12 @@ def train(
     resume: str | None = None,
     allow_absolute_assets: bool = False,
     memory_profile: str | Path | None = None,
+    initialization_reference: str | None = None,
 ) -> dict[str, Any]:
     if epochs < 1:
         raise ValueError("epochs must be positive")
+    if resume and initialization_reference is not None:
+        raise ValueError("initialization_reference is for fresh runs and cannot be combined with resume")
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
     corpus = UnifiedOperatorCorpus(
@@ -208,6 +212,15 @@ def train(
     normalizer = MomentNormalizer.fit(corpus)
     _seed_all(seed)
     model = build_model(config_name, device=device)
+    initialization = None
+    if initialization_reference is not None:
+        initialization = initialize_from_reference(
+            model, reference_config_name=initialization_reference, seed=seed,
+        )
+        # Align stochastic training after construction as well as common
+        # weights; optional modules otherwise shift the training RNG stream.
+        _seed_all(seed)
+        initialization["training_rng_reset_to_seed"] = seed
     device_obj = torch.device(device)
     optimizer = model.build_optimizer(learning_rate=learning_rate, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
@@ -233,6 +246,7 @@ def train(
         )
         start_epoch = int(payload.get("extra", {}).get("epoch", 0))
         global_step = int(payload.get("extra", {}).get("global_step", 0))
+        initialization = payload.get("extra", {}).get("config", {}).get("initialization")
 
     config_record = {
         "schema": "tvcg.unified-training-v13.run.v1",
@@ -244,6 +258,8 @@ def train(
         "device": str(device_obj),
         "seed": seed,
         "epochs": epochs,
+        "architecture_manifest": model.architecture_contract(),
+        "initialization": initialization,
     }
     (output / "training_config.json").write_text(json.dumps(config_record, indent=2, allow_nan=False))
 
@@ -344,6 +360,8 @@ def main() -> int:
     parser.add_argument("--gradient-clip", type=float, default=1.0)
     parser.add_argument("--gradient-mode", choices=("fixed", "pcgrad"), default="fixed")
     parser.add_argument("--resume")
+    parser.add_argument("--initialization-reference",
+                        help="fresh CPU random reference config for common ablation initialization; incompatible with --resume")
     parser.add_argument("--memory-profile", help="write first-update JSON and sibling Markdown profiles")
     parser.add_argument("--allow-absolute-assets", action="store_true",
                         help="allow Work manifests to reference absolute local asset paths")
@@ -355,6 +373,7 @@ def main() -> int:
         jacobian_weight=args.jacobian_weight, branch_aux_weight=args.branch_aux_weight,
         gradient_clip=args.gradient_clip, gradient_mode=args.gradient_mode, resume=args.resume,
         allow_absolute_assets=args.allow_absolute_assets, memory_profile=args.memory_profile,
+        initialization_reference=args.initialization_reference,
     )
     print(json.dumps(result, indent=2, allow_nan=False))
     return 0
