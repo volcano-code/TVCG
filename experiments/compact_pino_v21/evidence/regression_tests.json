@@ -1,0 +1,81 @@
+{
+  "scope": "CPU regression suites. The focused selection overlaps adapter tests. No hardware preflight, production optimizer update or candidate solver run.",
+  "environment": {
+    "python": "3.13.5",
+    "numpy": "2.1.3",
+    "torch": "2.8.0+cu128",
+    "scipy": "1.15.3",
+    "numba": "0.61.0",
+    "pytest": "8.3.4",
+    "CUDA_VISIBLE_DEVICES": ""
+  },
+  "runs": [
+    {
+      "name": "V2.1 focused (overlaps adapter)",
+      "entry": "python -m pytest -q --disable-warnings",
+      "paths": [
+        "tests/compact_pino_v21",
+        "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/tests/test_v21_*.py"
+      ],
+      "exit": 0,
+      "summary": "44 passed in 13.75s",
+      "passed": 44,
+      "skipped": 0,
+      "warnings": 0,
+      "stdout_sha256": "d883b218d8d58ebc0d95bb09f9aee35542976e418820a3143a5be9e31f5ca41a"
+    },
+    {
+      "name": "All spin adapters",
+      "entry": "python -m pytest -q --disable-warnings",
+      "paths": [
+        "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/tests"
+      ],
+      "exit": 0,
+      "summary": "418 passed, 6 skipped, 6437 warnings in 123.30s (0:02:03)",
+      "passed": 418,
+      "skipped": 6,
+      "warnings": 6437,
+      "stdout_sha256": "c8174ad7d6b1e9d6be7ea07edd1c867ab5a6ee1537b73cf92e5a6997b0f7de63"
+    },
+    {
+      "name": "P-CRAFT encoder and operator",
+      "entry": "python -m pytest -q --disable-warnings",
+      "paths": [
+        "research/NeuralMoments/models/pcraft_ufno/spin_pino/tests"
+      ],
+      "exit": 0,
+      "summary": "205 passed, 1 warning in 3.09s",
+      "passed": 205,
+      "skipped": 0,
+      "warnings": 1,
+      "stdout_sha256": "b8245857fde3ac64c422b9bc9977f356198d5f1cd301ed1c337f11741d5b5919"
+    },
+    {
+      "name": "Training runner, calibration and timing helpers",
+      "entry": "python -m pytest -q --disable-warnings",
+      "paths": [
+        "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/training_v13/tests",
+        "experiments/compact_pino_v21/calibration/test_*.py",
+        "experiments/compact_pino_v21/profile_inference/test_*.py"
+      ],
+      "exit": 0,
+      "summary": "44 passed, 187 warnings in 2.81s",
+      "passed": 44,
+      "skipped": 0,
+      "warnings": 187,
+      "stdout_sha256": "09ebaacc1d45f6c8f4707c6d138beb6da0a651e0680970934372f4f8b24fc4cf"
+    }
+  ],
+  "final_source_replay": {
+    "replay": {
+      "rows": 192,
+      "differing": []
+    },
+    "analytic": {
+      "rows": 86,
+      "differing": []
+    },
+    "criterion": "Fresh final-code rerun: all stored scientific values and metadata identical after excluding measured runtime fields.",
+    "all_192_prediction_input_row_hashes_match_canonical_native_records": true
+  }
+}

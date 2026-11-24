@@ -1,0 +1,45 @@
+{
+ "row_id": "noodles_03",
+ "geometry": "noodles",
+ "surface": "trajectory",
+ "query": [
+  -0.19178394522838016,
+  0.0807697134752452,
+  -0.05400377357887388,
+  0.2658311660689243,
+  -0.0027551737489111914,
+  0.41555414794819745,
+  -0.5553164983179539,
+  -0.34993402230908194,
+  0.4845454301932431,
+  -0.2116724055455055
+ ],
+ "native_M": null,
+ "native_J": null,
+ "ambient_event_valid": -1,
+ "native_moment_valid": false,
+ "native_full_J_valid": false,
+ "operand_valid": false,
+ "operand_sha256": null,
+ "source_error": {
+  "type": "RuntimeError",
+  "diagnostic": "UNSUPPORTED_PAPER_IDEAL_FACE: no negative cone reference"
+ },
+ "material_error": {
+  "type": "RuntimeError",
+  "diagnostic": "UNSUPPORTED_PAPER_IDEAL_FACE: no negative cone reference"
+ },
+ "native_truth_file_sha256": "58994af9042e1d121821d36bb22745c939b4622a69eb3d7ebbb52716b23c564c",
+ "material_identities": {
+  "rle": "38f73049f23df046b339b18e23295c6847109e467533a5628468371601fe91be",
+  "conservative": "75ea928ffca6638f258c57ae24c0f409093cf9347cb2110142132b12fdbed2ec"
+ },
+ "source_record": {
+  "file": "/data/xvxinyao/TVCG-phase2-12-operator/runs/native_teacher_alignment_v1/reference/trajectory_M_J.json",
+  "sha256": "cd8abab945ffaa2496630a4d62625095262641002af8ea8a445eb0937090d2b4",
+  "call": 3
+ },
+ "grid_provenance": "registered native256",
+ "methods": {},
+ "interpreter": "CPU float64: stored motion, fixed geometry; timing excludes native operand generation"
+}

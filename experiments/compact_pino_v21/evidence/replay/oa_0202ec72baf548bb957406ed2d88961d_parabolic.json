@@ -1,0 +1,54 @@
+{
+ "row_id": "oa_0202ec72baf548bb957406ed2d88961d_parabolic",
+ "geometry": "oa_0202ec72baf548bb957406ed2d88961d",
+ "surface": "parabolic",
+ "query": [
+  -0.13481023827922053,
+  0.11459190030945426,
+  -0.3996106643041209,
+  0.3482959831241163,
+  0.34296205934879104,
+  0.37691570564568233,
+  0.5032029264947036,
+  0.39245090880642536,
+  -0.13887996738262962,
+  0.03858952502198675
+ ],
+ "native_M": null,
+ "native_J": null,
+ "ambient_event_valid": -1,
+ "native_moment_valid": false,
+ "native_full_J_valid": false,
+ "operand_valid": false,
+ "operand_sha256": null,
+ "source_error": {
+  "type": "ValueError",
+  "diagnostic": "algebraic finite-map source requires full rank; rank-deficient source integration is not implemented"
+ },
+ "material_error": {
+  "type": "ValueError",
+  "diagnostic": "SOURCE_OR_SELECTOR_UNDEFINED:RANK_DEFICIENT_STRATUM_DERIVATIVE_UNDEFINED: PARABOLOID fixed-stratum tangent dimension=8"
+ },
+ "native_truth_file_sha256": "7dc66cddf4e46ae56bd35a32ceb8baaddfd0d9d30f5e9105037e4c8bdb7da655",
+ "material_identities": {
+  "rle": "c1e01cd7dccd8ecf7998fc35204c238076f83141cd49cea409b225712fb8f731",
+  "conservative": "80bc8270a308de17ef3edd84fbbc8d1e2eb9511bcd104beb1c65e5e3a4696224"
+ },
+ "source_record": {
+  "file": "/data/xvxinyao/TVCG/datasets/phase2_10_source_audit/labels/oa_0202ec72baf548bb957406ed2d88961d.npz",
+  "sha256": "8b702e0973a38bc13450f48fa14efc589b4e73ca395a8d302a94c3c3e73868b5",
+  "index": 6,
+  "query_id": "62cd0bd29d5b8b0e0bbfe4fe9f2917de60d47fb2a140e3ae36d0e4b785b748c6",
+  "historical_masks": {
+   "moment_valid": 1,
+   "derivative_valid": 0,
+   "restricted_valid": 1,
+   "restricted_dimension": 8,
+   "ambient_event_valid": 0,
+   "restricted_event_valid": 1
+  }
+ },
+ "grid_provenance": "Work A direct 256 ray re-encoding on original registered mesh; auxiliary legacy cross-source cohort",
+ "methods": {},
+ "interpreter": "CPU float64: stored motion, fixed geometry; timing excludes native operand generation"
+}

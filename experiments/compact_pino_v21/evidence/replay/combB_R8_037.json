@@ -1,0 +1,69 @@
+{
+ "row_id": "combB_R8_037",
+ "geometry": "combB",
+ "surface": "parabolic",
+ "query": [
+  -0.04166515549446541,
+  0.2823614551738471,
+  0.15895554493558317,
+  0.1066566636108395,
+  0.15189986429357152,
+  0.6030092285384308,
+  0.6370284739735177,
+  -0.1092759581944393,
+  -0.19241552623488367,
+  -0.20107105556956162
+ ],
+ "native_M": null,
+ "native_J": null,
+ "ambient_event_valid": -1,
+ "native_moment_valid": false,
+ "native_full_J_valid": false,
+ "operand_valid": false,
+ "operand_sha256": null,
+ "source_error": {
+  "type": "ValueError",
+  "diagnostic": "algebraic finite-map source requires full rank; rank-deficient source integration is not implemented"
+ },
+ "material_error": {
+  "type": "ValueError",
+  "diagnostic": "SOURCE_OR_SELECTOR_UNDEFINED:RANK_DEFICIENT_STRATUM_DERIVATIVE_UNDEFINED: PARABOLOID fixed-stratum tangent dimension=8"
+ },
+ "native_truth_file_sha256": "64089592330efbc064067cbaca17ad3e54d921c0e3edf04677362f403f7ee99e",
+ "material_identities": {
+  "rle": "2dcd6da91f0cfc80a2bbb2b5667a1695f3bdab6fa440d9c1960baa237337d46d",
+  "conservative": "74319cffeb50ef85fd74a178e1fef07c3602c98bf5521f26021de7d1a2236968"
+ },
+ "source_record": {
+  "file": "/home/lin/Documents/Codex/2026-11-16/referenced-chatgpt-conversation-this-is-an-4/phase32_dataset_storage/dev_compact_392/combB.npz",
+  "sha256": "3c342e7fe42d4f52fb285bbb71d778adf418f26caf6bd24cfc40d386e9f950e7",
+  "index": 37,
+  "query_id": "130f8c80770da2fe501bae69468c81b090755fe9f51052e8eaf4a836a3ada767",
+  "historical_masks": {
+   "moment_valid": 1,
+   "derivative_valid": 0,
+   "restricted_valid": 0,
+   "restricted_dimension": 0,
+   "ambient_event_valid": -1,
+   "restricted_event_valid": -1,
+   "source_restricted_dimension": 8,
+   "source_restricted_valid": 1
+  },
+  "source_chart": {
+   "file": "/data/xvxinyao/TVCG/datasets/final_voxel_pino_corpus/releases/dev_all_routes_392/combB.npz",
+   "sha256": "3be170cd35bff3f09e68be10c78c72a1b83356b97aacd985e290e0d67a6321ac",
+   "index": 37,
+   "query_id": "130f8c80770da2fe501bae69468c81b090755fe9f51052e8eaf4a836a3ada767",
+   "historical_masks": {
+    "moment_valid": 1,
+    "derivative_valid": 0,
+    "restricted_valid": 1,
+    "restricted_dimension": 8,
+    "restricted_event_valid": -1
+   }
+  }
+ },
+ "grid_provenance": "registered native256",
+ "methods": {},
+ "interpreter": "CPU float64: stored motion, fixed geometry; timing excludes native operand generation"
+}

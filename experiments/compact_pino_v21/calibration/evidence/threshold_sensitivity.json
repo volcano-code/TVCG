@@ -1,0 +1,223 @@
+{
+ "schema": "compact-v21.native-training-threshold-sensitivity.v1",
+ "scope": "Three expressly registered TRELLIS training geometries, native STATIC_BALANCE / MAXIMUM_MASS, seed 0. No blind geometry, learned weights, predictions or training.",
+ "limits": {
+  "moment_p95": 0.01,
+  "directional_jacobian_p95": 0.05
+ },
+ "decision": "PROPOSED_SCREENING_ONLY__NATIVE_NEWTON_STABILITY_NOT_VALIDATED",
+ "material_source_readback": {
+  "/data/xvxinyao/TVCG/datasets/final_voxel_pino_corpus/manifests/train_manifest.json": "9715d1ad0ea7a8c4870302dc568c4bbc7fddbfa92d44ac5e78493511f463900f",
+  "/data/xvxinyao/TVCG/datasets/faster_optimization_trajectories_v1/admission_failures.jsonl": "2c47a8c19fbcc2dd2d998a72a353d06bff96792598187b0d8507ce2c9c47ec6c",
+  "/data/xvxinyao/TVCG/datasets/faster_optimization_trajectories_v1/trajectories.jsonl": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+ },
+ "registered_training_support": {
+  "S001": [],
+  "N002": [],
+  "T2": []
+ },
+ "published_training_trajectory_catalog_bytes": 0,
+ "selected_trajectory_admissions": [
+  {
+   "geometry_id": "T2",
+   "source_type": "trellis",
+   "status": "NO_ADMITTED_P4_FROM_THIS_SOURCE",
+   "native_optimization_calls": 0
+  }
+ ],
+ "original_native_prefixes": [
+  {
+   "id": "T2_seed",
+   "geometry": "T2",
+   "query": null,
+   "initialization": "seed",
+   "native_status": "OPTIMIZATION_DID_NOT_CONVERGE",
+   "native_terminal": "initial_sensitivity_vanished",
+   "true_call_count": 1,
+   "scored_accepts": 0,
+   "scored_backtracks": 0,
+   "event_hash": "6028067aa63695065fdb57483ab777a8400c54f7b7c63e577880ed9f7cf5933f",
+   "trace_hash": "80a6fbd1f877b47429344abdf3c88888d2076526bc586b85a3703c4b65433ce1"
+  },
+  {
+   "id": "T2_extended",
+   "geometry": "T2",
+   "query": "T2_ellipsoid_plus",
+   "initialization": "registered",
+   "native_status": "OPTIMIZATION_DID_NOT_CONVERGE",
+   "native_terminal": "bordered_system_rank_deficient",
+   "true_call_count": 4,
+   "scored_accepts": 3,
+   "scored_backtracks": 0,
+   "event_hash": "9e4264421232323c37f7faad0e14de235687e29ea2d640a63da995752d2656c7",
+   "trace_hash": "48360684b90b9f4191f3bb08f7d7741637e80127e64cd392c04157ea1c3953fd"
+  },
+  {
+   "id": "N002_registered",
+   "geometry": "N002",
+   "query": "N002_registered_ellipsoid",
+   "initialization": "registered",
+   "native_status": "RESOURCE_LIMIT_REACHED",
+   "native_terminal": "maximum_iterations_reached",
+   "true_call_count": 3,
+   "scored_accepts": 2,
+   "scored_backtracks": 0,
+   "event_hash": "50d9ea023cb41b0307f4bd45379de418e3410df91264cde56e91f4319748596a",
+   "trace_hash": "304371a9fc2e9076b7b540c25789ae86f7b43d514a0f4bcd4f6b4807797ec0c0"
+  },
+  {
+   "id": "S001_registered",
+   "geometry": "S001",
+   "query": "S001_registered_ellipsoid",
+   "initialization": "registered",
+   "native_status": "RESOURCE_LIMIT_REACHED",
+   "native_terminal": "maximum_iterations_reached",
+   "true_call_count": 3,
+   "scored_accepts": 2,
+   "scored_backtracks": 0,
+   "event_hash": "ced1124ee7aba97c321c7e7876f651ea6ef94fbb325774863f7f3f62ab889a8a",
+   "trace_hash": "a20827646bea4eb64a717df7f58e25de72fe2284f8f52f84300ceb99e45c5119"
+  },
+  {
+   "id": "T2_hyperbolic",
+   "geometry": "T2",
+   "query": "T2_hyperbolic_plus",
+   "initialization": "registered",
+   "native_status": "OPTIMIZATION_DID_NOT_CONVERGE",
+   "native_terminal": "bordered_system_rank_deficient",
+   "true_call_count": 3,
+   "scored_accepts": 2,
+   "scored_backtracks": 0,
+   "event_hash": "0cdc4159f39c2a7db3f88efbc4139222fe44775b40ad8edf9a0a74e38398ebf6",
+   "trace_hash": "12f436dc2f9f65d7adfe68eb6f0d9f4a0200a964adbbe75afd67c3ba8cdc8fff"
+  },
+  {
+   "id": "T2_high_hyper",
+   "geometry": "T2",
+   "query": "T2_high_HYPERBOLOID",
+   "initialization": "registered",
+   "native_status": "OPTIMIZATION_DID_NOT_CONVERGE",
+   "native_terminal": "bordered_system_rank_deficient",
+   "true_call_count": 4,
+   "scored_accepts": 3,
+   "scored_backtracks": 0,
+   "event_hash": "7988293814c2cab96262f179ef568052051f1f4f3ff5a64dd0c38eb65f71356d",
+   "trace_hash": "6e93b27feae5a280843ac8c3859e6309dcb128e4e091845d6c9a15e814efa85e"
+  },
+  {
+   "id": "T2_high_ell",
+   "geometry": "T2",
+   "query": "T2_high_ELLIPSOID",
+   "initialization": "registered",
+   "native_status": "OPTIMIZATION_DID_NOT_CONVERGE",
+   "native_terminal": "bordered_system_rank_deficient",
+   "true_call_count": 5,
+   "scored_accepts": 4,
+   "scored_backtracks": 0,
+   "event_hash": "d5a1577f8fe8954f98eb6e91708598e233c4de5e5d9aed1c38e57a606c0178d9",
+   "trace_hash": "fade5d585d9652e7506e24b1c1603afea267dc6ecae3ed07fac10bf803965a8b"
+  },
+  {
+   "id": "T2_mid_ell",
+   "geometry": "T2",
+   "query": "T2_middle_ELLIPSOID",
+   "initialization": "registered",
+   "native_status": "OPTIMIZATION_DID_NOT_CONVERGE",
+   "native_terminal": "bordered_system_rank_deficient",
+   "true_call_count": 6,
+   "scored_accepts": 5,
+   "scored_backtracks": 0,
+   "event_hash": "287ae06d5809447308808adc8726733d12b8fddf61f1edf241df1d656f0bf479",
+   "trace_hash": "c229ce62915fa9daab4621b746a25ebb9745cc35277123ab37adcd2089674af1"
+  }
+ ],
+ "n_accepted": 21,
+ "n_scored_backtracks": 0,
+ "n_geometry_rejected_trials": 0,
+ "n_scored_margins_stable_for_all_componentwise_1pct_M_errors": 21,
+ "min_observed_residual_drop": 0.003627123125143128,
+ "max_original_residual_reproduction_error": 1.1102230246251565e-16,
+ "max_original_candidate_coordinate_reproduction_error": 4.975186929101483e-15,
+ "physical_rechecks": [
+  {
+   "iteration": 1,
+   "original_margin": 0.02629752117955264,
+   "minimum_true_counterfactual_margin": 0.018305096568960844,
+   "maximum_true_counterfactual_margin": 0.030240539172371905,
+   "realized_finite_true_calls": 4,
+   "true_decreasing_count": 4
+  },
+  {
+   "iteration": 2,
+   "original_margin": 0.09874385397209551,
+   "minimum_true_counterfactual_margin": 0.02790165592403704,
+   "maximum_true_counterfactual_margin": 0.05474841850648604,
+   "realized_finite_true_calls": 4,
+   "true_decreasing_count": 4
+  }
+ ],
+ "native_directional_fd": [
+  [
+   0.0001,
+   3.681465481679556e-07
+  ],
+  [
+   5e-05,
+   9.202524642447515e-08
+  ]
+ ],
+ "rank_counterexample": {
+  "geometry": "S001",
+  "start": "S001_registered_ellipsoid",
+  "seed": 0,
+  "global_M_component_bound": 0.01,
+  "global_J_direction_bound_on_unit_queries": 0.02099406755828448,
+  "base_radial_leak_scaled": 3.0847438961593447e-19,
+  "base_M_error": 0.0,
+  "original_ranks": [
+   13,
+   13
+  ],
+  "counterfactual_ranks": [
+   12,
+   12
+  ],
+  "exact_bordered_row_dependence": true,
+  "original_first_trial": "topology_transition_relinearized",
+  "native_counterfactual_status": "OPTIMIZATION_DID_NOT_CONVERGE",
+  "native_diagnostic": "Newton system remains rank deficient after reversible equilibration",
+  "modified_function_evaluations": 1,
+  "original_event_hash": "ced1124ee7aba97c321c7e7876f651ea6ef94fbb325774863f7f3f62ab889a8a",
+  "modified_event_hash": "6c500681a47eddd468e1b8a1e8d7aa53e757d8ed68aec0af225364719a6c3df2"
+ },
+ "conclusions": [
+  "All observed fixed-trial native static decisions survived the 1% moment component box. No scored original backtrack was observed, so rejected-step sensitivity is unmeasured.",
+  "The post-hoc S001 bounded analytic perturbation changes the Newton system rank and terminates the native routine despite satisfying both pointwise budgets. It tests the implications of the metric alone; it is not a learned model result.",
+  "The inspected train registrations lack a spinning contact pose and initial gyroscope. These static traces do not validate the spinning-top gate or a population P95. No converged train solve is claimed."
+ ],
+ "receipt_file": "native_training_receipts.tar.gz",
+ "receipt_sha256": "4860a24bfe04a466bb5925f7778aa75bc5b841bcfb6ab108671beb3e3836fa87",
+ "member_sha256": {
+  "T2_seed.json": "c9e47879e131636cff5a695f8b6a5517535917893a748d135a673fb35a2065bf",
+  "T2_extended.json": "ce959d42f535b718b6b11fc6e5f66b590233b3f251a88b6136cde3307266e206",
+  "N002_registered.json": "36761ffcf4e4e9b278b24298eefffc2bcf9a9b2075263f68126f100accfe6a5d",
+  "S001_registered.json": "121e86d22fa842e6f72166ab97902190e3a6c4f61b8d27d741e9b0adc7c972c7",
+  "T2_hyperbolic.json": "f793d224b5b0a5bf4f1024d03c314d6e628cf5db88c37854f86fcb1c88324b80",
+  "T2_high_hyper.json": "c431a47165e554a94e2f77bd7ad54d5e28821c55207a4f311fcfd4318be43edc",
+  "T2_high_ell.json": "f5ee810a80b94b198e1b1deb571ccc31c8a10d526a058794a06a94ee04659463",
+  "T2_mid_ell.json": "06bc4f7880bde314bde8f9d5351b54c2438a324df103756cc4ec93e0166a745c",
+  "margins.json": "92130da3d631f0a568ce3deba57db24eff46a87d2fb18b65f671ccf0f9cf98e7",
+  "probe1.json": "84609dd2cbcd81022e84d50bf91c21621c32fb976e0b17fa00910ab6edd6e77f",
+  "probe2.json": "d5137a82bcbc04e982b4362f52e65c2ba7ebbdd3cd83639766d06468fc85fd3e",
+  "rank.json": "3060f80a1c3e0d98288c4bb6a18684eeb8fcce76e4decd65eed31a1c39415abd"
+ },
+ "analysis_source_sha256": {
+  "protocol.json": "f85f701966fe3c40420c3a34f13a5cd9a7f3f4b128616afd457c26f19a3d6e91",
+  "capture.py": "44ec7d7c8a5c82f6b4d8e1ff99ed38a584aab4c057685d2128c0b9bebcfb9350",
+  "margins.py": "a0a0d747e5534aaec92d77ef4ff8d685d0252eb25f23e31d6196b81b8d10a351",
+  "perturb_trials.py": "70d0b76b41ca876b3de188f23638f7ef2ba9d79d27380f9440598a1e785dbc79",
+  "rank_witness.py": "a893cb6f21becb2278c4c14a232b4bb680477073459d31fd35dc953f4bb8d239",
+  "summarize.py": "fa59a45128e2f468427ae8f11f2a0e5c8a5b6e800bcdff6651f030c16a10edb0",
+  "test_margins.py": "c4f90bf767e49b1981bab5ec20dde88dda833d2965cffde75a0366a0c1dfa8ed"
+ }
+}

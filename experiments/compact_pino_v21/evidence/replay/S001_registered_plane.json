@@ -1,0 +1,54 @@
+{
+ "row_id": "S001_registered_plane",
+ "geometry": "S001",
+ "surface": "plane",
+ "query": [
+  0.0643011027840952,
+  -0.14537843146239907,
+  0.9722545768791394,
+  0.1716144445664393,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0
+ ],
+ "native_M": null,
+ "native_J": null,
+ "ambient_event_valid": -1,
+ "native_moment_valid": false,
+ "native_full_J_valid": false,
+ "operand_valid": false,
+ "operand_sha256": null,
+ "source_error": {
+  "type": "ValueError",
+  "diagnostic": "algebraic finite-map source requires full rank; rank-deficient source integration is not implemented"
+ },
+ "material_error": {
+  "type": "ValueError",
+  "diagnostic": "SOURCE_OR_SELECTOR_UNDEFINED:RANK_DEFICIENT_STRATUM_DERIVATIVE_UNDEFINED: PLANE fixed-stratum tangent dimension=3"
+ },
+ "native_truth_file_sha256": "9bb3d8fe59863a0cfe4db22d4a6ccc2daa540174803bb9f67ae8e7a4fc0f90cc",
+ "material_identities": {
+  "rle": "1467b013f02b6fb81f9f96c584aafa5d308962fa3bf8c9ad12176af30988a843",
+  "conservative": "693171655dd530d5e71901338955f36f271ac583c5b235d2cdad7d8f3eb0f4e4"
+ },
+ "source_record": {
+  "file": "/data/xvxinyao/TVCG/datasets/phase2_10_source_audit/labels/S001.npz",
+  "sha256": "5ffedcba2bd3acb5f32ecefda86e4c34d14f77d6d23f4619238cd753eafcac7e",
+  "index": 1,
+  "query_id": "38703b1a229e2a1cc80a6dca242905d01fa5fc531ce17f3ef5b68e6596c0051e",
+  "historical_masks": {
+   "moment_valid": 1,
+   "derivative_valid": 0,
+   "restricted_valid": 1,
+   "restricted_dimension": 3,
+   "ambient_event_valid": 0,
+   "restricted_event_valid": 1
+  }
+ },
+ "grid_provenance": "registered native256",
+ "methods": {},
+ "interpreter": "CPU float64: stored motion, fixed geometry; timing excludes native operand generation"
+}

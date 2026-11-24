@@ -1,0 +1,73 @@
+{
+ "schema": "compact-v21.training-side-native-sensitivity.v1",
+ "train_assets": [
+  "T2",
+  "N002",
+  "S001"
+ ],
+ "seed": 0,
+ "primary_train_case": "T2",
+ "native_starts": [
+  "original seeded initialization",
+  "registered T2_ellipsoid_plus warm start"
+ ],
+ "solver_prefix": {
+  "maximum_iterations": 2,
+  "maximum_restarts": 1,
+  "maximum_function_evaluations_per_restart": 9,
+  "equation_tolerance": 1e-12,
+  "physical_relative_tolerance": 1e-06,
+  "equation_profile": "DUAL_MONOMIAL_RAW_V1",
+  "capture_evaluation_payload": true
+ },
+ "registered_request_mode": "STATIC_BALANCE",
+ "registered_objective": "MAXIMUM_MASS",
+ "line_search": "Original compiled external-moment Newton adapter, spherical geodesic cap 0.5, reduction 0.5, strict decrease of raw equation residual. Recompute native baseline before replaying perturbed scores.",
+ "moment_component_limit": 0.01,
+ "jacobian_direction_limit": 0.05,
+ "supplemental_starts": [
+  "N002_registered_ellipsoid",
+  "S001_registered_ellipsoid"
+ ],
+ "use": "Train-only sensitivity. Seeded and registered-query starts stay separate. The predeclared short prefixes may end before convergence. Score reconstruction and counterfactuals must reproduce captured native residuals and positivity of the multiplier. A scalar or tangent-direction counterexample cannot establish a population P95 screening threshold.",
+ "extended_T2_registered": {
+  "maximum_iterations": 12,
+  "maximum_function_evaluations_per_restart": 30,
+  "reason": "The predeclared two-iteration prefix had two accepted full geodesic cuts; extend the same trajectory to seek scored and geometric backtracks. Thresholds, seed, starting query, and native decision logic stay fixed."
+ },
+ "other_registered_T2_starts": [
+  "T2_hyperbolic_plus",
+  "T2_high_HYPERBOLOID",
+  "T2_high_ELLIPSOID",
+  "T2_middle_ELLIPSOID"
+ ],
+ "other_T2_scope": "After the primary case stopped without a backtrack, replay the listed already-registered training shapes under the same extended prefix. Every attempted start is retained.",
+ "coherent_J_probe": {
+  "starts": "first extended T2 ellipsoid prefix",
+  "iterations": [
+   1,
+   2
+  ],
+  "signs": [
+   [
+    1,
+    1
+   ],
+   [
+    1,
+    -1
+   ],
+   [
+    -1,
+    1
+   ],
+   [
+    -1,
+    -1
+   ]
+  ],
+  "direction": "raw tangent of original first trial at each base",
+  "field": "e_i=sign_i*0.01*mass*L*sin(5*u dot (q_hat-q_base_hat)) for moments x and y; bounded to 1% per component, with 5% operator row norm over all normalized raw directions",
+  "oracle": "fresh original Cherchi moment plus raw differential at every counterfactual coordinate; recompute same native static maximum-mass residual with and without the analytic error"
+ }
+}

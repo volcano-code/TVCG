@@ -1,0 +1,45 @@
+{
+ "row_id": "T2_endpoint_constant_positive",
+ "geometry": "T2",
+ "surface": "endpoint",
+ "query": [
+  1.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0
+ ],
+ "native_M": null,
+ "native_J": null,
+ "ambient_event_valid": -1,
+ "native_moment_valid": false,
+ "native_full_J_valid": false,
+ "operand_valid": false,
+ "operand_sha256": null,
+ "source_error": {
+  "type": "ValueError",
+  "diagnostic": "unsupported constant/zero quadric with no nonzero quadratic or linear term"
+ },
+ "material_error": {
+  "type": "ValueError",
+  "diagnostic": "unsupported constant/zero quadric with no nonzero quadratic or linear term"
+ },
+ "native_truth_file_sha256": "d64c8bdc9342bf816702caae13611d2983ea0e877eddcbfeed933b01b39c55b9",
+ "material_identities": {
+  "rle": "8dd6b58d3a0ae183c1411249bc6fa3c261a88f78a8fd57ccf0b991c2b968c725",
+  "conservative": "8a1ae8ee6738fc901c651e7c560553817577ba779927be6d77aa17504b28eafe"
+ },
+ "source_record": {
+  "file": "/home/lin/Documents/Codex/2026-11-21/tvcg-phase-2-11-full-v1/outputs/v20_acceptance_1124/physics/extreme.json",
+  "sha256": "dd238e6dfbf1d283081159a2aa92a71efd259d228ebe69f38d9eaa509234dabc",
+  "key": "constant_positive"
+ },
+ "grid_provenance": "registered native256",
+ "methods": {},
+ "interpreter": "CPU float64: stored motion, fixed geometry; timing excludes native operand generation"
+}

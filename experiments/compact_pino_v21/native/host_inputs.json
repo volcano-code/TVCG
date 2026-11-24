@@ -1,0 +1,36 @@
+{
+  "alignment": {
+    "sha256.json": "8ceedd9669cd8bbe6c7c08ef07ce0ee306c6501d8d945436c7282ed62587c0ba",
+    "protocol.json": "9db2655ab60a2e0566e3b0a20ec2aa7cc07c353517e449f9eaaec350212367c0",
+    "protocol_v2.json": "0caac00a87b4a68979554c177aa4f51b6b42bdd8a926cb819888daed32235966",
+    "provenance.json": "9aebc474dc065ec84b64efd4c1c327f44ac04137e5857799ca23514c0f98c43e",
+    "panel.py": "4b66d49dd8dc942fcd1926c9e0e438ae9614f5f42e908dd5954f46f619e0be24",
+    "common_run.py": "0e70fc3306bf959a9f8c8e76465f386333f97b6fc21c40033b9f5ebd3df07c38",
+    "run.sh": "5d47ebe1dadc4d8eeb9ebc55931e82716da8b4e9ed2f00bf163289df7c2b6206",
+    "reference/trajectory_M_J.json": "cd8abab945ffaa2496630a4d62625095262641002af8ea8a445eb0937090d2b4",
+    "reference/seed-00.progress.jsonl": "2d229f4242e7a3d89b98f1226c853726a652919cc6310db8d1295eb65b733b4c",
+    "reference/seed-00.json": "dbd52c607db6c8b96c2d0a9228651084ae6c3662b55dc2e0caffc986cb0024e2"
+  },
+  "solver": {
+    "paired_case.py": "d643c9fc0d469f12cae56ef1f7676af4dd014f6e47e8596e0ed3803daee50889",
+    "solve.py": "ad5093d39d4487daf0c805b79b8747b811595c8f2f773a9341ef06a0d1a2e37f",
+    "grids.py": "530c3a06a1712eebcc9cd30200d5242141bb1871b1b8800b8d144a30bad519ef",
+    "protocol.json": "438c3487bc1dacf8415cc584597b90e6bdf07e658c8c6dc7f45cb147859240d4"
+  },
+  "physics": {
+    "formal_dev392.json": "9e53c14d61b7311191dd84497a81897afce338cc9dd0e2254e3d604a61eb6729",
+    "data.json": "49004c7a91cb8542268b70e87d3ee0b46a5310d266e36453a732976dd7230b09",
+    "hyperboloid.json": "a5837f044bfc903d43f53cabb3117e224d64db352f20dc2524dbf6b4bb4be6b8",
+    "extreme.json": "dd238e6dfbf1d283081159a2aa92a71efd259d228ebe69f38d9eaa509234dabc",
+    "development_controls.json": "89238397dbb333eb2383344637e0722867cdc847c221139a08eb4b769a9f42b6"
+  },
+  "deployment_absolute": {
+    "/data/xvxinyao/TVCG-phase2-12-operator/phase3_native_teacher/teacher.py": "9f3d34ac108d0f57df06cadd8910c83f7e3d43e6772a36cf9be9a8506e352843",
+    "/data/xvxinyao/moment-guided-spin-v1/code/make-it-balance-paper-sim/experiments/noodles_v8_20261017/zero-wall-gmp-seal-candidate-05/python/make_it_stand/verification/cherchi_motion_differential.py": "97e0f4f01edda3a0f387f8cf07afb3ed24c503757f59c4846f19b8687823d490",
+    "/data/xvxinyao/moment-guided-spin-v1/code/make-it-balance-paper-sim/experiments/noodles_v8_20261017/zero-wall-gmp-seal-candidate-05/python/make_it_stand/verification/cherchi_inprocess.py": "b85b536065aeed489067b0b67f810d62a78478bfd44da6a97e199b146fe3a2bb",
+    "/data/xvxinyao/moment-guided-spin-v1/code/make-it-balance-paper-sim/experiments/noodles_v8_20261017/zero-wall-gmp-seal-candidate-05/python/make_it_stand/spin.py": "c4aa751027617d3e7a95631c27c2bd2105ab25917b94f848dc6da42ff633913f",
+    "/data/xvxinyao/moment-guided-spin-v1/code/make-it-balance-paper-sim/experiments/faster_core_repair_20261012/formal-rational-arithmetic-build-job-05/output/build/python/_cherchi_rational_moments.cpython-313-x86_64-linux-gnu.so": "ed05436e2796b190ddebb024f67318e2e88bdc46d96b01e9d7db71a6af080dca",
+    "/data/xvxinyao/moment-guided-spin-v1/code/make-it-balance-paper-sim/experiments/noodles_v8_20261017/native-side-build-job-03/output/build/python/_make_it_stand.cpython-313-x86_64-linux-gnu.so": "f403aaf4dfb51170fcd0376665a997b46183a28f5079df278c89513da8736fba",
+    "/data/xvxinyao/moment-guided-spin-v1/code/make-it-balance-paper-sim/experiments/noodles_v8_20261017/cherchi-scale-build-job-01/output/build/python/_cherchi_core_boolean.cpython-313-x86_64-linux-gnu.so": "266dea1fd46df4d56b9b9ff309d2f0839318da3ba21a820687c0e5d2dc554ea3"
+  }
+}

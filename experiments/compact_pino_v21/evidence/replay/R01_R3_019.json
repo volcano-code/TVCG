@@ -1,0 +1,69 @@
+{
+ "row_id": "R01_R3_019",
+ "geometry": "R01",
+ "surface": "plane",
+ "query": [
+  0.1989109421729992,
+  -0.7316339487976523,
+  -0.1989790306153804,
+  0.6209295833071312,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0
+ ],
+ "native_M": null,
+ "native_J": null,
+ "ambient_event_valid": -1,
+ "native_moment_valid": false,
+ "native_full_J_valid": false,
+ "operand_valid": false,
+ "operand_sha256": null,
+ "source_error": {
+  "type": "ValueError",
+  "diagnostic": "algebraic finite-map source requires full rank; rank-deficient source integration is not implemented"
+ },
+ "material_error": {
+  "type": "ValueError",
+  "diagnostic": "SOURCE_OR_SELECTOR_UNDEFINED:RANK_DEFICIENT_STRATUM_DERIVATIVE_UNDEFINED: PLANE fixed-stratum tangent dimension=3"
+ },
+ "native_truth_file_sha256": "5b01452da16af2c8d6d854375c45f470b9de599bc4c6f167fe92e6943159d509",
+ "material_identities": {
+  "rle": "8c2dc2ac48c68fd5b2f1c26793b40dcf6a7dfe13acd0dc6d4f0d7c333a51deec",
+  "conservative": "fb7b8ecddab5193335b022a089ae66ce51b88798d38e98d379e34ee3c0c81250"
+ },
+ "source_record": {
+  "file": "/home/lin/Documents/Codex/2026-11-16/referenced-chatgpt-conversation-this-is-an-4/phase32_dataset_storage/dev_compact_392/R01.npz",
+  "sha256": "7bf734b50ebafa33c7f30c066cc65f7461b01ed5413b296e2fe20d601f98757e",
+  "index": 19,
+  "query_id": "4278660e4fa93afa688b7eb1d4b2145866d21e7126b2d6a816d4ae5be258bd58",
+  "historical_masks": {
+   "moment_valid": 1,
+   "derivative_valid": 0,
+   "restricted_valid": 1,
+   "restricted_dimension": 3,
+   "ambient_event_valid": -1,
+   "restricted_event_valid": 1,
+   "source_restricted_dimension": 3,
+   "source_restricted_valid": 1
+  },
+  "source_chart": {
+   "file": "/data/xvxinyao/TVCG/datasets/final_voxel_pino_corpus/releases/dev_all_routes_392/R01.npz",
+   "sha256": "ce047eb8315a10c26eb57063b99da588fffb19269fd79d5b583bfff2489be765",
+   "index": 19,
+   "query_id": "4278660e4fa93afa688b7eb1d4b2145866d21e7126b2d6a816d4ae5be258bd58",
+   "historical_masks": {
+    "moment_valid": 1,
+    "derivative_valid": 0,
+    "restricted_valid": 1,
+    "restricted_dimension": 3,
+    "restricted_event_valid": 1
+   }
+  }
+ },
+ "grid_provenance": "registered native256",
+ "methods": {},
+ "interpreter": "CPU float64: stored motion, fixed geometry; timing excludes native operand generation"
+}

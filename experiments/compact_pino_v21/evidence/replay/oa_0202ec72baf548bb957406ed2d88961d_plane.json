@@ -1,0 +1,54 @@
+{
+ "row_id": "oa_0202ec72baf548bb957406ed2d88961d_plane",
+ "geometry": "oa_0202ec72baf548bb957406ed2d88961d",
+ "surface": "plane",
+ "query": [
+  0.06322813263865913,
+  0.3165159371040723,
+  0.5801128058595142,
+  0.7478562677947954,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0
+ ],
+ "native_M": null,
+ "native_J": null,
+ "ambient_event_valid": -1,
+ "native_moment_valid": false,
+ "native_full_J_valid": false,
+ "operand_valid": false,
+ "operand_sha256": null,
+ "source_error": {
+  "type": "ValueError",
+  "diagnostic": "algebraic finite-map source requires full rank; rank-deficient source integration is not implemented"
+ },
+ "material_error": {
+  "type": "ValueError",
+  "diagnostic": "SOURCE_OR_SELECTOR_UNDEFINED:RANK_DEFICIENT_STRATUM_DERIVATIVE_UNDEFINED: PLANE fixed-stratum tangent dimension=3"
+ },
+ "native_truth_file_sha256": "f828542a501bc4e183d4350e5fb66323dcf702283c1ef64f5c64af962110d6cc",
+ "material_identities": {
+  "rle": "c1e01cd7dccd8ecf7998fc35204c238076f83141cd49cea409b225712fb8f731",
+  "conservative": "80bc8270a308de17ef3edd84fbbc8d1e2eb9511bcd104beb1c65e5e3a4696224"
+ },
+ "source_record": {
+  "file": "/data/xvxinyao/TVCG/datasets/phase2_10_source_audit/labels/oa_0202ec72baf548bb957406ed2d88961d.npz",
+  "sha256": "8b702e0973a38bc13450f48fa14efc589b4e73ca395a8d302a94c3c3e73868b5",
+  "index": 0,
+  "query_id": "bafe31fb3d37e0806585bc79440fff8258ad6054a24561f48b69a04c98011655",
+  "historical_masks": {
+   "moment_valid": 1,
+   "derivative_valid": 0,
+   "restricted_valid": 1,
+   "restricted_dimension": 3,
+   "ambient_event_valid": -1,
+   "restricted_event_valid": 1
+  }
+ },
+ "grid_provenance": "Work A direct 256 ray re-encoding on original registered mesh; auxiliary legacy cross-source cohort",
+ "methods": {},
+ "interpreter": "CPU float64: stored motion, fixed geometry; timing excludes native operand generation"
+}

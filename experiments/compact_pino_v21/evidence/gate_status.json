@@ -1,0 +1,195 @@
+{
+ "phase_a": "PASS",
+ "actual_geometry_count": 14,
+ "largest_scaled_static_moment_error": 8.63136020096554e-14,
+ "native_trajectory_matches": true,
+ "packed_material_identities_match": true,
+ "manufactured_checks": true,
+ "endpoint_checks": true,
+ "endpoints": {
+  "T2_endpoint_zero": {
+   "operand": false,
+   "native_moment": false,
+   "native_error": {
+    "type": "ValueError",
+    "diagnostic": "quadric coefficients must define a nonzero polynomial"
+   },
+   "local_mass": null,
+   "scaled_moment_error": null
+  },
+  "T2_endpoint_constant_positive": {
+   "operand": false,
+   "native_moment": false,
+   "native_error": {
+    "type": "ValueError",
+    "diagnostic": "unsupported constant/zero quadric with no nonzero quadratic or linear term"
+   },
+   "local_mass": null,
+   "scaled_moment_error": null
+  },
+  "T2_endpoint_minus": {
+   "operand": true,
+   "native_moment": false,
+   "native_error": {
+    "type": "CherchiDifferentialUnavailable",
+    "diagnostic": "orientation input vertices are invalid"
+   },
+   "local_mass": 0.0,
+   "scaled_moment_error": null
+  },
+  "T2_endpoint_plus": {
+   "operand": true,
+   "native_moment": true,
+   "native_error": null,
+   "local_mass": 0.0019032189653552158,
+   "scaled_moment_error": 4.557340767285468e-16
+  },
+  "T2_endpoint_constant_negative": {
+   "operand": false,
+   "native_moment": false,
+   "native_error": {
+    "type": "ValueError",
+    "diagnostic": "unsupported constant/zero quadric with no nonzero quadratic or linear term"
+   },
+   "local_mass": null,
+   "scaled_moment_error": null
+  }
+ },
+ "same_operand_model_scaled_max": 1.966688645871545e-15,
+ "native_fixed_operand_controls": {
+  "T2_hyperbolic": {
+   "plus_mass": 0.0008542237848092942,
+   "minus_mass": 0.0010491946674687014,
+   "editable_full_mass": 0.0019032189653552037,
+   "standalone_minus_plus_minus_full": [
+    1.9948692279200646e-07,
+    -4.286459321285333e-08,
+    -4.5482958418486836e-08,
+    7.509184625267648e-09,
+    9.145097147898783e-09,
+    1.0443706995023026e-08,
+    3.8132711223922767e-10,
+    -1.8028148300685382e-09,
+    -1.6585404043617243e-09,
+    9.782240882346914e-09
+   ],
+   "relative_mass_sign_residual": 0.00010481553957969076,
+   "source_hash_same_under_fresh_minus": false,
+   "same_operand_opposite_max_abs": 1.1275702593849246e-17,
+   "coefficient_scale2_same_source": true,
+   "scale2_M_max_abs": 0.0,
+   "scale2_J_max_abs": 0.0,
+   "scale2_vertex_motion_max_abs": 0.0
+  },
+  "combB_hyperbolic": {
+   "plus_mass": 0.003261828450800779,
+   "minus_mass": 0.0024715642976270926,
+   "editable_full_mass": 0.005733344023477788,
+   "standalone_minus_plus_minus_full": [
+    4.872495008422656e-08,
+    -1.949110319472017e-09,
+    7.36930388155828e-09,
+    -1.444035382466998e-10,
+    1.4557299536952862e-10,
+    -2.130105477475639e-09,
+    3.30090710278961e-10,
+    9.458693152856893e-11,
+    1.8474783198946353e-10,
+    4.690951644434028e-11
+   ],
+   "relative_mass_sign_residual": 8.498521959383574e-06,
+   "source_hash_same_under_fresh_minus": false,
+   "same_operand_opposite_max_abs": 4.2148359455373985e-17,
+   "coefficient_scale2_same_source": true,
+   "scale2_M_max_abs": 0.0,
+   "scale2_J_max_abs": 0.0,
+   "scale2_vertex_motion_max_abs": 0.0
+  },
+  "T2_ellipsoid": {
+   "plus_mass": 0.001134685614627878,
+   "minus_mass": 0.0007685333507273371,
+   "editable_full_mass": 0.0019032189653552037,
+   "standalone_minus_plus_minus_full": [
+    1.1275702593849246e-17,
+    1.1425945062868478e-18,
+    -4.0115480381963664e-18,
+    4.0911691352382706e-19,
+    9.452887691357992e-19,
+    -4.607859233063394e-19,
+    6.776263578034403e-20,
+    3.7269449679189215e-20,
+    -5.910701785058915e-20,
+    2.1519930816179568e-19
+   ],
+   "relative_mass_sign_residual": 5.924542997471038e-15,
+   "source_hash_same_under_fresh_minus": false,
+   "same_operand_opposite_max_abs": 1.1275702593849246e-17,
+   "coefficient_scale2_same_source": true,
+   "scale2_M_max_abs": 0.0,
+   "scale2_J_max_abs": 0.0,
+   "scale2_vertex_motion_max_abs": 0.0
+  }
+ },
+ "conditional_training": "NO-GO",
+ "strict_R3": {
+  "queried": 64,
+  "counts_by_geometry": {
+   "R01": 16,
+   "R02": 16,
+   "combB": 16,
+   "maskB": 16
+  },
+  "mask_sources": "Matched exact queried raw coefficients and preserved chart query IDs.",
+  "operand_defined": 0,
+  "moment_defined": 0,
+  "restricted_defined": 0,
+  "typed_source_errors": {
+   "algebraic finite-map source requires full rank; rank-deficient source integration is not implemented": 64
+  },
+  "full_production_errors": {
+   "SOURCE_OR_SELECTOR_UNDEFINED:RANK_DEFICIENT_STRATUM_DERIVATIVE_UNDEFINED: PLANE fixed-stratum tangent dimension=3": 64
+  }
+ },
+ "strict_R8": {
+  "queried": 25,
+  "counts_by_geometry": {
+   "R01": 4,
+   "R02": 5,
+   "combB": 7,
+   "maskB": 9
+  },
+  "mask_sources": "Matched exact queried raw coefficients and preserved chart query IDs.",
+  "operand_defined": 0,
+  "moment_defined": 0,
+  "restricted_defined": 0,
+  "typed_source_errors": {
+   "algebraic finite-map source requires full rank; rank-deficient source integration is not implemented": 25
+  },
+  "full_production_errors": {
+   "SOURCE_OR_SELECTOR_UNDEFINED:RANK_DEFICIENT_STRATUM_DERIVATIVE_UNDEFINED: PARABOLOID fixed-stratum tangent dimension=8": 25
+  }
+ },
+ "reason": "The registered train/development deployment overlay is incomplete. No registered strict-development R3 numerical target from the deployed finite map. No registered strict-development R8 numerical target from the deployed finite map.",
+ "registered_query_coverage": {
+  "train": {
+   "registered": 7162,
+   "probed": 13
+  },
+  "development": {
+   "registered": 222,
+   "probed": 90
+  }
+ },
+ "complete_training_overlay": false,
+ "certified_dev_R3": 0,
+ "certified_dev_R8": 0,
+ "signed_admission_receipt": null,
+ "formal_preflight_updates": 0,
+ "real_pilot_updates": 0,
+ "selected_checkpoint": null,
+ "blind_case_opened_for_scoring": false,
+ "candidate_native_solutions": null,
+ "matched_time_to_qualified_solution": null,
+ "long_training": "NO-GO",
+ "limits_scope": "proposed project screening limits; measured diagnostic errors are distinct from solver certification"
+}

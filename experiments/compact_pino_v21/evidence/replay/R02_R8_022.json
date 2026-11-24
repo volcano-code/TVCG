@@ -1,0 +1,69 @@
+{
+ "row_id": "R02_R8_022",
+ "geometry": "R02",
+ "surface": "parabolic",
+ "query": [
+  0.03776601969019153,
+  -0.7317480416452065,
+  0.37388464176396974,
+  -0.023046171282783984,
+  0.08369819570458174,
+  0.3204095005227727,
+  0.42770942803741563,
+  -0.046779305093176474,
+  -0.03609195875013592,
+  0.16341283993134498
+ ],
+ "native_M": null,
+ "native_J": null,
+ "ambient_event_valid": -1,
+ "native_moment_valid": false,
+ "native_full_J_valid": false,
+ "operand_valid": false,
+ "operand_sha256": null,
+ "source_error": {
+  "type": "ValueError",
+  "diagnostic": "algebraic finite-map source requires full rank; rank-deficient source integration is not implemented"
+ },
+ "material_error": {
+  "type": "ValueError",
+  "diagnostic": "SOURCE_OR_SELECTOR_UNDEFINED:RANK_DEFICIENT_STRATUM_DERIVATIVE_UNDEFINED: PARABOLOID fixed-stratum tangent dimension=8"
+ },
+ "native_truth_file_sha256": "ff4e676996cfea6b9ab6ea576eea45d9ef9be2291892bfa64d0079cec7882398",
+ "material_identities": {
+  "rle": "8ddde35694491c6dfea6b475e679dd4522ba3e6668e203adc2585f2021f56121",
+  "conservative": "96baf4d1e54507bf0c1cde85f48bc5de42f29855ffd1cea53cf1884d5bb83f8c"
+ },
+ "source_record": {
+  "file": "/home/lin/Documents/Codex/2026-11-16/referenced-chatgpt-conversation-this-is-an-4/phase32_dataset_storage/dev_compact_392/R02.npz",
+  "sha256": "1daae042fcb8538b39ef3fbc5ae162be8c80d2f908d0afd3426ff58907603326",
+  "index": 22,
+  "query_id": "960173c00eda35dd722181817eef2347133efd7a27edf5470bffcd859835d393",
+  "historical_masks": {
+   "moment_valid": 1,
+   "derivative_valid": 0,
+   "restricted_valid": 0,
+   "restricted_dimension": 0,
+   "ambient_event_valid": -1,
+   "restricted_event_valid": -1,
+   "source_restricted_dimension": 8,
+   "source_restricted_valid": 1
+  },
+  "source_chart": {
+   "file": "/data/xvxinyao/TVCG/datasets/final_voxel_pino_corpus/releases/dev_all_routes_392/R02.npz",
+   "sha256": "9794f31b084505ee0c660773170fa98f62d17f98c6e115929e7b5ab13664d93b",
+   "index": 22,
+   "query_id": "960173c00eda35dd722181817eef2347133efd7a27edf5470bffcd859835d393",
+   "historical_masks": {
+    "moment_valid": 1,
+    "derivative_valid": 0,
+    "restricted_valid": 1,
+    "restricted_dimension": 8,
+    "restricted_event_valid": -1
+   }
+  }
+ },
+ "grid_provenance": "registered native256",
+ "methods": {},
+ "interpreter": "CPU float64: stored motion, fixed geometry; timing excludes native operand generation"
+}
