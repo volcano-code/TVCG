@@ -1,0 +1,262 @@
+{
+  "schema": "tvcg.stratum.exhaustive-native-admission.v1",
+  "row_id": "maskB_R8_035",
+  "query_id": "474fccf828c7b0f0ba86e00fa472966cae77a2747083a7d06265adf2a071ba1a",
+  "geometry_id": "maskB",
+  "parent_bank_sha256": "1a5ffc089b59f3785a2de0b397e934958aa8cb7e9fc3cecdb06f52ce9e6e4f5c",
+  "raw_query_sha256": "474fccf828c7b0f0ba86e00fa472966cae77a2747083a7d06265adf2a071ba1a",
+  "raw_basis_sha256": "85f8f65ec76fbcd9d1dfad1c101d6716e1b496ac2bbc4ce8ebda73d09b47743d",
+  "evaluation_map_identity": "4c40e4751d4af44c3f16424bd1657041a2fb68da811217290f3ce9c8b31162d1",
+  "native_module_sha256": "a2bc6ae680b50680930697136561ba9303a51bd8c0a3fc4118dc31617f99d9af",
+  "source_map": "ALGEBRAIC_FINITE_GRAPH_EXTRUSION_R3_R8_V1",
+  "scope": "R8",
+  "uniform_native_value_admission": true,
+  "certified_raw_linf_radius": 2.220446049250313e-16,
+  "raw_radius_hex": "0x1.0000000000000p-52",
+  "radius_in_largest_raw_coefficient_ulps": 4,
+  "raw_axes_hex": [
+    [
+      "-0x1.a877add144409p-9",
+      "-0x1.a877add144009p-9"
+    ],
+    [
+      "-0x1.7841fb77166b4p-3",
+      "-0x1.7841fb77166a4p-3"
+    ],
+    [
+      "-0x1.45fb99a80fcf6p-2",
+      "-0x1.45fb99a80fceep-2"
+    ],
+    [
+      "0x1.9e7cb27e1789fp-2",
+      "0x1.9e7cb27e178a7p-2"
+    ],
+    [
+      "0x1.bd9ee6e4a8f89p-2",
+      "0x1.bd9ee6e4a8f91p-2"
+    ],
+    [
+      "0x1.cb643533bbd33p-2",
+      "0x1.cb643533bbd3bp-2"
+    ],
+    [
+      "0x1.8f4ebe301837dp-2",
+      "0x1.8f4ebe3018385p-2"
+    ],
+    [
+      "0x1.793120c8e5868p-2",
+      "0x1.793120c8e5870p-2"
+    ],
+    [
+      "0x1.0ab2e458c6e96p-3",
+      "0x1.0ab2e458c6ea6p-3"
+    ],
+    [
+      "-0x1.358430afb3379p-4",
+      "-0x1.358430afb3359p-4"
+    ]
+  ],
+  "exact_dyadic_endpoints": true,
+  "raw_axis_counts": [
+    1025,
+    17,
+    9,
+    9,
+    9,
+    9,
+    9,
+    9,
+    17,
+    33
+  ],
+  "normalizers_hex": [
+    "0x1.ffffffffffffap-1",
+    "0x1.ffffffffffffbp-1",
+    "0x1.ffffffffffffcp-1",
+    "0x1.ffffffffffffdp-1",
+    "0x1.ffffffffffffep-1",
+    "0x1.fffffffffffffp-1",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000001p+0",
+    "0x1.0000000000002p+0",
+    "0x1.0000000000003p+0"
+  ],
+  "two_endpoint_native_normalizer_enclosures_hex": [
+    "0x1.ffffffffffffap-1",
+    "0x1.ffffffffffffap-1",
+    "0x1.0000000000003p+0",
+    "0x1.0000000000003p+0"
+  ],
+  "normalized_guard_interval": [
+    0.9999999999999787,
+    1.000000000000021
+  ],
+  "quadratic_product_shape_per_normalizer": [
+    [
+      9,
+      9,
+      9,
+      9,
+      17,
+      33
+    ],
+    [
+      9,
+      9,
+      9,
+      9,
+      17,
+      33
+    ],
+    [
+      9,
+      9,
+      9,
+      9,
+      17,
+      33
+    ],
+    [
+      9,
+      9,
+      9,
+      9,
+      17,
+      33
+    ],
+    [
+      9,
+      9,
+      9,
+      9,
+      17,
+      33
+    ],
+    [
+      9,
+      9,
+      9,
+      9,
+      17,
+      33
+    ],
+    [
+      9,
+      9,
+      9,
+      9,
+      17,
+      33
+    ],
+    [
+      9,
+      9,
+      9,
+      9,
+      17,
+      33
+    ],
+    [
+      9,
+      9,
+      9,
+      9,
+      17,
+      33
+    ],
+    [
+      9,
+      9,
+      9,
+      9,
+      17,
+      33
+    ]
+  ],
+  "coefficient_pivot_gap_lower": 0.01344797475459236,
+  "signed_representative": 1,
+  "conditional_geometry_raw_linf_radius": 2.3283064365386963e-10,
+  "conditional_geometry_record_sha256": "5e45e56a14488c220fcee25fd4da375088923c9b1d6489d66bc7a68577ac0bcc",
+  "center_record_sha256": "326a7749bce7f3e8489c5fcc999c0c13499c8e7e2ee226c686217e58e3c6cf22",
+  "operation": "intersection",
+  "triangulation_hash": "f142517725e7934562934ee9aa65b0668a656c88003a67216fbf8688904bfc6e",
+  "target_vertices_sha256": "be5c085b8965484525988b131a5d7d509845eb2d7888bc11a026dd491458844e",
+  "target_faces_sha256": "822202cd5b2bb52b594bdb4893d1e117d96df9464ec074a68c2e1dcefc4fdb61",
+  "cap_mask_sha256": "dc0d5f24497e17f47d6af77fa28737a7a7bc7894139177dbc500b007c72249af",
+  "compiled_probe": {
+    "toolchain_sha256": {
+      "/usr/bin/c++": "1353e9bdd29a7295c7226bf6c63abccce056d8cac31f112e5cdbecc3f28c2769",
+      "/usr/bin/ld": "e46a122cc3a29feba3b1d0fc2a274b6e46538be016ebe381370c0801bb98b0b8",
+      "/usr/bin/objcopy": "b22f4f909bff115ee2a37cd21ff76f5e0b8c65cd58f98edbce7b59f129980d67"
+    },
+    "native_geometry_text_sha256": "0a7b6d1ca40b47bfc947cb358d89d1e18180093e254e63d606333631ba17b93b",
+    "eigen_header_sha256": {
+      "Eigenvalues/SelfAdjointEigenSolver.h": "149879be48d74888c3004815f29a17666c273d6ff30b59bab4f6f766981aede8",
+      "Eigenvalues/Tridiagonalization.h": "f566763c0ff0a6e7876ae8d8bc3392f6a1b91436d232df98f696116117d0dd22",
+      "Jacobi/Jacobi.h": "afd01aa5bfb86c1fe18e7fa0c041e20508ceff41b97998f0a8620d2f170f99e4",
+      "Core/MathFunctions.h": "4fbbeffbf049571ac562c28ee5d7c19cca7f726add23a87bb49df1f41975f996",
+      "Core/MathFunctionsImpl.h": "d1d295d38681fdeedc369c4904dda13774e0b85ac83041348d53db05eaacc15f"
+    },
+    "schema": "tvcg.native-admission-probe.1",
+    "classified_compiler_object_sha256": "f9e48594a5c7ab7cf83c6835c2c49c1bd5a340594401516adfa799b69478442e",
+    "verified_source_module_sha256": "a2bc6ae680b50680930697136561ba9303a51bd8c0a3fc4118dc31617f99d9af",
+    "classifier_symbol": "_ZN12_GLOBAL__N_18classifyERKN4spin21QuadricCoefficients10EPN5Eigen22SelfAdjointEigenSolverINS4_6MatrixIdLi3ELi3ELi0ELi3ELi3EEEEE",
+    "probe_sha256": "21aa62e3ad756b528ada766b6d6fee09ce0903d091dbc1050f9306c28a9c8e23",
+    "probe_cpp_sha256": "b332bac6492a6bfb06ea7b6caf5fc03a1b0fe646218e6b0e6da5f4488c6085c0",
+    "probe_build_sha256": "ee962202143982addba356794b18d6c5da3c7de5f02c7701b5fd1378e94e07fa"
+  },
+  "checker_sha256": "90c2adcf83e490ee81758f5c5abf5f77fcdc0e8182030d975d1409570d1351dc",
+  "cover": {
+    "pair_count": 36807210,
+    "distinct_matrices": 17748522,
+    "overlap_duplicates": 19058688,
+    "minimum_transverse_abs": 0.5456451065454396,
+    "eigenvalue_bounds": [
+      [
+        -7.380781670183201e-16,
+        7.656724808155354e-16
+      ],
+      [
+        0.4816559324450674,
+        0.48165593244506977
+      ],
+      [
+        0.7920938107059631,
+        0.7920938107059657
+      ]
+    ],
+    "maximum_abs_null_eigenvalue": 7.656724808155354e-16,
+    "maximum_native_leaf_fraction": 0.06802150224903909,
+    "minimum_native_leaf_margin": 1.0490657583937654e-14,
+    "minimum_eigengap": 0.3104378782608945,
+    "minimum_eigenvector_pivot_gap": 0.0280219827739151,
+    "conservative_residual_upper": 1.48769885299771e-14,
+    "conservative_orthogonality_upper": 1.5765166949677226e-14
+  },
+  "chart_resolution": {
+    "two_sided_chord_rank": 8,
+    "perturbation_steps_hex": [
+      "0x1.0000000000000p-52",
+      "0x1.0000000000000p-52",
+      "0x1.0000000000000p-52",
+      "0x1.0000000000000p-52",
+      "0x1.0000000000000p-52",
+      "0x1.0000000000000p-52",
+      "0x1.0000000000000p-52",
+      "0x1.0000000000000p-52"
+    ],
+    "changed_coordinates_per_chord": [
+      8,
+      8,
+      7,
+      10,
+      10,
+      7,
+      7,
+      7
+    ],
+    "chords_sha256": "c268977bc0edf0aaa49f095b495dba23968929330e30e9428c4a9cd27510ca3d"
+  },
+  "numerical_domain": "Every represented raw query in the stated box; in particular all matched chart inputs that lie in it.",
+  "timing_seconds": 60.23329667584039
+}
