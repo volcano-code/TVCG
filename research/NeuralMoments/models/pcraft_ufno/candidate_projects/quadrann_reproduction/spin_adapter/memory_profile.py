@@ -54,8 +54,11 @@ def profile_cache_tensors(cache):
     profiler = _ACTIVE.get()
     if profiler is None:
         return
+    children=[("shared",cache.shared_cache)]
+    if hasattr(cache,"sqno_cache"):children.append(("sqno",cache.sqno_cache))
+    if hasattr(cache,"token_cache"):children.append(("tokens",cache.token_cache))
     named = {f"{prefix}_{name}": value
-             for prefix, obj in (("shared", cache.shared_cache), ("sqno", cache.sqno_cache))
+             for prefix, obj in children
              for name, value in vars(obj).items() if torch.is_tensor(value)}
     profiler.record_tensors(named)
     storage = {}
@@ -68,7 +71,7 @@ def profile_cache_tensors(cache):
         "tensor_fields": len(named), "distinct_storages": len(storage),
         "distinct_storage_bytes": sum(group["bytes"] for group in storage.values()),
         "alias_groups": [group for group in storage.values() if len(group["fields"]) > 1],
-        "scope": "tensor-valued fields of shared_cache and sqno_cache at encoder return",
+        "scope": "tensor-valued fields of geometry and response caches at encoder return",
     }
 
 

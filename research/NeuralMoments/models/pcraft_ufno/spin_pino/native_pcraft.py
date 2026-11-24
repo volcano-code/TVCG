@@ -864,9 +864,12 @@ def build_local_neighbor_graph(
 
 class PcraftNativeMomentOperator(nn.Module):
     """P-CRAFT spatial operator + M72 native interval response head."""
-    def __init__(self,config: NativePCRAFTConfig|None=None):
+    def __init__(self,config: NativePCRAFTConfig|None=None, *, encoder_only=False):
         super().__init__()
         self.config=config or make_config("xl")
+        self.encoder_only=bool(encoder_only)
+        if self.encoder_only and (self.config.uq_enabled or self.config.event_validity_head_enabled):
+            raise ValueError("encoder-only P-CRAFT cannot construct auxiliary prediction heads")
         c=self.config; w=c.interval_width
         self.pino_encoder=PINOFeatureEncoder(width=c.pino_width,modes=c.pino_modes,
             n_layers=c.pino_layers,grid_size=c.grid_size,use_gradient_checkpoint=True)
@@ -892,7 +895,9 @@ class PcraftNativeMomentOperator(nn.Module):
             nn.init.zeros_(self.gno_update[-1].bias)
         if c.transolver_enabled:
             self.transolver=PhysicsStateSlicing(w,c.transolver_slices,c.transolver_heads)
-        if c.convex_potential_enabled:
+        if self.encoder_only:
+            pass
+        elif c.convex_potential_enabled:
             self.convex_potential_head=ConvexMomentPotentialHead(w,c.convex_potential_components,
                 amplitude_mode=c.convex_amplitude_mode)
         else:
@@ -1213,6 +1218,7 @@ class PcraftNativeMomentOperator(nn.Module):
         }
 
     def predict(self,cache: EncodedNativeGeometry,q):
+        if self.encoder_only: raise RuntimeError("encoder-only P-CRAFT has no Moment head")
         if cache.owner!=id(self) or cache.versions!=self._versions(): raise ValueError("foreign or stale geometry cache")
         q=q.to(device=cache.latent.device,dtype=torch.float64) if isinstance(q,Tensor) else torch.tensor(np.asarray(q,dtype=np.float64),device=cache.latent.device)
         single=q.ndim==1

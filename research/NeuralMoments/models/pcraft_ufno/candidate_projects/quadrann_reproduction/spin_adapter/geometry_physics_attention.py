@@ -21,6 +21,53 @@ def _scores(query, tangent, keys, log_mass, scale):
     return score, direction
 
 
+def _streaming_statistics(q, dq, features, log_mass, key_weight, value_weight,
+                          interval_chunk, query_chunk, validate, projected_kv=None):
+    """One common reduction for training and the opt-in inference projection cache."""
+    nq, heads, dim = q.shape
+    axes = dq.shape[-1]
+    scale = dim ** -0.5
+    max_score = q.new_full((nq, heads, 1), -torch.inf)
+    denom = torch.zeros_like(max_score)
+    values_sum = torch.zeros_like(q)
+    directions_sum = q.new_zeros(nq, heads, axes)
+    cross_sum = torch.zeros_like(dq)
+    scores_sum = torch.zeros_like(denom)
+
+    with profile_stage("attention_moments", phase="forward"):
+        for ns in _query_tiles(len(features), interval_chunk):
+            feature = features[ns]
+            if validate and not torch.isfinite(feature).all():
+                raise ValueError(f"attention interval features must be finite (chunk {ns.start}:{ns.stop})")
+            if projected_kv is None:
+                key = F.linear(feature, key_weight).reshape(-1, heads, dim)
+                value = F.linear(feature, value_weight).reshape(-1, heads, dim)
+            else:
+                key, value = projected_kv[0][ns], projected_kv[1][ns]
+            for qs in _query_tiles(nq, query_chunk):
+                score, direction = _scores(q[qs], dq[qs], key, log_mass[ns], scale)
+                new_max = torch.maximum(max_score[qs], score.amax(-1, keepdim=True))
+                old_scale = torch.exp(max_score[qs] - new_max)
+                weight = torch.exp(score - new_max)
+                weighted_direction = weight[..., None] * direction
+                denom[qs] = denom[qs] * old_scale + weight.sum(-1, keepdim=True)
+                scores_sum[qs] = scores_sum[qs] * old_scale + (weight * score).sum(-1, keepdim=True)
+                values_sum[qs] = values_sum[qs] * old_scale + torch.einsum(
+                    "qhn,nhd->qhd", weight, value)
+                directions_sum[qs] = directions_sum[qs] * old_scale + weighted_direction.sum(-2)
+                cross_sum[qs] = cross_sum[qs] * old_scale[..., None] + torch.einsum(
+                    "qhna,nhd->qhda", weighted_direction, value)
+                max_score[qs] = new_max
+                if ns.start == 0 and qs.start == 0:
+                    profile_tensors(score_tile=score, direction_tile=direction, key_tile=key)
+            profile_count(interval_chunks=1, projected_intervals=len(feature) if projected_kv is None else 0,
+                          query_tiles=math.ceil(nq / query_chunk))
+
+    means = (values_sum / denom, directions_sum / denom, cross_sum / denom[..., None],
+             scores_sum / denom, max_score + denom.log())
+    return means
+
+
 class _StreamingMoments(torch.autograd.Function):
     """Compute E[v], E[t], E[v t^T], E[z], log Z for t = dz/dc.
 
@@ -34,44 +81,8 @@ class _StreamingMoments(torch.autograd.Function):
     def forward(ctx, q, dq, features, log_mass, key_weight, value_weight,
                 interval_chunk, query_chunk, validate):
         ctx.profile = capture_profile()
-        nq, heads, dim = q.shape
-        axes = dq.shape[-1]
-        scale = dim ** -0.5
-        max_score = q.new_full((nq, heads, 1), -torch.inf)
-        denom = torch.zeros_like(max_score)
-        values_sum = torch.zeros_like(q)
-        directions_sum = q.new_zeros(nq, heads, axes)
-        cross_sum = torch.zeros_like(dq)
-        scores_sum = torch.zeros_like(denom)
-
-        with profile_stage("attention_moments", phase="forward"):
-            for ns in _query_tiles(len(features), interval_chunk):
-                feature = features[ns]
-                if validate and not torch.isfinite(feature).all():
-                    raise ValueError(f"attention interval features must be finite (chunk {ns.start}:{ns.stop})")
-                key = F.linear(feature, key_weight).reshape(-1, heads, dim)
-                value = F.linear(feature, value_weight).reshape(-1, heads, dim)
-                for qs in _query_tiles(nq, query_chunk):
-                    score, direction = _scores(q[qs], dq[qs], key, log_mass[ns], scale)
-                    new_max = torch.maximum(max_score[qs], score.amax(-1, keepdim=True))
-                    old_scale = torch.exp(max_score[qs] - new_max)
-                    weight = torch.exp(score - new_max)
-                    weighted_direction = weight[..., None] * direction
-                    denom[qs] = denom[qs] * old_scale + weight.sum(-1, keepdim=True)
-                    scores_sum[qs] = scores_sum[qs] * old_scale + (weight * score).sum(-1, keepdim=True)
-                    values_sum[qs] = values_sum[qs] * old_scale + torch.einsum(
-                        "qhn,nhd->qhd", weight, value)
-                    directions_sum[qs] = directions_sum[qs] * old_scale + weighted_direction.sum(-2)
-                    cross_sum[qs] = cross_sum[qs] * old_scale[..., None] + torch.einsum(
-                        "qhna,nhd->qhda", weighted_direction, value)
-                    max_score[qs] = new_max
-                    if ns.start == 0 and qs.start == 0:
-                        profile_tensors(score_tile=score, direction_tile=direction, key_tile=key)
-                profile_count(interval_chunks=1, projected_intervals=len(feature),
-                              query_tiles=math.ceil(nq / query_chunk))
-
-        means = (values_sum / denom, directions_sum / denom, cross_sum / denom[..., None],
-                 scores_sum / denom, max_score + denom.log())
+        means = _streaming_statistics(q, dq, features, log_mass, key_weight, value_weight,
+                                      interval_chunk, query_chunk, validate)
         ctx.save_for_backward(q, dq, features, log_mass, key_weight, value_weight, *means)
         ctx.interval_chunk = interval_chunk
         ctx.query_chunk = query_chunk
@@ -174,7 +185,21 @@ class GeometryPhysicsCrossAttention(nn.Module):
         nn.init.zeros_(self.output[-1].weight)
         nn.init.zeros_(self.output[-1].bias)
 
-    def _evaluate(self, coefficients, features, mass, with_jacobian):
+    @torch.no_grad()
+    def prepare_projected_kv(self, features):
+        if self.training:
+            raise ValueError("KV projection cache requires eval()")
+        if features.ndim != 2 or features.shape[1] != self.width or len(features) == 0:
+            raise ValueError("invalid interval features for KV cache")
+        shape = (len(features), self.heads, self.dim)
+        keys = features.new_empty(shape)
+        values = features.new_empty(shape)
+        for ns in _query_tiles(len(features), self.chunk_intervals):
+            keys[ns] = self.key(features[ns]).reshape(-1,self.heads,self.dim)
+            values[ns] = self.value(features[ns]).reshape(-1,self.heads,self.dim)
+        return keys, values
+
+    def _evaluate(self, coefficients, features, mass, with_jacobian, projected_kv=None):
         if coefficients.ndim != 2 or coefficients.shape[1] != 10 or len(coefficients) == 0:
             raise ValueError("coefficients must have non-empty shape [Q,10]")
         if features.ndim != 2 or features.shape[1] != self.width:
@@ -204,9 +229,20 @@ class GeometryPhysicsCrossAttention(nn.Module):
         q = self.query(token).reshape(-1, self.heads, self.dim)
         mass_work = mass.to(features)
         log_prior = mass_work.clamp_min(1e-30).log() - mass_work.sum().clamp_min(1e-30).log()
-        context, et, evt, ez, logz = _StreamingMoments.apply(
-            q, dq, features, log_prior, self.key.weight, self.value.weight,
-            self.chunk_intervals, self.chunk_queries, self.validate_inputs)
+        if projected_kv is None:
+            context, et, evt, ez, logz = _StreamingMoments.apply(
+                q, dq, features, log_prior, self.key.weight, self.value.weight,
+                self.chunk_intervals, self.chunk_queries, self.validate_inputs)
+        else:
+            if self.training or torch.is_grad_enabled():
+                raise ValueError("projected KV is inference-only and requires no_grad")
+            expected = (len(features), self.heads, self.dim)
+            if len(projected_kv)!=2 or any(k.shape!=expected or k.dtype!=features.dtype or
+                    k.device!=features.device for k in projected_kv):
+                raise ValueError("invalid projected KV cache")
+            context, et, evt, ez, logz = _streaming_statistics(
+                q,dq,features,log_prior,self.key.weight,self.value.weight,
+                self.chunk_intervals,self.chunk_queries,self.validate_inputs,projected_kv)
         joined = torch.cat((token, context.flatten(1)), dim=1)
         jacobian = None
         if with_jacobian:
@@ -235,12 +271,12 @@ class GeometryPhysicsCrossAttention(nn.Module):
         }
         return correction * self.output_scale, jacobian, diagnostics
 
-    def forward(self, coefficients: Tensor, interval_features: Tensor, interval_mass: Tensor):
+    def forward(self, coefficients: Tensor, interval_features: Tensor, interval_mass: Tensor, *, projected_kv=None):
         with profile_stage("geometry_physics_attention", phase="forward"):
-            correction, _, diagnostics = self._evaluate(coefficients, interval_features, interval_mass, False)
+            correction, _, diagnostics = self._evaluate(coefficients, interval_features, interval_mass, False, projected_kv)
         return correction, diagnostics
 
-    def forward_with_query_jacobian(self, coefficients: Tensor, interval_features: Tensor, interval_mass: Tensor):
+    def forward_with_query_jacobian(self, coefficients: Tensor, interval_features: Tensor, interval_mass: Tensor, *, projected_kv=None):
         """Return correction, d(correction)/d(raw coefficients) [Q,10,10], and diagnostics."""
         with profile_stage("geometry_physics_attention", phase="forward"):
-            return self._evaluate(coefficients, interval_features, interval_mass, True)
+            return self._evaluate(coefficients, interval_features, interval_mass, True, projected_kv)

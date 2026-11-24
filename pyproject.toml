@@ -65,3 +65,10 @@ sdist.exclude = [
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"
+# Legacy SQNO tests import spin_adapter as a top-level package; unified tests
+# also import research.*. Resolve both from the repository, without a shell
+# PYTHONPATH export or installing an unrelated package named spin_adapter.
+pythonpath = [
+  ".",
+  "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction",
+]

@@ -31,7 +31,10 @@ from .spin_moment_operator import (
 
 def _integrate_block(xyz, weights, queries, eps2, eye, with_jacobian):
     """Contract each rank-one term over nodes before forming the 10x10 matrix."""
-    basis = raw_moment_basis(xyz)
+    return _integrate_basis_block(raw_moment_basis(xyz), weights, queries, eps2, eye, with_jacobian)
+
+
+def _integrate_basis_block(basis, weights, queries, eps2, eye, with_jacobian):
     score = queries @ basis.T
     smooth = (score.square() + eps2 * queries.square().sum(-1, keepdim=True)).sqrt()
     numerator = score.unsqueeze(-1) * basis + eps2 * queries[:, None, :]
@@ -79,6 +82,7 @@ class BatchedSpinMomentOperator:
         coefficients: Tensor,
         *,
         with_jacobian: bool = True,
+        prepared_basis: Tensor | None = None,
     ) -> dict[str, Tensor]:
 
         if coefficients.ndim == 1:
@@ -109,6 +113,11 @@ class BatchedSpinMomentOperator:
         ):
             raise ValueError("nonfinite inputs")
 
+        if prepared_basis is not None:
+            if torch.is_grad_enabled():
+                raise ValueError("prepared_basis requires no_grad inference")
+            if prepared_basis.shape!=(len(xyz),10) or prepared_basis.dtype!=xyz.dtype or prepared_basis.device!=xyz.device:
+                raise ValueError("invalid prepared moment basis")
         if (weights < 0).any():
             raise ValueError("negative integration weights")
 
@@ -136,7 +145,8 @@ class BatchedSpinMomentOperator:
 
         # Split once. Backward concatenates adjacent block gradients in one
         # operation instead of zero-filling a full geometry for each slice.
-        nodes = xyz.split(self.chunk_nodes)
+        nodes = (xyz if prepared_basis is None else prepared_basis).split(self.chunk_nodes)
+        integrate = _integrate_block if prepared_basis is None else _integrate_basis_block
         node_weights = weights.split(self.chunk_nodes)
         recompute = torch.is_grad_enabled() and any(
             value.requires_grad for value in (xyz, weights, q_all)
@@ -157,11 +167,11 @@ class BatchedSpinMomentOperator:
                     arguments = (points, mass, q, eps2, eye, with_jacobian)
                     if recompute:
                         p_part, m_part, j_part = checkpoint(
-                            _integrate_block, *arguments, use_reentrant=False, preserve_rng_state=False,
+                            integrate, *arguments, use_reentrant=False, preserve_rng_state=False,
                             context_fn=_integration_contexts
                         )
                     else:
-                        p_part, m_part, j_part = _integrate_block(*arguments)
+                        p_part, m_part, j_part = integrate(*arguments)
                     potential = potential + p_part
                     moments = moments + m_part
                     if with_jacobian:

@@ -1,6 +1,6 @@
 """Unified M80 + SQNO with one shared P-CRAFT encoder (Phase 2.8.4)."""
 from __future__ import annotations
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from contextlib import nullcontext
 import hashlib, math, os, random, tempfile
 from pathlib import Path
@@ -17,6 +17,7 @@ from .spin_quadrann_v12 import SpinQuadrANNV12, SQNOGeometryCache
 from .geometry_physics_attention import GeometryPhysicsCrossAttention
 from .cross_scale_attention import QueryConditionedCrossScaleAttention
 from .masked_derivative_supervision import derivative_supervision_loss
+from .inference_acceleration import InferenceAcceleration, prepare_acceleration
 from .unified_training_state import (
     parameter_partition, make_training_contract, optimizer_contract,
     checkpoint_training_metadata, validate_resume,
@@ -34,6 +35,7 @@ class UnifiedGeometryCache:
     versions: tuple
     native_intervals: int
     inference_only: bool = False
+    acceleration: InferenceAcceleration | None = None
 
 def _source_fingerprints():
     here=Path(__file__).resolve().parent
@@ -48,6 +50,7 @@ def _source_fingerprints():
       "unified_m80_sqno.py":here/"unified_m80_sqno.py",
       "geometry_physics_attention.py":here/"geometry_physics_attention.py",
       "cross_scale_attention.py":here/"cross_scale_attention.py",
+      "inference_acceleration.py":here/"inference_acceleration.py",
     }
     out={}
     for name,path in files.items():
@@ -60,6 +63,11 @@ class UnifiedM80SQNO(nn.Module):
 
     Global scalar and query-conditioned convex fusion share the same raw
     coefficient Jacobian and training/checkpoint contracts.
+
+    attention_mixing controls attention residuals independently of GNO when
+    interaction_variant="independent". "legacy" preserves variant behavior;
+    "sum" adds residuals; "gated" fixes geometry and scale coefficients to
+    beta and 1-beta respectively, including when one branch is disabled.
     """
     def __init__(self,shared_encoder:PcraftNativeMomentOperator,sqno:SpinQuadrANNV12,
                  *,fusion_initial_weight=.5,architecture_metadata:Mapping[str,Any]|None=None,
@@ -67,7 +75,7 @@ class UnifiedM80SQNO(nn.Module):
                  cross_attention_chunk:int=1024,cross_attention_output_scale:float=.05,
                  cross_scale_attention_enabled:bool=False,cross_scale_heads:int=2,
                  cross_scale_max_scales:int=16,cross_scale_disabled_ids:tuple[int,...]=(),
-                 interaction_variant:str="independent",
+                 interaction_variant:str="independent",attention_mixing:str="legacy",
                  fusion_mode:str="global_scalar",query_fusion_hidden:int=32):
         super().__init__()
         if not isinstance(shared_encoder,PcraftNativeMomentOperator):
@@ -79,6 +87,8 @@ class UnifiedM80SQNO(nn.Module):
         width=shared_encoder.config.interval_width
         if sqno.pcraft_width!=width: raise ValueError("shared P-CRAFT feature width mismatch")
         if not 0<float(fusion_initial_weight)<1: raise ValueError("fusion weight must be between zero and one")
+        if attention_mixing not in {"legacy","sum","gated"}:
+            raise ValueError("attention_mixing must be legacy, sum or gated")
         valid_variants={"independent","gno_only","geometry_attention_only","cross_scale_only","gno_then_attention","parallel_gno_attention"}
         if interaction_variant not in valid_variants:
             raise ValueError(f"unsupported interaction_variant: {interaction_variant}")
@@ -98,6 +108,7 @@ class UnifiedM80SQNO(nn.Module):
             raise ValueError("fusion_mode must be global_scalar or query_conditioned")
         if query_fusion_hidden<1: raise ValueError("query_fusion_hidden must be positive")
         self.interaction_variant=interaction_variant
+        self.attention_mixing=attention_mixing
         self.fusion_mode=fusion_mode
         self.query_fusion_hidden=int(query_fusion_hidden)
         self.shared_encoder=shared_encoder
@@ -111,7 +122,9 @@ class UnifiedM80SQNO(nn.Module):
         self.cross_scale_heads=int(cross_scale_heads)
         self.cross_scale_max_scales=int(cross_scale_max_scales)
         self.cross_scale_disabled_ids=tuple(int(v) for v in cross_scale_disabled_ids)
-        if interaction_variant=="parallel_gno_attention":
+        gated_attention=(attention_mixing=="gated" or
+            (attention_mixing=="legacy" and interaction_variant=="parallel_gno_attention"))
+        if gated_attention and (self.cross_attention_enabled or self.cross_scale_attention_enabled):
             self.parallel_interaction_logit=nn.Parameter(torch.tensor(0.0,dtype=torch.float64))
         else:
             self.register_parameter("parallel_interaction_logit",None)
@@ -162,6 +175,9 @@ class UnifiedM80SQNO(nn.Module):
         if inference and self.training:
             raise ValueError("inference=True requires model.eval()")
         geometry=PreparedNativeGeometry.prepare(geometry, borrow=True)
+        required=self.architecture_metadata.get("config",{}).get("native_resolution")
+        if required is not None and int(np.asarray(geometry["native_resolution"]))!=required:
+            raise ValueError(f"exact native resolution {required} required")
         context=torch.no_grad() if inference else nullcontext()
         with context:
             with profile_stage("pcraft_native_encoding", native_intervals=len(geometry["xyz"])):
@@ -172,12 +188,87 @@ class UnifiedM80SQNO(nn.Module):
         return UnifiedGeometryCache(shared.geometry_sha256,shared,sqno_cache,id(self),
                                      self._versions(),shared.native_intervals,bool(inference or sqno_cache.inference_only))
 
+    def prepare_inference_acceleration(self,cache:UnifiedGeometryCache,*,max_extra_bytes:int,
+                                       attention=True,quadrature=True):
+        """Return a new cache plus an explicit persistent-memory accounting."""
+        state,report=prepare_acceleration(self,cache,max_extra_bytes,attention=attention,quadrature=quadrature)
+        return replace(cache,acceleration=state),report
+
+    def _cached_sqno(self,cache,q,*,with_jacobian):
+        acceleration=cache.acceleration
+        if acceleration is None or acceleration.prepared_query is None:
+            return self.sqno.evaluate_queries(cache.sqno_cache,q,with_jacobian=with_jacobian)
+        with torch.no_grad():
+            return self.sqno.evaluate_queries(cache.sqno_cache,q,with_jacobian=with_jacobian,
+                                              prepared_query=acceleration.prepared_query)
+
+    def _geometry_correction(self,cache,q,*,with_jacobian):
+        module=self.geometry_physics_attention
+        call=module.forward_with_query_jacobian if with_jacobian else module
+        arguments=(q,cache.shared_cache.interval_features,cache.shared_cache.interval_mass)
+        acceleration=cache.acceleration
+        if acceleration is None or acceleration.attention_kv is None:
+            return call(*arguments)
+        with torch.no_grad():
+            return call(*arguments,projected_kv=acceleration.attention_kv)
+
+    @torch.no_grad()
+    def predict_moments(self, cache:UnifiedGeometryCache, coefficients:Tensor):
+        """Inference-only Moment path; never constructs the coefficient Jacobian.
+
+        The existing full-J API and training graph are unchanged. A caller must
+        explicitly opt into this path only for residual-only evaluations.
+        """
+        if self.training or not cache.inference_only:
+            raise ValueError("predict_moments requires eval() and an inference-only cache")
+        if cache.owner!=id(self) or cache.versions!=self._versions():
+            raise ValueError("foreign or stale unified geometry cache")
+        if cache.acceleration is not None:
+            cache.acceleration.validate(cache)
+        q=torch.as_tensor(coefficients,device=cache.shared_cache.latent.device,dtype=torch.float64)
+        single=q.ndim==1
+        qb=q.unsqueeze(0) if single else q
+        if qb.ndim!=2 or qb.shape[1]!=10 or len(qb)==0:
+            raise ValueError("coefficients must be nonempty [10] or [Q,10]")
+        if not torch.isfinite(qb).all() or (qb.abs().amax(-1)<=0).any():
+            raise ValueError("coefficients must be finite and nonzero")
+        m80=self.shared_encoder.predict(cache.shared_cache,qb).detach()
+        ms=self._cached_sqno(cache,qb,with_jacobian=False)["moments"]
+        if m80.shape!=ms.shape:
+            raise RuntimeError("M80/SQNO output contract mismatch")
+        if self.fusion_mode=="global_scalar":
+            alpha=self.fusion_weight.to(m80).expand(len(qb),1)
+        else:
+            qnorm=qb/torch.linalg.vector_norm(qb,dim=-1,keepdim=True).clamp_min(1e-30)
+            context=cache.shared_cache.latent.reshape(1,-1).expand(len(qb),-1).to(qb)
+            gate_input=torch.cat((qnorm,context),dim=-1).to(self.query_fusion_gate[0].weight)
+            alpha=torch.sigmoid(self.query_fusion_gate(gate_input)).to(m80)
+        result=alpha*m80+(1-alpha)*ms
+        gate=None if self.parallel_interaction_logit is None else torch.sigmoid(
+            self.parallel_interaction_logit).to(qb)
+        corrections=[]
+        if self.geometry_physics_attention is not None:
+            correction,_=self._geometry_correction(cache,qb,with_jacobian=False)
+            corrections.append(correction if gate is None else gate*correction)
+        if self.cross_scale_attention is not None:
+            correction,_=self.cross_scale_attention(qb,cache.shared_cache.scale_features,
+                cache.shared_cache.scale_ids,disabled_scale_ids=self.cross_scale_disabled_ids)
+            corrections.append(correction if gate is None else (1-gate)*correction)
+        if corrections:
+            result=result+sum(corrections).to(result)
+        self.query_evaluation_calls+=1
+        return result[0] if single else result
+
     def evaluate_queries(self,cache:UnifiedGeometryCache,coefficients:Tensor,*,
                          create_graph=False,with_jacobian=True):
         if cache.owner!=id(self) or cache.versions!=self._versions():
             raise ValueError("foreign or stale unified geometry cache")
         if cache.inference_only and (self.training or create_graph):
             raise ValueError("inference-only geometry cache cannot be used for training or higher-order gradients")
+        if cache.acceleration is not None:
+            if self.training or create_graph or not cache.inference_only:
+                raise ValueError("acceleration cache requires eval/inference-only queries")
+            cache.acceleration.validate(cache)
         if not with_jacobian: raise ValueError("unified contract currently requires Moment Jacobians")
         q=torch.as_tensor(coefficients,device=cache.shared_cache.latent.device,dtype=torch.float64)
         single=q.ndim==1
@@ -191,7 +282,7 @@ class UnifiedM80SQNO(nn.Module):
                     else self.shared_encoder.query_head)
             profile_adjoint("m80_coefficient_jacobian", (m80, j80), (cache.shared_cache.latent, qb),
                             head.parameters())
-        sq=self.sqno.evaluate_queries(cache.sqno_cache,qb,with_jacobian=True)
+        sq=self._cached_sqno(cache,qb,with_jacobian=True)
         ms=sq["moments"]
         # M80.moments_and_jacobian differentiates with respect to the raw
         # coefficient tensor supplied to this wrapper. SQNO's jacobian_q is
@@ -243,8 +334,7 @@ class UnifiedM80SQNO(nn.Module):
 
         if self.geometry_physics_attention is not None:
             with profile_stage("geometry_query_jacobian", queries=len(qb)):
-                corr,jac,diag=self.geometry_physics_attention.forward_with_query_jacobian(
-                    qb,cache.shared_cache.interval_features,cache.shared_cache.interval_mass)
+                corr,jac,diag=self._geometry_correction(cache,qb,with_jacobian=True)
                 profile_adjoint("geometry_query_jacobian", (corr, jac),
                     (qb, cache.shared_cache.interval_features, cache.shared_cache.interval_mass),
                     self.geometry_physics_attention.parameters())
@@ -290,10 +380,16 @@ class UnifiedM80SQNO(nn.Module):
                 attention_diagnostics.update({name: torch.cat(values)
                                               for name, values in diagnostic_parts.items()})
         if corrections:
-            if self.interaction_variant=="parallel_gno_attention" and len(corrections)==2:
+            if self.parallel_interaction_logit is not None:
                 gate=torch.sigmoid(self.parallel_interaction_logit).to(device=qb.device,dtype=qb.dtype)
-                attention_correction=gate*corrections[0]+(1-gate)*corrections[1]
-                attention_jacobian=gate*correction_jacobians[0]+(1-gate)*correction_jacobians[1]
+                # Slots are identified by branch, not by position among the
+                # enabled branches. Disabling one term never renormalizes the
+                # surviving term or assigns the scale branch geometry's gate.
+                weights={"geometry":gate,"scale":1-gate}
+                attention_correction=sum(weights[name]*value
+                    for name,value in zip(branch_names,corrections))
+                attention_jacobian=sum(weights[name]*value
+                    for name,value in zip(branch_names,correction_jacobians))
                 attention_diagnostics["parallel_attention_gate"]=gate.detach()
             else:
                 attention_correction=sum(corrections)
@@ -581,6 +677,7 @@ class UnifiedM80SQNO(nn.Module):
             "heads":self.cross_scale_heads,"max_scales":self.cross_scale_max_scales,
             "disabled_ids":self.cross_scale_disabled_ids},
           "interaction_variant":self.interaction_variant,
+          "attention_mixing":self.attention_mixing,
           "metadata":self.architecture_metadata,
         }
 
@@ -610,10 +707,14 @@ class UnifiedM80SQNO(nn.Module):
             raise ValueError("incompatible unified checkpoint schema")
         saved_architecture=payload.get("architecture",{})
         current_architecture=self.architecture_contract()
+        saved_compare=dict(saved_architecture)
+        # A missing mixing field denotes the historical variant-based rule.
+        # This only normalizes architecture metadata; source checks below
+        # retain their existing strictness and migration scope.
+        saved_compare.setdefault("attention_mixing","legacy")
         legacy_global=(not self.cross_attention_enabled
             and "geometry_physics_attention" not in saved_architecture)
-        if saved_architecture!=current_architecture:
-            saved_compare=dict(saved_architecture)
+        if saved_compare!=current_architecture:
             current_compare=dict(current_architecture)
             # Phase 2.8.5.3 adds opt-in adaptive slicing config defaults.
             # Normalize absent fields from older Phase 2.8.4 checkpoints.

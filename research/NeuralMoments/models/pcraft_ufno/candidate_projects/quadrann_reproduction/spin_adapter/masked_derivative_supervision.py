@@ -42,9 +42,9 @@ def _require_finite(value: Tensor, name: str) -> None:
 def _scale(value, *, name: str, prediction: Tensor, restricted: bool,
            active: bool) -> Tensor:
     scale = _real_tensor(value, name=name, prediction=prediction)
-    shapes = ((), (10,), (10, 1)) if restricted else ((), (10, 10))
+    shapes = ((), (10,), (10, 1), (2, 10)) if restricted else ((), (10, 10))
     if tuple(scale.shape) not in shapes:
-        allowed = "scalar, [10], or [10,1]" if restricted else "scalar or [10,10]"
+        allowed = "scalar, [10], [10,1], or [2,10] (R3,R8)" if restricted else "scalar or [10,10]"
         raise ValueError(f"{name} must have shape {allowed}")
     if active:
         _require_finite(scale, name)
@@ -85,7 +85,7 @@ def derivative_supervision_loss(
     Each full row averages its 100 squared normalized errors. Each restricted
     row averages its ``10*d`` squared errors after projecting the raw prediction
     as ``J @ B``. ``restricted_scale`` is an independent scalar or per-output
-    scale (``[10]`` or ``[10,1]``), never an elementwise full-Jacobian scale
+    scale (``[10]`` or ``[10,1]``), or independent ``[2,10]`` R3/R8 scales, never an elementwise full-Jacobian scale
     projected into the restricted basis. ``jacobian_scale`` is scalar or
     ``[10,10]``. Scales used by an active branch must be finite and positive.
 
@@ -178,7 +178,12 @@ def derivative_supervision_loss(
             _require_finite(selected_prediction, "restricted prediction")
             _require_finite(selected_basis, "restricted_basis")
             _require_finite(selected_target, "restricted_target")
-            error = (selected_prediction @ selected_basis - selected_target) / directional_scale
+            selected_scale = directional_scale
+            if directional_scale.shape == (2, 10):
+                if dimension not in (3, 8):
+                    raise ValueError("R3/R8 restricted_scale requires dimension 3 or 8")
+                selected_scale = directional_scale[0 if dimension == 3 else 1, :, None]
+            error = (selected_prediction @ selected_basis - selected_target) / selected_scale
             row_losses.append(error.square().mean(dim=(1, 2)))
         restricted_rows = torch.cat(row_losses)
 

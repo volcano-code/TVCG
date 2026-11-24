@@ -229,3 +229,22 @@ def test_prediction_requires_real_batched_full_jacobian(prediction):
 def test_full_target_shape_is_validated_before_arithmetic():
     with pytest.raises(ValueError, match="full_target.*shape"):
         derivative_supervision_loss(torch.zeros(1,10,10), torch.zeros(1,10))
+
+
+def test_separate_r3_r8_scales_preserve_raw_basis_and_equal_query_weight():
+    prediction=torch.zeros(2,10,10,dtype=torch.float64,requires_grad=True)
+    basis=torch.full((2,10,8),float("nan"),dtype=torch.float64)
+    target=torch.full_like(basis,float("nan"))
+    basis[0,:,:3]=torch.eye(10,dtype=torch.float64)[:,:3]
+    basis[1]=torch.eye(10,dtype=torch.float64)[:,:8]
+    target[0,:,:3]=2.
+    target[1]=12.
+    scales=torch.tensor([[2.]*10,[4.]*10],dtype=torch.float64)
+    loss=derivative_supervision_loss(prediction,None,restricted_basis=basis,restricted_target=target,
+                                     restricted_dimension=torch.tensor([3,8]),restricted_scale=scales)
+    torch.testing.assert_close(loss["loss"],torch.tensor(5.,dtype=torch.float64))
+    loss["loss"].backward()
+    assert torch.isfinite(prediction.grad).all()
+    with pytest.raises(ValueError,match="dimension 3 or 8"):
+        derivative_supervision_loss(prediction[:1],None,restricted_basis=basis[:1,:,:2],
+                                     restricted_target=target[:1,:,:2],restricted_scale=scales)

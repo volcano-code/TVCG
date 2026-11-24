@@ -41,25 +41,21 @@ class NeuralNewtonAdapterTests(unittest.TestCase):
         self.assertIn("event_risk_above_policy", proposal.fallback_reasons)
 
     def test_exact_gate_accepts_only_feasible_decreasing_trial(self):
+        target = 0.1
         proposal = make_neural_newton_proposal(
             current_coefficients=self.beta,
-            predicted_residual=self.residual,
+            predicted_residual=self.beta - target,
             predicted_jacobian=self.jac,
-            policy=ProposalPolicy(
-                trust_radius=0.1,
-                max_step_norm=0.1,
-                armijo=0.0,
-                feasibility_tolerance=1e-7,
-            ),
         )
         calls = []
 
         def exact_evaluator(beta):
             calls.append(beta.clone())
-            objective = float(((beta - 0.1) ** 2).sum())
+            objective = float(((beta - target) ** 2).sum())
             return {"objective": objective, "constraint_violation": 0.0}
 
         result = exact_correction_and_accept(proposal, exact_evaluator=exact_evaluator)
+        self.assertLess(result.objective_after, result.objective_before)
         self.assertTrue(result.accepted)
         self.assertEqual(len(calls), 2)
         self.assertTrue(torch.equal(result.coefficients, proposal.candidate_coefficients))
@@ -71,12 +67,21 @@ class NeuralNewtonAdapterTests(unittest.TestCase):
             predicted_jacobian=self.jac,
         )
 
-        def infeasible(beta):
-            return {"objective": float((beta ** 2).sum()), "constraint_violation": 1.0}
+        # This proposal points toward negative coefficients. Isolate each
+        # reason to reject, including when the exact objective disagrees.
+        for target, violation in [(0.1, 0.0), (-0.1, 1.0), (0.0, 1.0)]:
+            with self.subTest(target=target, violation=violation):
+                def exact_evaluator(beta):
+                    objective = float(((beta - target) ** 2).sum())
+                    return {"objective": objective, "constraint_violation": violation}
 
-        result = exact_correction_and_accept(proposal, exact_evaluator=infeasible)
-        self.assertFalse(result.accepted)
-        self.assertTrue(torch.equal(result.coefficients, self.beta))
+                result = exact_correction_and_accept(proposal, exact_evaluator=exact_evaluator)
+                if target < 0:
+                    self.assertLess(result.objective_after, result.objective_before)
+                else:
+                    self.assertGreater(result.objective_after, result.objective_before)
+                self.assertFalse(result.accepted)
+                self.assertTrue(torch.equal(result.coefficients, self.beta))
 
     def test_ineligible_proposal_never_evaluates_trial(self):
         proposal = make_neural_newton_proposal(
