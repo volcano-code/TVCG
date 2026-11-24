@@ -1,0 +1,37 @@
+{
+  "schema": "tvcg.compact-pino.v2.1.protocol.1",
+  "baseline_commit": "54e8025e05270a724721c496bd0e499fef1a8799",
+  "four_split_manifest_sha256": "ad11371d93f59db683a57682b107e65fdf7e83e650d427ee44265b93107a370d",
+  "target": "Deployed finite Cherchi intersection/difference with level 2 and GROW_TO_CERTIFIED_V1; use the actual moving operand and its cap faces",
+  "units": "registered target coordinates and density; undoubled cross moments",
+  "moment_order": ["1", "x", "y", "z", "xx", "yy", "zz", "yz", "xz", "xy"],
+  "resolution": 256,
+  "volume_rule": "Use a static positive material measure that reproduces all mesh moments through degree two. Fixed physical material is added once, separately.",
+  "checks": ["full editable moments", "same frozen operand opposite operations", "fresh signed operands", "long column", "thin wall", "cavity", "disconnected", "raw coefficient or typed stratum motion and rejection", "25 recorded Noodles queries"],
+  "gate_a_scaled_full_max": 1e-8,
+  "screening_limits": {
+    "moment_p95": 0.01,
+    "directional_jacobian_p95_per_full_r3_r8": 0.05,
+    "scales": "editable mesh mass times bounding-box longest material extent raised to monomial degree; unit raw coefficients and normalized tangent directions. Compare raw unscaled errors as well.",
+    "strata": ["near-zero <1%", "low 1%-10%", "middle 10%-70%", "high >=70%"],
+    "purpose": "proposed screening limits, to validate with native training-side sensitivity before learned candidates; diagnostics with unknown ambient event do not certify a derivative"
+  },
+  "deterministic_primary": {"bandwidth_voxels": 1.0, "spatial_block_width_voxels": 8, "interpretation": "bandwidth is the compact transition half-width in target coordinates; diagnostic block pruning preserves the same quadrature rule"},
+  "pilot": {
+    "arms": ["matching-input CompactLite", "V2.1 Token16", "V2.1 Token8"],
+    "seed": 830251, "epochs": 3, "learning_rate": 0.00003, "branch_aux_weight": 0.0,
+    "primary": "source-macro Moment RMSE reduction >=5% vs same arm epoch 0, earliest minimum among epochs 1-3",
+    "protections": "Full-J, R3, R8 and middle/high retained mass errors each <=1.05 times their epoch 0 values. Report differences from both previous epoch and epoch 0.",
+    "admission": "all arms require matching deploy-teacher overlay, exact published train/development geometry/query coverage, separate eligibility masks and positive certified development R8 support, actual joint update and checkpoint restoration"
+  },
+  "solver": {
+    "diagnostic": "Noodles v8; seed 0 trajectory for development",
+    "blind_case": "cad_elbow",
+    "blind_source_group": "project_cad/015edff1f5583a73d163163c04b7baaa18ced9cb79d3a42e9da40ea34a18cfe3",
+    "blind_raw_sha256": "dcd124969dd3ac3953226c80c86fdaccab0b1962f8f9bc8f0ff72e3d2afc03eb",
+    "choice": "first eligible external-case record in frozen publisher order; only metadata opened at registration",
+    "seeds": "integers 0 through 49, paired",
+    "acceptance": "same native initialization, constraints, tolerances and policy; independent mesh constraints, positive multiplier, convergence and paired objective within 1% of native; include all failures and fallbacks",
+    "timing": "end-to-end time through fresh independent verification, cold and warm separately; setup, surface motion, transfers, inference, line search, fallback and failures charged; paired 95% CI upper time-ratio bound <1"
+  }
+}
