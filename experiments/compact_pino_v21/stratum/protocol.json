@@ -1,0 +1,16 @@
+{
+  "schema": "tvcg.compact-v21.finite-strata.study.1",
+  "parent_commit": "6eca32d82d5ac18bc176ff6bca6ffba81d2e6d01",
+  "release_manifest_sha256": "ad11371d93f59db683a57682b107e65fdf7e83e650d427ee44265b93107a370d",
+  "legacy_profile_sha256": "1a8015fe47713bc0240c08162586e0c98d784978db9c23b2a1b54b2a2d00aa38",
+  "historical_native_replay_sha256": "82c8d1dfab7959af6c133110f0aaec712450b75f88ebfceeedb128d09e8dde01",
+  "population": {"R3": {"maskB": 16, "combB": 16, "R01": 16, "R02": 16}, "R8": {"maskB": 9, "combB": 7, "R01": 4, "R02": 5}},
+  "objective": "Extend the registered algebraic finite source to typed plane and numerical-rank-two paraboloid domains. Compare actual finite geometry, selected Boolean side, material moments, moving-boundary differentials, and independent scope decisions. All registered rows including rejections stay in the denominator.",
+  "scope": "Original 10-dimensional full-rank queries and untyped rank-deficient calls keep the archived solver map and rejection behavior. Typed results identify the new source and the requested raw tangent frame. No training or blind evaluation based on numerical probes alone.",
+  "gates": {
+    "production_conditions": "Historical native settings and physical Cherchi operand, orientation, density, fixed material and MPFR256/GMP integral profile. Teacher and solver use the same versioned typed physical map.",
+    "numerical": "Numerical M, ambient J, restricted J, agreement of the two-step finite differences, and certified event support are recorded separately. Use registered coefficients and basis; independent tetrahedral moments/transport on the same retained boundary and rank-preserving variations of the raw inputs.",
+    "qualification": "A positive neighbourhood claim requires constructive evidence for the exact scope and versioned finite map; directional samples alone have no power to certify the neighbourhood.",
+    "pilot": "Keep the existing three-arm admission in ../protocol.json, including a complete matching train/development overlay and certified development R8 support. Promotions and protections are unchanged."
+  }
+}
