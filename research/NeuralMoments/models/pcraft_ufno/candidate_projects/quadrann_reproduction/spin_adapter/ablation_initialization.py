@@ -82,12 +82,14 @@ def initialize_from_reference(
             copied[name] = source[name]
     if not copied:
         raise ValueError("reference and target have no compatible state tensors")
-    if require_complete and (missing or mismatched):
+    v2_shared_only=(getattr(target,"operator_kind",None)=="compact_pino_v2" and not mismatched
+                    and all(key.startswith("response.") for key in missing))
+    if require_complete and (missing or mismatched) and not v2_shared_only:
         details = json.dumps({"missing_keys": missing, "mismatched_keys": mismatched},
                              sort_keys=True)
         raise ValueError(f"reference does not cover the complete target state: {details}")
 
-    target.load_state_dict(copied, strict=require_complete)
+    target.load_state_dict(copied, strict=require_complete and not (v2_shared_only and missing))
     architecture = getattr(target, "architecture_contract", None)
     reference_architecture = getattr(reference, "architecture_contract", None)
     return {
@@ -104,6 +106,8 @@ def initialize_from_reference(
         "mismatched_keys": mismatched,
         "reference_only_keys": sorted(set(source) - set(destination)),
         "complete_target_coverage": not missing and not mismatched,
+        "v2_shared_encoder_complete": bool(v2_shared_only),
+        "new_v2_response_keys": sorted(missing) if v2_shared_only else [],
         "target_architecture_manifest": architecture() if callable(architecture) else None,
         "checkpoint_loaded": False,
         "optimizer_copied": False,

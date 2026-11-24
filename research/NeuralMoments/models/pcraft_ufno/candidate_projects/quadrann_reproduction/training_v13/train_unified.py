@@ -207,7 +207,7 @@ def train(
     learning_rate: float = 3e-4,
     weight_decay: float = 1e-4,
     jacobian_weight: float = 0.1,
-    branch_aux_weight: float = 0.25,
+    branch_aux_weight: float | None = None,
     gradient_clip: float = 1.0,
     gradient_mode: str = "fixed",
     resume: str | None = None,
@@ -232,6 +232,8 @@ def train(
     normalizer = MomentNormalizer.fit(corpus)
     _seed_all(seed)
     model = build_model(config_name, device=device)
+    if branch_aux_weight is None:
+        branch_aux_weight=getattr(model,"default_branch_aux_weight",0.25)
     initialization = None
     if initialization_reference is not None:
         initialization = initialize_from_reference(
@@ -391,7 +393,7 @@ def main() -> int:
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--weight-decay", type=float, default=1e-4)
     parser.add_argument("--jacobian-weight", type=float, default=0.1)
-    parser.add_argument("--branch-aux-weight", type=float, default=0.25)
+    parser.add_argument("--branch-aux-weight", type=float, default=None)
     parser.add_argument("--gradient-clip", type=float, default=1.0)
     parser.add_argument("--gradient-mode", choices=("fixed", "pcgrad"), default="fixed")
     parser.add_argument("--resume")

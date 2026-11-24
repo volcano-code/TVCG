@@ -27,6 +27,10 @@ class SpinNeuralOperatorConfig:
     pcraft_preset: str
     pcraft_grid_size: int | None = None
     native_resolution: int | None = None
+    operator_kind: str = "unified_v1"
+    v2_token_grid: int = 16
+    v2_width: int = 64
+    v2_heads: int = 4
     multiscale_grids: tuple[int, ...] | None = None
     pcraft_gno_enabled: bool | None = None
     pcraft_transolver_enabled: bool | None = None
@@ -61,6 +65,13 @@ class SpinNeuralOperatorConfig:
             raise ValueError("unsupported fusion_mode")
         if self.attention_mixing not in {"legacy", "sum", "gated"}:
             raise ValueError("unsupported attention_mixing")
+        if self.operator_kind not in {"unified_v1","compact_pino_v2"}:
+            raise ValueError("unknown operator kind")
+        if self.operator_kind=="compact_pino_v2":
+            if self.native_resolution!=256 or self.pcraft_gno_enabled or self.pcraft_transolver_enabled or self.uq_enabled or self.event_enabled or self.cross_scale_attention:
+                raise ValueError("Compact V2 requires the encoder-only native256 topology")
+            if any(isinstance(v,bool) or not isinstance(v,int) or v<1 for v in (self.v2_token_grid,self.v2_width,self.v2_heads)) or self.v2_width%self.v2_heads or self.v2_token_grid>256:
+                raise ValueError("invalid V2 token/attention dimensions")
         if self.native_resolution is not None and (
             isinstance(self.native_resolution, bool) or not isinstance(self.native_resolution, int)
             or self.native_resolution < 8
@@ -105,6 +116,10 @@ class SpinNeuralOperatorConfig:
         for field, default in (
             ("pcraft_grid_size", None),
             ("native_resolution", None),
+            ("operator_kind", "unified_v1"),
+            ("v2_token_grid", 16),
+            ("v2_width", 64),
+            ("v2_heads", 4),
             ("multiscale_grids", None),
             ("pcraft_gno_enabled", None),
             ("pcraft_transolver_enabled", None),
@@ -198,6 +213,14 @@ CONFIGS["compact_single_256"] = replace(
     multiscale_grids=(64,),
 )
 
+# Single-response V2; matched P-CRAFT width and grids for a controlled first comparison.
+CONFIGS["compact_pino_v2_256"] = replace(
+    CONFIGS["compact_lite_256"], name="compact_pino_v2_256", operator_kind="compact_pino_v2",
+)
+CONFIGS["compact_pino_v2_tokens8_256"] = replace(
+    CONFIGS["compact_pino_v2_256"], name="compact_pino_v2_tokens8_256", v2_token_grid=8,
+)
+
 
 def get_config(name: str, **overrides: Any) -> SpinNeuralOperatorConfig:
     """Return a named immutable config, optionally with explicit overrides."""
@@ -253,6 +276,13 @@ def build_model(
     """Construct a complete unified model from a named V1 configuration."""
     cfg = get_config(name, **dict(config_overrides or {}))
     pcraft_cfg = _make_native_config(cfg)
+    if cfg.operator_kind=="compact_pino_v2":
+        from .compact_pino_v2 import CompactPINOv2
+        encoder=PcraftNativeMomentOperator(pcraft_cfg,encoder_only=True)
+        model=CompactPINOv2(encoder,native_resolution=cfg.native_resolution,token_grid=cfg.v2_token_grid,
+            width=cfg.v2_width,heads=cfg.v2_heads,query_chunk=cfg.query_chunk,
+            architecture_metadata={"named_config":cfg.name,"config_fingerprint":cfg.fingerprint(),"config":cfg.config_payload()})
+        return model.to(device) if device is not None else model
     encoder = PcraftNativeMomentOperator(pcraft_cfg)
     sqno = SpinQuadrANNV12(
         preset=cfg.pcraft_preset,
@@ -300,6 +330,19 @@ def architecture_manifest(
     cfg = get_config(name, **dict(config_overrides or {}))
     pcraft = _make_native_config(cfg)
     effective_grids = pcraft.multiscale_grids if pcraft.multiscale_enabled else (pcraft.grid_size,)
+    if cfg.operator_kind=="compact_pino_v2":
+        return {"schema":"tvcg.compact-pino.v2","name":cfg.name,"config":cfg.config_payload(),
+                "config_fingerprint":cfg.fingerprint(),"pcraft_config":asdict(pcraft),
+                "effective_geometry":{"pcraft_grid_size":pcraft.grid_size,"grids":list(effective_grids),
+                    "representation":"native_rle","required_native_resolution":cfg.native_resolution,
+                    "token_grid":cfg.v2_token_grid,"max_physical_tokens":cfg.v2_token_grid**3},
+                "response":{"width":cfg.v2_width,"heads":cfg.v2_heads,"query_chunk":cfg.query_chunk,
+                    "kind":"bounded_physical_token_integral","query_domain":"positive_quadric_on_editable_domain"},
+                "modules":{"shared_pcraft":True,"m80":False,"sqno":False,"sqno_gnn":False,
+                    "gno":False,"transolver_physics_slicing":False,"cross_scale_attention":False,
+                    "query_conditioned_fusion":False,"geometry_physics_cross_attention":True,
+                    "single_physical_response":True,"moment_jacobian_uq":False,"event_validity":False},
+                "scientific_status":"candidate_configuration_not_performance_validated"}
     effective_mixing = cfg.attention_mixing
     if effective_mixing == "legacy":
         effective_mixing = "gated" if cfg.interaction_variant == "parallel_gno_attention" else "sum"

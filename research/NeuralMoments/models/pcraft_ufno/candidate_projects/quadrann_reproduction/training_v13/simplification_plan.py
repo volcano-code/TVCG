@@ -18,6 +18,7 @@ from .native256_readiness import admit_native_training
 
 
 STAGES = {
+    "v2_screen256": ("compact_lite_256","compact_pino_v2_256","compact_pino_v2_tokens8_256"),
     "screen256": ("ablation_g1_t1_256", "ablation_no_cross_scale_256", "compact_v1_candidate_256"),
     "interaction256": ("ablation_g1_t1_256", "ablation_g0_t0_256", "ablation_g1_t0_256", "ablation_g0_t1_256"),
     "scales256": ("compact_v1_candidate_256", "compact_lite_256", "compact_single_256"),
@@ -139,6 +140,10 @@ def generate_plan(
     if geometry_id is not None and geometry_id not in {row["id"] for row in corpus.splits["train"]}:
         raise ValueError("geometry_id must identify a complete admitted training record")
     admission = admit_native_training(corpus, STAGES[stage][0], native_cut_contract)
+    if stage=="v2_screen256":
+        # V2 additionally needs evidence that the native domain is a signed
+        # quadric restriction; reject before emitting any training script.
+        admit_native_training(corpus,"compact_pino_v2_256",native_cut_contract)
     repository, commit = _git_snapshot(repository_root)
     common = ["--manifest", str(corpus.path), "--device", device,
               "--grid-size", "64", "--seed", str(seed)]
@@ -148,6 +153,7 @@ def generate_plan(
         common.extend(("--native-cut-contract", admission["contract_path"]))
     if derivative_normalization is not None:
         common.extend(("--derivative-normalization", derivative_normalization))
+    if stage=="v2_screen256":common.extend(("--branch-aux-weight","0"))
     arms = []
     for name in STAGES[stage]:
         with torch.random.fork_rng(devices=[]):
@@ -195,7 +201,7 @@ def generate_plan(
         "initialization_reference": _REFERENCE,
         "preflight_geometry_id": geometry_id,
         "preflight_initialization": "independent_config_constructor_execution_check_only",
-        "training_protocol": "fresh_common_random_reference_equal_updates",
+        "training_protocol": "matched_encoder_fresh_response_equal_updates_no_branch_aux" if stage=="v2_screen256" else "fresh_common_random_reference_equal_updates",
         "scientific_status": "candidate_screening_no_performance_claim",
         "training_started": False,
         "arms": arms,

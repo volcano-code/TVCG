@@ -24,7 +24,8 @@ PHYSICAL_FIELDS = ("teacher_version", "retained_side", "finite_cut_extent",
 
 def admit_native_training(corpus, config_name, contract_path=None):
     """Require a reviewed, immutable native256 train/dev release, not test labels."""
-    required = get_config(config_name).native_resolution
+    cfg=get_config(config_name)
+    required = cfg.native_resolution
     if required is None:
         if contract_path is not None:
             raise ValueError("native cut admission requires an explicit native-resolution candidate")
@@ -44,6 +45,8 @@ def admit_native_training(corpus, config_name, contract_path=None):
         raise ValueError("native cut contract is not approved")
     if doc.get("moment_order") != MOMENT_ORDER or doc.get("jacobian_basis") != "raw_coefficients":
         raise ValueError("native cut moment/Jacobian convention mismatch")
+    if cfg.operator_kind=="compact_pino_v2" and doc.get("response_domain")!="positive_quadric_on_editable_domain":
+        raise ValueError("V2 requires a reviewed positive-quadric restriction contract; finite cap rules must be compatible")
     if doc.get("retained_side") != "positive":
         raise ValueError("native256 expects positive retained side in model coefficient coordinates")
     if doc.get("coefficient_multipliers") != [1,1,1,1,1,1,1,2,2,2]:
