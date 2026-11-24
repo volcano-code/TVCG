@@ -115,9 +115,9 @@ def derivative_scales(corpus, *, mode="train_rms", floor=1e-12):
     """Per-output RMS of valid raw derivative entries; no dev/test fitting.
 
     Full scale is repeated over 10 raw coefficient columns ([10,10]).
-    Restricted uses a separate [10] scale over valid directional columns.
+    Restricted uses independent per-output [2,10] scales for R3 and R8.
     This intentionally does not whiten arbitrary teacher bases or assume
-    orthogonality. R3/R8 counts and RMS are separately reported.
+    orthogonality. Counts and RMS are separately reported.
     """
     if mode == "legacy":
         return {"mode": "legacy", "jacobian_scale": 1.0, "restricted_scale": 1.0}
@@ -156,14 +156,16 @@ def derivative_scales(corpus, *, mode="train_rms", floor=1e-12):
     def rms(s, n):
         return np.sqrt(s/n) if n else np.ones(10)
     full = rms(sums["full"], counts["full"])
-    restricted = rms(sums["r3"]+sums["r8"], counts["r3"]+counts["r8"])
+    restricted = np.stack([rms(sums[k], counts[k]) for k in ("r3","r8")])
     return {"mode": mode, "fit_split": "train", "floor": float(floor),
             "jacobian_scale": np.repeat(np.maximum(full, floor)[:, None], 10, axis=1).tolist(),
             "restricted_scale": np.maximum(restricted, floor).tolist(),
             "query_counts": queries, "columns_per_output": counts,
             "rms_by_mode": {k: rms(sums[k], counts[k]).tolist() if counts[k] else None for k in sums},
             "full_floored_outputs": np.flatnonzero(full < floor).tolist(),
-            "restricted_floored_outputs": np.flatnonzero(restricted < floor).tolist()}
+            "restricted_scale_order": ["r3","r8"],
+            "restricted_floored_outputs": {k:np.flatnonzero(restricted[i] < floor).tolist()
+                                           for i,k in enumerate(("r3","r8"))}}
 
 
 def resolve_readiness(corpus, config_name, contract_path=None, normalization=None):

@@ -11,12 +11,13 @@ from spin_adapter.tests.test_unified_m80_sqno import make_unified, make_geometry
 def test_native256_factory_joint_update_roundtrip(tmp_path):
     # The actual factory still enforces native_resolution==256 and min==256.
     # Only context-grid / channel sizes are reduced for CPU testing.
-    model=build_model("compact_v1_candidate_256",device="cpu",config_overrides={
+    overrides={
         "pcraft_preset":"smoke","pcraft_grid_size":8,"multiscale_grids":(8,16),
         "sqno_hidden_dim":4,"sqno_final_hidden_dim":16,"sqno_num_layers":2,
         "sqno_neighbors":4,"sqno_chunk_intervals":2,"sqno_chunk_nodes":64,
         "query_chunk":2,"query_fusion_hidden":8,"geometry_attention_chunk":2,
-    })
+    }
+    model=build_model("compact_v1_candidate_256",device="cpu",config_overrides=overrides)
     assert model.shared_encoder.config.min_native_resolution==256
     geom=geometry_from_columns({"columns":np.array([[1,1,1,5],[1,2,2,7],[2,1,0,6],[3,3,1,8],[4,3,0,7]]),
         "origin":np.array([-1.,-2.,.5]),"h":np.array(.25),"side":np.array(256),"density":np.array(1.7)})
@@ -33,11 +34,19 @@ def test_native256_factory_joint_update_roundtrip(tmp_path):
     with pytest.raises(ValueError,match="stale"):
         model.evaluate_queries(cache,q)
     path=tmp_path/"compact256.pt"
-    model.save_checkpoint(path,data_fingerprint="synthetic-native256")
-    model.load_checkpoint(path,expected_data_fingerprint="synthetic-native256")
-    model.eval()
-    fresh=model.encode_geometry(geom,inference=True)
-    assert torch.isfinite(model.evaluate_queries(fresh,q)["jacobian_coefficients"]).all()
+    contract=model.training_contract()
+    model.save_checkpoint(path,optimizer=optimizer,training_contract=contract,data_fingerprint="synthetic-native256")
+    restored=build_model("compact_v1_candidate_256",device="cpu",config_overrides=overrides)
+    restored_optimizer=restored.build_optimizer(learning_rate=1e-4)
+    restored.load_checkpoint(path,optimizer=restored_optimizer,expected_training_contract=contract,
+                             expected_data_fingerprint="synthetic-native256")
+    torch.testing.assert_close(model.state_dict(),restored.state_dict(),rtol=0,atol=0)
+    model.eval();restored.eval()
+    with torch.no_grad():
+        expected=model.evaluate_queries(model.encode_geometry(geom,inference=True),q)
+        actual=restored.evaluate_queries(restored.encode_geometry(geom,inference=True),q)
+    torch.testing.assert_close(actual["moments"],expected["moments"])
+    torch.testing.assert_close(actual["jacobian_coefficients"],expected["jacobian_coefficients"])
 
 
 @pytest.mark.parametrize("attention,quadrature",[(True,False),(False,True),(True,True)])

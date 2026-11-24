@@ -236,7 +236,8 @@ def run_preflight(
                         data_fingerprint=corpus.manifest_sha256,
                         training_contract=training_contract,
                         extra={"smoke_update": True, "global_step": 1,
-                               "geometry_id": row["id"], "normalizer": normalizer.state_dict()},
+                               "geometry_id": row["id"], "normalizer": normalizer.state_dict(),
+                               "native_cut_admission": admission, "derivative_normalization": derivative_norm},
                     )
                 check("checkpoint_written", path=str(checkpoint), bytes=checkpoint.stat().st_size)
                 with profile_stage("checkpoint_resume", phase="other"):

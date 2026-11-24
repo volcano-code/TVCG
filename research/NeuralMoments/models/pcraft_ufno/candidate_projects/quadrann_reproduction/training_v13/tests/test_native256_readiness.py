@@ -123,7 +123,8 @@ def test_admission_and_train_only_scales(admitted,monkeypatch):
     monkeypatch.setattr(c,"load_labels",train_only)
     scales=derivative_scales(c)
     np.testing.assert_allclose(scales["jacobian_scale"],2)
-    np.testing.assert_allclose(scales["restricted_scale"],np.sqrt((3*9+8*64)/11))
+    np.testing.assert_allclose(scales["restricted_scale"],np.array([[3.]*10,[8.]*10]))
+    assert scales["restricted_scale_order"]==["r3","r8"]
     assert scales["query_counts"]=={"full":1,"r3":1,"r8":1}
 
 

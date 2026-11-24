@@ -42,7 +42,7 @@ def _scale(value, name):
     if not tensor.numel() or not torch.isfinite(tensor).all() or (tensor <= 0).any():
         raise ValueError(f"{name} must be finite and positive")
     allowed_shapes={"jacobian_scale":((),(10,10)),
-                    "restricted_scale":((),(10,),(10,1))}
+                    "restricted_scale":((),(10,),(10,1),(2,10))}
     if name in allowed_shapes and tuple(tensor.shape) not in allowed_shapes[name]:
         raise ValueError(f"{name} has an unsupported derivative normalization shape")
     return tensor.tolist()

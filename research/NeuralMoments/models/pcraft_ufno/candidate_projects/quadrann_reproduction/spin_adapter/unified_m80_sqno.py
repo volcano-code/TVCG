@@ -50,6 +50,7 @@ def _source_fingerprints():
       "unified_m80_sqno.py":here/"unified_m80_sqno.py",
       "geometry_physics_attention.py":here/"geometry_physics_attention.py",
       "cross_scale_attention.py":here/"cross_scale_attention.py",
+      "inference_acceleration.py":here/"inference_acceleration.py",
     }
     out={}
     for name,path in files.items():
@@ -245,13 +246,16 @@ class UnifiedM80SQNO(nn.Module):
         result=alpha*m80+(1-alpha)*ms
         gate=None if self.parallel_interaction_logit is None else torch.sigmoid(
             self.parallel_interaction_logit).to(qb)
+        corrections=[]
         if self.geometry_physics_attention is not None:
             correction,_=self._geometry_correction(cache,qb,with_jacobian=False)
-            result=result+(correction if gate is None else gate*correction).to(result)
+            corrections.append(correction if gate is None else gate*correction)
         if self.cross_scale_attention is not None:
             correction,_=self.cross_scale_attention(qb,cache.shared_cache.scale_features,
                 cache.shared_cache.scale_ids,disabled_scale_ids=self.cross_scale_disabled_ids)
-            result=result+(correction if gate is None else (1-gate)*correction).to(result)
+            corrections.append(correction if gate is None else (1-gate)*correction)
+        if corrections:
+            result=result+sum(corrections).to(result)
         self.query_evaluation_calls+=1
         return result[0] if single else result
 
