@@ -31,6 +31,7 @@ class CompactV2Cache:
     owner: int
     versions: tuple
     native_intervals: int
+    split_segments: int
     inference_only: bool
 
 
@@ -53,7 +54,7 @@ class CompactPINOv2(nn.Module):
         if not isinstance(encoder,PcraftNativeMomentOperator) or not encoder.encoder_only:
             raise ValueError("Compact V2 requires encoder-only P-CRAFT")
         if any(isinstance(v,bool) or not isinstance(v,int) or v<1
-               for v in (native_resolution,token_grid,width,heads,query_chunk)) or token_grid>native_resolution:
+               for v in (native_resolution,token_grid,width,heads,query_chunk)) or token_grid>native_resolution or native_resolution%token_grid:
             raise ValueError("invalid Compact V2 dimensions")
         self.shared_encoder=encoder
         self.response=CutAwareMomentResponse(encoder.config.interval_width,width,heads)
@@ -90,7 +91,7 @@ class CompactPINOv2(nn.Module):
             encoded=replace(encoded,interval_features=None,descriptor=None,normalized_xyz=None,interval_mass=None)
         self.geometry_encode_calls+=1
         return CompactV2Cache(encoded.geometry_sha256,encoded,memory,id(self),self._versions(),
-                              encoded.native_intervals,bool(inference or not torch.is_grad_enabled()))
+                              encoded.native_intervals,len(tokens.inverse),bool(inference or not torch.is_grad_enabled()))
 
     def _check_cache(self,cache,create_graph=False):
         if cache.owner!=id(self) or cache.versions!=self._versions():
@@ -118,7 +119,8 @@ class CompactPINOv2(nn.Module):
                 m=self.response(cache.token_cache,cache.shared_cache.fixed_moments,block)
             ms.append(m.detach() if cache.inference_only else m)
         result={"moments":torch.cat(ms),"geometry_id":cache.geometry_id,
-                "physical_token_count":len(cache.token_cache.moments),"native_intervals":cache.native_intervals}
+                "physical_token_count":len(cache.token_cache.moments),"native_intervals":cache.native_intervals,
+                "split_segments":cache.split_segments}
         if with_jacobian:
             result["jacobian_coefficients"]=torch.cat(js)
             result["jacobian_q"]=result["jacobian_coefficients"]

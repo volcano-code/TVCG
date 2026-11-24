@@ -1,6 +1,6 @@
 """Mass-conservative token response for Compact PINO V2.
 
-Every token represents complete original RLE intervals, not resampled voxels.
+Every native RLE interval is assigned or split exactly at token boundaries.
 One scalar soft retained fraction multiplies each token's exact RLE moments.
 This is a learned approximation of partial cuts, not a native mesh cutter.
 """
@@ -16,6 +16,9 @@ from torch import nn, Tensor
 @dataclass(frozen=True)
 class PhysicalTokens:
     inverse: Tensor
+    source_index: Tensor
+    segment_fraction: Tensor
+    native_intervals: int
     moments: Tensor
     lower: Tensor
     upper: Tensor
@@ -23,7 +26,7 @@ class PhysicalTokens:
 
 
 def physical_tokens(geometry, grid: int, *, device) -> PhysicalTokens:
-    """Group native interval centers; bound the *entire* interval support."""
+    """Split native RLE runs at token boundaries and conserve their moments."""
     if isinstance(grid, bool) or not isinstance(grid, int) or grid < 1:
         raise ValueError("token grid must be a positive integer")
     xyz = np.asarray(geometry["xyz"], dtype=np.float64)
@@ -40,7 +43,36 @@ def physical_tokens(geometry, grid: int, *, device) -> PhysicalTokens:
     span = int(np.asarray(geometry["native_resolution"])) * float(geometry["h"])
     if origin.shape != (3,) or not np.isfinite(origin).all() or not math.isfinite(span) or span <= 0:
         raise ValueError("invalid native coordinate frame")
-    ids = np.clip(np.floor((xyz-origin)/span*grid).astype(np.int64), 0, grid-1)
+    native_count=len(xyz)
+    side=int(np.asarray(geometry["native_resolution"]))
+    columns=geometry.get("columns")
+    if columns is not None:
+        columns=np.asarray(columns)
+        if (columns.shape!=(native_count,4) or columns.dtype.kind not in "iu"
+                or side%grid or (columns[:,:3]<0).any() or (columns[:,:2]>=side).any()
+                or (columns[:,3]>side).any() or (columns[:,3]<=columns[:,2]).any()):
+            raise ValueError("RLE token grid must divide side and columns must be valid [N,4]")
+        columns=columns.astype(np.int64,copy=False)
+        stride=side//grid
+        first=columns[:,2]//stride;last=(columns[:,3]-1)//stride
+        counts=last-first+1
+        parent=np.repeat(np.arange(native_count),counts)
+        zbin=np.repeat(first,counts)+np.arange(len(parent))-np.repeat(np.cumsum(counts)-counts,counts)
+        seg_lo=np.maximum(columns[parent,2],zbin*stride)
+        seg_hi=np.minimum(columns[parent,3],(zbin+1)*stride)
+        fraction=(seg_hi-seg_lo)/(columns[parent,3]-columns[parent,2])
+        h=float(geometry["h"])
+        z0=origin[2]+seg_lo*h;z1=origin[2]+seg_hi*h;z=(z0+z1)*.5
+        xyz=xyz[parent].copy();extent=extent[parent].copy();basis=basis[parent].copy()
+        xyz[:,2]=z;extent[:,2]=z1-z0;mass=mass[parent]*fraction
+        basis[:,3]=z;basis[:,6]=(z0*z0+z0*z1+z1*z1)/3
+        basis[:,7]=xyz[:,1]*z;basis[:,8]=xyz[:,0]*z
+        ids=np.column_stack((columns[parent,:2]//stride,zbin))
+    else:
+        # Generic rectangular-prism fixtures have no integer RLE columns.
+        # Production native RLE always follows the exact split path above.
+        parent=np.arange(native_count);fraction=np.ones(native_count)
+        ids=np.clip(np.floor((xyz-origin)/span*grid).astype(np.int64),0,grid-1)
     linear = (ids[:,0]*grid+ids[:,1])*grid+ids[:,2]
     active, inverse = np.unique(linear, return_inverse=True)
     n = len(active)
@@ -63,16 +95,23 @@ def physical_tokens(geometry, grid: int, *, device) -> PhysicalTokens:
         corners=np.stack([lo[:,i]*lo[:,j],lo[:,i]*hi[:,j],hi[:,i]*lo[:,j],hi[:,i]*hi[:,j]])
         low.append(corners.min(0));high.append(corners.max(0))
     def tensor(x):return torch.as_tensor(x,device=device)
-    return PhysicalTokens(tensor(inverse),tensor(moments),tensor(np.stack(low,1)),tensor(np.stack(high,1)),tensor(scales))
+    return PhysicalTokens(tensor(inverse),tensor(parent),tensor(fraction),native_count,tensor(moments),tensor(np.stack(low,1)),tensor(np.stack(high,1)),tensor(scales))
 
 
 def pool_features(features: Tensor, interval_mass: Tensor, tokens: PhysicalTokens) -> Tensor:
     """Mass-weighted learned features; gradient returns to every interval."""
-    if features.ndim != 2 or len(features) != len(tokens.inverse) or interval_mass.shape != (len(features),):
+    if features.ndim != 2 or len(features) != tokens.native_intervals or interval_mass.shape != (len(features),):
         raise ValueError("invalid interval feature/mass shapes")
+    pool=features.new_zeros(len(tokens.moments),features.shape[1])
+    den=features.new_zeros(len(tokens.moments))
+    # Avoid materializing a [split_segments, feature_width] table.
     weights=interval_mass.to(features)
-    pool=features.new_zeros(len(tokens.moments),features.shape[1]).index_add(0,tokens.inverse,features*weights[:,None])
-    den=features.new_zeros(len(tokens.moments)).index_add(0,tokens.inverse,weights)
+    for start in range(0,len(tokens.inverse),8192):
+        stop=min(start+8192,len(tokens.inverse))
+        src=tokens.source_index[start:stop]; dst=tokens.inverse[start:stop]
+        weight=weights[src]*tokens.segment_fraction[start:stop].to(features)
+        pool.index_add_(0,dst,features[src]*weight[:,None])
+        den.index_add_(0,dst,weight)
     return pool/den[:,None].clamp_min(torch.finfo(features.dtype).tiny)
 
 
@@ -139,7 +178,7 @@ class CutAwareMomentResponse(nn.Module):
         context=torch.einsum("qhk,khd->qhd",scores.softmax(-1),memory.values).reshape(-1,self.width)
         d=self.cut(memory.local[None]+self.query(q)[:,None]+self.context(context)[:,None]).to(t)
         # Interval arithmetic in normalized monomial coordinates. Each token
-        # bound covers entire native intervals, including long RLE runs.
+        # bound covers the entire support of its native interval segments.
         midpoint=(memory.lower+memory.upper)*.5
         radius=(memory.upper-memory.lower)*.5
         center=t@midpoint.T

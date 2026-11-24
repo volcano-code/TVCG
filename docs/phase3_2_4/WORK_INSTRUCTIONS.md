@@ -15,11 +15,12 @@ The V2 factory does not construct M80, SQNO, SQNO-GNN, query fusion, shared GNO,
 Transolver, cross-scale attention, UQ or Event heads. The encoder retains the
 Compact-Lite backbone width/depth for matched comparison. V2 attention width
 64, heads 4, token grid 16 (at most 4096 occupied groups); 8-grid candidate at
-most 512. A token groups whole RLE intervals by center, including their full
-support for moment aggregation and bounds. This is a lossy within-token
+most 512. Native integer RLE runs are split exactly at token boundaries,
+recomputing segment moments and pooling parent interval features by segment
+mass. No native voxels are resampled. This is still a lossy within-token
 cut-response representation: it is NOT exact native cut integration and
 does not claim the accuracy of native RLE256 evaluation at every query.
-Long runs spanning bins and thin structures are known risks.
+Thin structures and curved cuts within a token remain risks.
 
 For editable group k, store the FP64 exact sum m_k of raw moments and its
 conservative normalized monomial box. The model calculates a scalar p_k in
@@ -48,14 +49,15 @@ event masks. No exact-solver-validity claim comes from the model.
 ## 2. Tests and validation boundary
 
 The pure torch/NumPy response module was executed in a CPU environment
-(PyTorch 2.10.0+cpu). Six parametrized cases passed on synthetic interval
+(PyTorch 2.10.0+cpu). Eight parametrized cases passed on synthetic interval
 fixtures: exact additive ten-moment conservation, mass bounds, complement,
 positive-scale invariance, zero endpoint derivatives, raw coefficient AD vs
 FD, radial null J*c, one-sided local slopes for zero planar coefficients,
-and mixed Moment/Jacobian gradients into token features and learned attention.
+mixed Moment/Jacobian gradients into token features and learned attention,
+and two exact long-RLE split/feature-pooling conservation tests.
 The initial endpoint-gradient failure was corrected by using a safe
 denominator only in the crossing region. The final core Git blob should be
-dc3086859e561a30216fe770bf8eb8a4f2e965f7.
+92c0248676badd96c5f6cb65f6e39024e8089d58.
 
 These are isolated core tests. The full repository, actual P-CRAFT GPU update,
 native teacher and checkpoint integration tests have NOT been executed in
@@ -117,9 +119,9 @@ Reject compression if any protected physical metric deteriorates beyond the
 predeclared tolerance. Relative noninferiority to a poor V1 is insufficient
 for final training or deployment.
 
-If token approximation is inadequate, next research is splitting long
-intervals at physical token boundaries, more adaptive tokens, or higher-order
-within-token response, keeping one physically constrained response instead
+If token approximation is inadequate, next research is more adaptive
+tokens or higher-order within-token response, keeping one physically
+constrained response instead
 of restoring independent output branches. Do not infer a speedup from group
 count alone; no native solver integration, no real-data accuracy, no target
 GPU validation, and no long training are claimed here.

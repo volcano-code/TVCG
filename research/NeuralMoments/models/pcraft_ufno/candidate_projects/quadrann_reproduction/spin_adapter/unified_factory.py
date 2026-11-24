@@ -70,7 +70,7 @@ class SpinNeuralOperatorConfig:
         if self.operator_kind=="compact_pino_v2":
             if self.native_resolution!=256 or self.pcraft_gno_enabled or self.pcraft_transolver_enabled or self.uq_enabled or self.event_enabled or self.cross_scale_attention:
                 raise ValueError("Compact V2 requires the encoder-only native256 topology")
-            if any(isinstance(v,bool) or not isinstance(v,int) or v<1 for v in (self.v2_token_grid,self.v2_width,self.v2_heads)) or self.v2_width%self.v2_heads or self.v2_token_grid>256:
+            if any(isinstance(v,bool) or not isinstance(v,int) or v<1 for v in (self.v2_token_grid,self.v2_width,self.v2_heads)) or self.v2_width%self.v2_heads or self.v2_token_grid>256 or 256%self.v2_token_grid:
                 raise ValueError("invalid V2 token/attention dimensions")
         if self.native_resolution is not None and (
             isinstance(self.native_resolution, bool) or not isinstance(self.native_resolution, int)

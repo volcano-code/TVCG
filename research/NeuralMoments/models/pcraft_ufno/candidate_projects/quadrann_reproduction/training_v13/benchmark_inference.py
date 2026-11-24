@@ -84,7 +84,8 @@ def main():
         # it has no uncached full-domain SQNO path or optional V1 acceleration.
         fast=cache
         cache_report={"mode":"intrinsic_v2_token_memory","physical_tokens":len(cache.token_cache.moments),
-                      "native_intervals":cache.native_intervals,"optional_acceleration_applicable":False}
+                      "native_intervals":cache.native_intervals,"split_segments":cache.split_segments,
+                      "optional_acceleration_applicable":False}
     else:
         fast,cache_report=model.prepare_inference_acceleration(cache,max_extra_bytes=args.cache_mib*1024**2)
     _sync(device);setup=time.perf_counter()-start

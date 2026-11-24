@@ -66,3 +66,28 @@ def test_planar_zero_coefficients_are_locally_differentiable(grid):
         minus=(m-op(mem,fixed,q-dx))/1e-8
         torch.testing.assert_close(plus,j[:,:,i],rtol=0.04,atol=2e-6)
         torch.testing.assert_close(minus,j[:,:,i],rtol=0.04,atol=2e-6)
+
+
+@pytest.mark.parametrize('grid',[8,16])
+def test_native_long_runs_split_at_exact_token_boundaries(grid):
+    cols=np.array([[10,20,0,256],[11,20,7,201],[200,180,63,250]],dtype=np.int64)
+    h=1/256; origin=np.array([-.5,-.5,-.5]);density=1.7
+    x=origin[0]+(cols[:,0]+.5)*h;y=origin[1]+(cols[:,1]+.5)*h
+    z0=origin[2]+cols[:,2]*h;z1=origin[2]+cols[:,3]*h;z=(z0+z1)*.5
+    extent=np.column_stack((np.full(len(cols),h),np.full(len(cols),h),z1-z0))
+    mass=density*extent.prod(1)
+    basis=np.column_stack((np.ones(len(cols)),x,y,z,x*x+h*h/12,y*y+h*h/12,
+                           (z0*z0+z0*z1+z1*z1)/3,y*z,x*z,x*y))
+    geom=dict(columns=cols,xyz=np.column_stack((x,y,z)),cell_extent=extent,mass=mass,
+              moment_basis=basis,origin=origin,native_resolution=np.array(256),h=h)
+    tok=physical_tokens(geom,grid,device='cpu')
+    np.testing.assert_allclose(tok.moments.sum(0).numpy(),mass@basis,rtol=1e-12,atol=1e-18)
+    fraction=torch.zeros(3,dtype=torch.float64).index_add(0,tok.source_index,tok.segment_fraction)
+    torch.testing.assert_close(fraction,torch.ones_like(fraction))
+    assert len(tok.inverse)>len(cols) and len(tok.moments)<=grid**3
+    assert ((tok.upper[:,3]-tok.lower[:,3])*tok.coordinate_scales[3]<=1/grid+1e-12).all()
+    f=torch.randn(3,12,dtype=torch.float64,requires_grad=True)
+    pool=pool_features(f,torch.from_numpy(mass),tok)
+    torch.testing.assert_close((pool*tok.moments[:,:1]).sum(0),(f*torch.from_numpy(mass)[:,None]).sum(0))
+    pool.square().sum().backward()
+    assert torch.isfinite(f.grad).all() and (f.grad.abs().sum(1)>0).all()
