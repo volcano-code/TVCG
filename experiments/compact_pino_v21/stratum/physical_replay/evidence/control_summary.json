@@ -1,0 +1,243 @@
+{
+  "scope": "Controls outside the versioned 89-row population",
+  "archive": "control_replay.json.gz",
+  "archive_sha256": "f906844876ab0a51c50c6db984d36f548ee6f868cce48a5ae645bd552e8989b7",
+  "archived_nonunit_chart_controls": [
+    {
+      "row_id": "oa_0202ec72baf548bb957406ed2d88961d_plane",
+      "query_raw_norm": 2.75,
+      "original_M_identical": true,
+      "original_J_identical": true,
+      "steps": [
+        2e-05,
+        1e-05
+      ],
+      "registered_base_moments": [
+        0.04697644999153526,
+        0.0012332151457081185,
+        0.0007993949631159591,
+        0.0026893345110991307,
+        0.00045367022503360816,
+        0.0021424487592438027,
+        0.0006199326093006472,
+        -0.0006081295022289862,
+        8.73056911052896e-05,
+        -0.00024109081475531032
+      ],
+      "both_step_reports": {
+        "geometry_rows": {
+          "registered": 1,
+          "source_motion": 1,
+          "source_value": 1,
+          "source_primal_motion_bitwise": 1,
+          "M": 1,
+          "J": 1,
+          "tetra_M": 1,
+          "tetra_J": 1,
+          "all_scoped_sampled_checks": 1,
+          "same_source_side_caps_faces_all_probes": 1,
+          "all_source_velocity_FD": 1,
+          "all_material_columns_FD": 1,
+          "all_matched_retained_velocity_FD": 1,
+          "all_complete_retained_ids": 1,
+          "all_retained_topology_and_ids": 1,
+          "all_closed_euler_unchanged": 1
+        },
+        "directional_counts": {
+          "attempted_column_steps": 6,
+          "numeric_material_FD": 6,
+          "material_J_FD_passed": 6,
+          "source_velocity_FD_passed": 6,
+          "retained_constructions_equal": 6,
+          "retained_triangulation_equal": 6,
+          "matched_retained_velocity_FD_passed": 6,
+          "closed_Euler_compared": 6,
+          "closed_Euler_equal": 6,
+          "all_checks_passed": 6,
+          "source_endpoint_calls": 12,
+          "material_endpoint_values": 12
+        },
+        "maxima": {
+          "tetra_M_absolute": 2.168404344971009e-18,
+          "tetra_J_absolute": 2.0816681711721685e-17,
+          "h=2e-05_retained_J_Frobenius_relative": 4.0341289931529544e-11,
+          "h=1e-05_retained_J_Frobenius_relative": 3.3378451223692976e-11,
+          "material_FD_max_component_error": 2.1228990787491853e-12,
+          "material_FD_relative": 6.991229827330634e-11,
+          "source_FD_max_component_error": 1.3279799482290855e-10,
+          "source_FD_relative": 3.709889336642896e-11,
+          "matched_retained_velocity_FD_max_component_error": 2.9614470875571897e-09,
+          "matched_retained_velocity_FD_relative": 1.958244772355872e-09
+        },
+        "center_source_configurations": [
+          {
+            "operation": "intersection",
+            "faces": 12,
+            "cap_faces": 10,
+            "rows": 1
+          }
+        ],
+        "cap_depth_doublings": {},
+        "distributions": {
+          "h=2e-05_retained_J_Frobenius_relative": {
+            "n": 1,
+            "median": 4.0341289931529544e-11,
+            "p95": 4.0341289931529544e-11,
+            "max": 4.0341289931529544e-11
+          },
+          "h=1e-05_retained_J_Frobenius_relative": {
+            "n": 1,
+            "median": 3.3378451223692976e-11,
+            "p95": 3.3378451223692976e-11,
+            "max": 3.3378451223692976e-11
+          },
+          "fraction_of_center_constructions_matched_in_both_signs": {
+            "n": 6,
+            "minimum": 1.0,
+            "median": 1.0,
+            "maximum": 1.0
+          }
+        },
+        "rejection_reasons": {}
+      }
+    },
+    {
+      "row_id": "oa_0202ec72baf548bb957406ed2d88961d_parabolic",
+      "query_raw_norm": 2.75,
+      "original_M_identical": true,
+      "original_J_identical": true,
+      "steps": [
+        2e-05,
+        1e-05
+      ],
+      "registered_base_moments": [
+        0.05646643450315448,
+        0.0007636770756644552,
+        -0.0190537907136543,
+        0.0009969623115758876,
+        0.0010770224805528236,
+        0.006763407368861717,
+        0.001070329366678886,
+        -0.00023432287694298055,
+        -6.745605395907935e-05,
+        -0.0001825922853758688
+      ],
+      "both_step_reports": {
+        "geometry_rows": {
+          "registered": 1,
+          "source_motion": 1,
+          "source_value": 1,
+          "source_primal_motion_bitwise": 1,
+          "M": 1,
+          "J": 1,
+          "tetra_M": 1,
+          "tetra_J": 1,
+          "all_scoped_sampled_checks": 0,
+          "same_source_side_caps_faces_all_probes": 1,
+          "all_source_velocity_FD": 1,
+          "all_material_columns_FD": 1,
+          "all_matched_retained_velocity_FD": 1,
+          "all_complete_retained_ids": 1,
+          "all_retained_topology_and_ids": 0,
+          "all_closed_euler_unchanged": 1
+        },
+        "directional_counts": {
+          "attempted_column_steps": 16,
+          "numeric_material_FD": 16,
+          "material_J_FD_passed": 16,
+          "source_velocity_FD_passed": 16,
+          "retained_constructions_equal": 16,
+          "retained_triangulation_equal": 0,
+          "matched_retained_velocity_FD_passed": 16,
+          "closed_Euler_compared": 16,
+          "closed_Euler_equal": 16,
+          "all_checks_passed": 0,
+          "source_endpoint_calls": 32,
+          "material_endpoint_values": 32
+        },
+        "maxima": {
+          "tetra_M_absolute": 6.938893903907228e-18,
+          "tetra_J_absolute": 3.469446951953614e-17,
+          "h=2e-05_retained_J_Frobenius_relative": 1.9796177719485278e-10,
+          "h=1e-05_retained_J_Frobenius_relative": 5.341315984735004e-11,
+          "material_FD_max_component_error": 1.1595009674625345e-11,
+          "material_FD_relative": 7.509573504710147e-10,
+          "source_FD_max_component_error": 1.3619603222991827e-09,
+          "source_FD_relative": 1.707882439779408e-10,
+          "matched_retained_velocity_FD_max_component_error": 3.5502537798492995e-08,
+          "matched_retained_velocity_FD_relative": 1.7804807743774136e-08
+        },
+        "center_source_configurations": [
+          {
+            "operation": "intersection",
+            "faces": 2496,
+            "cap_faces": 1344,
+            "rows": 1
+          }
+        ],
+        "cap_depth_doublings": {},
+        "distributions": {
+          "h=2e-05_retained_J_Frobenius_relative": {
+            "n": 1,
+            "median": 1.9796177719485278e-10,
+            "p95": 1.9796177719485278e-10,
+            "max": 1.9796177719485278e-10
+          },
+          "h=1e-05_retained_J_Frobenius_relative": {
+            "n": 1,
+            "median": 5.341315984735004e-11,
+            "p95": 5.341315984735004e-11,
+            "max": 5.341315984735004e-11
+          },
+          "fraction_of_center_constructions_matched_in_both_signs": {
+            "n": 16,
+            "minimum": 1.0,
+            "median": 1.0,
+            "maximum": 1.0
+          }
+        },
+        "rejection_reasons": {}
+      }
+    }
+  ],
+  "registered_large_mesh_full_rank_timing": {
+    "fast_value_seconds": 8.144076055148616,
+    "fast_path": "coherent exact affine",
+    "arithmetic": {
+      "enclosure_certified": true,
+      "precision_bits": 256,
+      "fallback_components": 0
+    },
+    "same_oriented_faces": true,
+    "same_target_vertices": true,
+    "same_certified_moments": true,
+    "scope": "Archived full-rank production timing and reconstruction control",
+    "row_id": "combB_hyperbolic_plus",
+    "identity": "17dccbd178378bbec68fedf0c85ef88130b098fff12520414cd983a22b52ada6",
+    "n_design": 128852,
+    "n_retained": 72264,
+    "n_faces": 144716,
+    "moments": [
+      0.003261828450800779,
+      -1.2607637450897765e-05,
+      0.0003103605316040929,
+      0.0001494182175983682,
+      6.8653485158657685e-06,
+      0.0002870072329305297,
+      2.5691580325444294e-05,
+      5.345459823900569e-06,
+      5.056078099073801e-07,
+      7.330251003440905e-07
+    ],
+    "reference_max_abs": 0.0,
+    "prepare_seconds": 12.761890809983015,
+    "frozen_value_seconds": 14.247959035914391,
+    "native_stage_seconds": {
+      "fixed_operand_index": 0.9183542130049318,
+      "fixed_boundary_proof": 7.702927906066179,
+      "physical_source_boundary": 0.03127326793037355,
+      "boolean": 10.173487121006474
+    },
+    "peak_RSS_MiB": 1471.13671875
+  }
+}

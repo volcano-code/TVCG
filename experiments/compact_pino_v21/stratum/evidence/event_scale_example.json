@@ -1,0 +1,496 @@
+{
+ "scope": "Post-hoc diagnostic chosen after observing the finite-step change. These extra four native calls do not enter the registered 89-row counts.",
+ "row_id": "combB_R3_021",
+ "dimension": 3,
+ "column": 0,
+ "context": "26a153340e5408d6dd05d62842ae84ea26794f586c79057fd2be65628dfc6244",
+ "center_query": [
+  0.024872285309682853,
+  -0.9462769820494862,
+  0.13930818561327485,
+  -0.29074812482271883,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0
+ ],
+ "direction": [
+  0.9462769820494864,
+  0.12629101245906807,
+  0.1286249334150806,
+  -0.2684512617205324,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0
+ ],
+ "certified_raw_linf": 2.3283064365386963e-10,
+ "center_topology": {
+  "closed_edge_valence_two": true,
+  "connected_components": 6,
+  "component_counts": [
+   {
+    "vertices": 73683,
+    "edges": 221679,
+    "faces": 147786,
+    "euler_characteristic": -210
+   },
+   {
+    "vertices": 16,
+    "edges": 42,
+    "faces": 28,
+    "euler_characteristic": 2
+   },
+   {
+    "vertices": 12,
+    "edges": 30,
+    "faces": 20,
+    "euler_characteristic": 2
+   },
+   {
+    "vertices": 801,
+    "edges": 2403,
+    "faces": 1602,
+    "euler_characteristic": 0
+   },
+   {
+    "vertices": 13,
+    "edges": 33,
+    "faces": 22,
+    "euler_characteristic": 2
+   },
+   {
+    "vertices": 15,
+    "edges": 39,
+    "faces": 26,
+    "euler_characteristic": 2
+   }
+  ],
+  "vertices": 74540,
+  "edges": 224226,
+  "faces": 149484,
+  "euler_characteristic": -202
+ },
+ "center_material_column": [
+  0.030710670399583896,
+  0.0009323194481493212,
+  0.002647761168112012,
+  0.0008614567228902581,
+  7.836829611798967e-05,
+  0.0015277596961631608,
+  0.0002428224785602179,
+  6.0356975324316986e-05,
+  -4.3079946954526815e-05,
+  0.00027596214437094514
+ ],
+ "trials": [
+  {
+   "raw_step": 2e-05,
+   "endpoints": [
+    {
+     "sign": -1,
+     "raw_query": [
+      0.024853359770041862,
+      -0.9462795078697354,
+      0.13930561311460654,
+      -0.29074275579748443,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "actual_raw_linf": 1.8925539640991113e-05,
+     "inside_certificate": false,
+     "operation": "difference",
+     "retained_vertices_sha256": "16f60a3567d45e70c8e9d6c935e3b6eedef9e68726ec61901ffcb66b5d287f20",
+     "retained_faces_sha256": "5cdcf2911133e7f7cc54bae3c3ad619f8872b1c59982e0ce1af9fc028d1f90ea",
+     "retained_signature": {
+      "construction_sha256": "cd82a69c17fd5864dc78c747b8f766eef33210a8faa56967613e916ca977c844",
+      "unoriented_incidence_sha256": "dc40ffa98825a9387a7b48b15303599a367adc07385c6fd5c4e2657a21d14bce",
+      "oriented_incidence_sha256": "5b596672ff3fded54d371883692971b8dbcc3cd126424f57a79c44dd32500079",
+      "unique_constructions": true,
+      "vertex_count": 74535
+     },
+     "topology": {
+      "closed_edge_valence_two": true,
+      "connected_components": 6,
+      "component_counts": [
+       {
+        "vertices": 73682,
+        "edges": 221676,
+        "faces": 147784,
+        "euler_characteristic": -210
+       },
+       {
+        "vertices": 16,
+        "edges": 42,
+        "faces": 28,
+        "euler_characteristic": 2
+       },
+       {
+        "vertices": 12,
+        "edges": 30,
+        "faces": 20,
+        "euler_characteristic": 2
+       },
+       {
+        "vertices": 800,
+        "edges": 2400,
+        "faces": 1600,
+        "euler_characteristic": 0
+       },
+       {
+        "vertices": 15,
+        "edges": 39,
+        "faces": 26,
+        "euler_characteristic": 2
+       },
+       {
+        "vertices": 10,
+        "edges": 24,
+        "faces": 16,
+        "euler_characteristic": 2
+       }
+      ],
+      "vertices": 74535,
+      "edges": 224211,
+      "faces": 149474,
+      "euler_characteristic": -202
+     },
+     "moments": [
+      0.003173464640011603,
+      -0.0001104783725671453,
+      0.00025525890610719244,
+      -1.85651380350196e-05,
+      1.158482123460493e-05,
+      0.0002693280107362168,
+      2.4027119486719183e-05,
+      3.939181074249376e-05,
+      7.3320992883582895e-06,
+      1.5563595467170015e-05
+     ],
+     "same_vertex_constructions": false,
+     "same_oriented_incidence": false
+    },
+    {
+     "sign": 1,
+     "raw_query": [
+      0.024891210849323844,
+      -0.946274456229237,
+      0.13931075811194316,
+      -0.29075349384795324,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "actual_raw_linf": 1.8925539640991113e-05,
+     "inside_certificate": false,
+     "operation": "difference",
+     "retained_vertices_sha256": "ff3150b700d6daece2d27c11d646e76df19527ede3cadb345d417fd11ed4143e",
+     "retained_faces_sha256": "06f9cadcb074efad318ced2faebeb751540b24788e4143252a44f97c37aa8e7b",
+     "retained_signature": {
+      "construction_sha256": "6d6df1963e03e455d367b668dec6f0ccac89a7d66d26a843237cd1892a152542",
+      "unoriented_incidence_sha256": "248054e38025d1b69a0854f66c163f11e91be3b3334199f029c59053eb82895f",
+      "oriented_incidence_sha256": "9db8fd933379f621aedaabbfbaa5b30c9ff15417c4ba048b70a9bf32d303253c",
+      "unique_constructions": true,
+      "vertex_count": 74558
+     },
+     "topology": {
+      "closed_edge_valence_two": true,
+      "connected_components": 7,
+      "component_counts": [
+       {
+        "vertices": 73693,
+        "edges": 221709,
+        "faces": 147806,
+        "euler_characteristic": -210
+       },
+       {
+        "vertices": 16,
+        "edges": 42,
+        "faces": 28,
+        "euler_characteristic": 2
+       },
+       {
+        "vertices": 12,
+        "edges": 30,
+        "faces": 20,
+        "euler_characteristic": 2
+       },
+       {
+        "vertices": 804,
+        "edges": 2412,
+        "faces": 1608,
+        "euler_characteristic": 0
+       },
+       {
+        "vertices": 13,
+        "edges": 33,
+        "faces": 22,
+        "euler_characteristic": 2
+       },
+       {
+        "vertices": 15,
+        "edges": 39,
+        "faces": 26,
+        "euler_characteristic": 2
+       },
+       {
+        "vertices": 5,
+        "edges": 9,
+        "faces": 6,
+        "euler_characteristic": 2
+       }
+      ],
+      "vertices": 74558,
+      "edges": 224274,
+      "faces": 149516,
+      "euler_characteristic": -200
+     },
+     "moments": [
+      0.0031746930683495844,
+      -0.00011044107975894687,
+      0.0002553648165159819,
+      -1.8530679750634663e-05,
+      1.1587955969265043e-05,
+      0.0002693891211976665,
+      2.4036832384508883e-05,
+      3.939422501457501e-05,
+      7.33037608993499e-06,
+      1.5574633964237718e-05
+     ],
+     "same_vertex_constructions": false,
+     "same_oriented_incidence": false
+    }
+   ],
+   "physical_fd": [
+    0.030710708449530572,
+    0.0009323202049609185,
+    0.0026477602197363275,
+    0.0008614571096234623,
+    7.836836650282817e-05,
+    0.0015277615362426224,
+    0.0002428224447424897,
+    6.03568020312556e-05,
+    -4.3079960582490787e-05,
+    0.0002759624266925776
+   ],
+   "registered_material_error": {
+    "l2_error": 3.81172152269367e-08,
+    "reference_l2": 0.030890905632898293,
+    "max_abs": 3.804994667608308e-08,
+    "relative_l2": 1.2339284884311266e-06,
+    "tolerance": 6.228188701259452e-06,
+    "passed": true
+   }
+  },
+  {
+   "raw_step": 1.2302457318025176e-10,
+   "endpoints": [
+    {
+     "sign": -1,
+     "raw_query": [
+      0.02487228519326753,
+      -0.9462769820650231,
+      0.1393081855974508,
+      -0.29074812478969275,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "actual_raw_linf": 1.1641532182693481e-10,
+     "inside_certificate": true,
+     "operation": "difference",
+     "retained_vertices_sha256": "91f91031dec2e78035b9316edabf09848ebf78924f0c2bae285b9246a80222cd",
+     "retained_faces_sha256": "b0f9ecb6767fc296a1fb91976d7654364c2c65a5c15425c7f9d3d2120437f621",
+     "retained_signature": {
+      "construction_sha256": "421fbba097c25f72b87928eea332d0bacbfd2259a1e76a7b81d7d999152287ee",
+      "unoriented_incidence_sha256": "082c6493f939197bb8aabee52b31b8eb179f22f53b2808435bb9baab12a673a2",
+      "oriented_incidence_sha256": "fb4df2066f8c8e557bc02910557203d991cff639476358c75baec4bfe76a1842",
+      "unique_constructions": true,
+      "vertex_count": 74540
+     },
+     "topology": {
+      "closed_edge_valence_two": true,
+      "connected_components": 6,
+      "component_counts": [
+       {
+        "vertices": 73683,
+        "edges": 221679,
+        "faces": 147786,
+        "euler_characteristic": -210
+       },
+       {
+        "vertices": 16,
+        "edges": 42,
+        "faces": 28,
+        "euler_characteristic": 2
+       },
+       {
+        "vertices": 12,
+        "edges": 30,
+        "faces": 20,
+        "euler_characteristic": 2
+       },
+       {
+        "vertices": 801,
+        "edges": 2403,
+        "faces": 1602,
+        "euler_characteristic": 0
+       },
+       {
+        "vertices": 13,
+        "edges": 33,
+        "faces": 22,
+        "euler_characteristic": 2
+       },
+       {
+        "vertices": 15,
+        "edges": 39,
+        "faces": 26,
+        "euler_characteristic": 2
+       }
+      ],
+      "vertices": 74540,
+      "edges": 224226,
+      "faces": 149484,
+      "euler_characteristic": -202
+     },
+     "moments": [
+      0.0031740788288964258,
+      -0.00011045973331315498,
+      0.0002553118852454755,
+      -1.854789646380946e-05,
+      1.1586388182772051e-05,
+      0.0002693585787910838,
+      2.403197594230564e-05,
+      3.939302083797085e-05,
+      7.331238290454116e-06,
+      1.556911574839687e-05
+     ],
+     "same_vertex_constructions": true,
+     "same_oriented_incidence": true
+    },
+    {
+     "sign": 1,
+     "raw_query": [
+      0.024872285426098175,
+      -0.9462769820339493,
+      0.13930818562909889,
+      -0.2907481248557449,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "actual_raw_linf": 1.1641532182693481e-10,
+     "inside_certificate": true,
+     "operation": "difference",
+     "retained_vertices_sha256": "45188a0230e8195c30788bf0dcd80046ded3ac18dc2b4e526d35df7349c3e00b",
+     "retained_faces_sha256": "b0f9ecb6767fc296a1fb91976d7654364c2c65a5c15425c7f9d3d2120437f621",
+     "retained_signature": {
+      "construction_sha256": "421fbba097c25f72b87928eea332d0bacbfd2259a1e76a7b81d7d999152287ee",
+      "unoriented_incidence_sha256": "082c6493f939197bb8aabee52b31b8eb179f22f53b2808435bb9baab12a673a2",
+      "oriented_incidence_sha256": "fb4df2066f8c8e557bc02910557203d991cff639476358c75baec4bfe76a1842",
+      "unique_constructions": true,
+      "vertex_count": 74540
+     },
+     "topology": {
+      "closed_edge_valence_two": true,
+      "connected_components": 6,
+      "component_counts": [
+       {
+        "vertices": 73683,
+        "edges": 221679,
+        "faces": 147786,
+        "euler_characteristic": -210
+       },
+       {
+        "vertices": 16,
+        "edges": 42,
+        "faces": 28,
+        "euler_characteristic": 2
+       },
+       {
+        "vertices": 12,
+        "edges": 30,
+        "faces": 20,
+        "euler_characteristic": 2
+       },
+       {
+        "vertices": 801,
+        "edges": 2403,
+        "faces": 1602,
+        "euler_characteristic": 0
+       },
+       {
+        "vertices": 13,
+        "edges": 33,
+        "faces": 22,
+        "euler_characteristic": 2
+       },
+       {
+        "vertices": 15,
+        "edges": 39,
+        "faces": 26,
+        "euler_characteristic": 2
+       }
+      ],
+      "vertices": 74540,
+      "edges": 224226,
+      "faces": 149484,
+      "euler_characteristic": -202
+     },
+     "moments": [
+      0.003174078836452761,
+      -0.00011045973308375855,
+      0.00025531188589695495,
+      -1.854789625184873e-05,
+      1.1586388202054506e-05,
+      0.0002693585791669878,
+      2.403197600205191e-05,
+      3.939302085282163e-05,
+      7.331238279854332e-06,
+      1.5569115816297128e-05
+     ],
+     "same_vertex_constructions": true,
+     "same_oriented_incidence": true
+    }
+   ],
+   "physical_fd": [
+    0.03071067485307571,
+    0.000932319555552338,
+    0.002647761541942964,
+    0.0008614568741457346,
+    7.836830408767081e-05,
+    0.0015277598473039593,
+    0.00024282251251657547,
+    6.035698533561231e-05,
+    -4.3079949100778206e-05,
+    0.0002759621779219538
+   ],
+   "registered_material_error": {
+    "l2_error": 4.475828766477609e-09,
+    "reference_l2": 0.030890905632898293,
+    "max_abs": 4.453491814909727e-09,
+    "relative_l2": 1.4489145029494035e-07,
+    "tolerance": 6.228182021598422e-06,
+    "passed": true
+   }
+  }
+ ]
+}

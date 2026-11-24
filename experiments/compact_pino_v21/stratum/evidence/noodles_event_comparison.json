@@ -1,0 +1,248 @@
+{
+ "entries": [
+  {
+   "entry": "legacy_direct",
+   "events": 43,
+   "event_hash": "02f92daf1d12a1fd469fc61bc20aedbca4097efdad7402cc41b03b6e4d678039",
+   "scientific_event_sha256": "b43b6d5426982d21512763fb23a4145f67c0f0e85b066b9e4554e8840ec636b4",
+   "same_archived_event_hash": false
+  },
+  {
+   "entry": "versioned",
+   "events": 43,
+   "event_hash": "20ab68744ef1dddc60b270f5d5380813596fbadbe068c176be1702af3a6a09e3",
+   "scientific_event_sha256": "b43b6d5426982d21512763fb23a4145f67c0f0e85b066b9e4554e8840ec636b4",
+   "same_archived_event_hash": false
+  }
+ ],
+ "passed": true,
+ "all_numerical_events_match": true,
+ "exclusions": "Three recorded wall-time fields and the Python stack text of the identical third-call cone refusal only. All numerical payloads, Newton systems, sides, material hashes and decisions are compared.",
+ "same_physical_acceptance": true,
+ "raw_event_differences": [
+  {
+   "index": 1,
+   "keys": [
+    "evaluation_payload"
+   ],
+   "payload_fields": [
+    "evaluator_wall_seconds"
+   ]
+  },
+  {
+   "index": 3,
+   "keys": [
+    "evaluation_payload"
+   ],
+   "payload_fields": [
+    "evaluator_wall_seconds"
+   ]
+  },
+  {
+   "index": 5,
+   "keys": [
+    "detail"
+   ],
+   "direct_detail": "RuntimeError: UNSUPPORTED_PAPER_IDEAL_FACE: no negative cone reference\n\nAt:\n  /data/xvxinyao/moment-guided-spin-v1/code/make-it-balance-paper-sim/experiments/noodles_v8_20261017/zero-wall-gmp-seal-candidate-05/python/make_it_stand/verification/cherchi_inprocess.py(248): <lambda>\n  /data/xvxinyao/moment-guided-spin-v1/code/make-it-balance-paper-sim/experiments/noodles_v8_20261017/zero-wall-gmp-seal-candidate-05/python/make_it_stand/verification/cherchi_inprocess.py(384): _stage\n  /data/xvxinyao/moment-guided-spin-v1/code/make-it-balance-paper-sim/experiments/noodles_v8_20261017/zero-wall-gmp-seal-candidate-05/python/make_it_stand/verification/cherchi_inprocess.py(248): __call__\n  /data/xvxinyao/TVCG_compact_v21/experiments/compact_pino_v21/stratum/full_rank_control.py(59): callback\n  /data/xvxinyao/moment-guided-spin-v1/code/make-it-balance-paper-sim/experiments/noodles_v8_20261017/zero-wall-gmp-seal-candidate-05/python/make_it_stand/spin.py(2505): solve_spin_it_faster_with_external_moment_evaluator\n  /data/xvxinyao/TVCG_compact_v21/experiments/compact_pino_v21/stratum/full_rank_control.py(61): run\n  /data/xvxinyao/TVCG_compact_v21/experiments/compact_pino_v21/stratum/full_rank_control.py(133): <module>\n",
+   "versioned_detail": "RuntimeError: UNSUPPORTED_PAPER_IDEAL_FACE: no negative cone reference\n\nAt:\n  /data/xvxinyao/moment-guided-spin-v1/code/make-it-balance-paper-sim/experiments/noodles_v8_20261017/zero-wall-gmp-seal-candidate-05/python/make_it_stand/verification/cherchi_inprocess.py(248): <lambda>\n  /data/xvxinyao/moment-guided-spin-v1/code/make-it-balance-paper-sim/experiments/noodles_v8_20261017/zero-wall-gmp-seal-candidate-05/python/make_it_stand/verification/cherchi_inprocess.py(384): _stage\n  /data/xvxinyao/moment-guided-spin-v1/code/make-it-balance-paper-sim/experiments/noodles_v8_20261017/zero-wall-gmp-seal-candidate-05/python/make_it_stand/verification/cherchi_inprocess.py(248): __call__\n  /data/xvxinyao/TVCG_compact_v21/experiments/compact_pino_v21/stratum/shared_operator.py(139): solver\n  /data/xvxinyao/TVCG_compact_v21/experiments/compact_pino_v21/stratum/full_rank_control.py(59): callback\n  /data/xvxinyao/moment-guided-spin-v1/code/make-it-balance-paper-sim/experiments/noodles_v8_20261017/zero-wall-gmp-seal-candidate-05/python/make_it_stand/spin.py(2505): solve_spin_it_faster_with_external_moment_evaluator\n  /data/xvxinyao/TVCG_compact_v21/experiments/compact_pino_v21/stratum/full_rank_control.py(61): run\n  /data/xvxinyao/TVCG_compact_v21/experiments/compact_pino_v21/stratum/full_rank_control.py(133): <module>\n"
+  },
+  {
+   "index": 6,
+   "keys": [
+    "evaluation_payload"
+   ],
+   "payload_fields": [
+    "evaluator_wall_seconds"
+   ]
+  },
+  {
+   "index": 8,
+   "keys": [
+    "evaluation_payload"
+   ],
+   "payload_fields": [
+    "evaluator_wall_seconds"
+   ]
+  },
+  {
+   "index": 10,
+   "keys": [
+    "evaluation_payload"
+   ],
+   "payload_fields": [
+    "evaluator_wall_seconds"
+   ]
+  },
+  {
+   "index": 12,
+   "keys": [
+    "evaluation_payload"
+   ],
+   "payload_fields": [
+    "evaluator_wall_seconds"
+   ]
+  },
+  {
+   "index": 14,
+   "keys": [
+    "evaluation_payload"
+   ],
+   "payload_fields": [
+    "evaluator_wall_seconds"
+   ]
+  },
+  {
+   "index": 16,
+   "keys": [
+    "evaluation_payload"
+   ],
+   "payload_fields": [
+    "evaluator_wall_seconds"
+   ]
+  },
+  {
+   "index": 18,
+   "keys": [
+    "evaluation_payload"
+   ],
+   "payload_fields": [
+    "evaluator_wall_seconds"
+   ]
+  },
+  {
+   "index": 20,
+   "keys": [
+    "evaluation_payload"
+   ],
+   "payload_fields": [
+    "evaluator_wall_seconds"
+   ]
+  },
+  {
+   "index": 21,
+   "keys": [
+    "evaluation_payload"
+   ],
+   "payload_fields": [
+    "evaluator_wall_seconds"
+   ]
+  },
+  {
+   "index": 22,
+   "keys": [
+    "evaluation_payload"
+   ],
+   "payload_fields": [
+    "evaluator_wall_seconds"
+   ]
+  },
+  {
+   "index": 23,
+   "keys": [
+    "evaluation_payload"
+   ],
+   "payload_fields": [
+    "evaluator_wall_seconds"
+   ]
+  },
+  {
+   "index": 25,
+   "keys": [
+    "evaluation_payload"
+   ],
+   "payload_fields": [
+    "evaluator_wall_seconds"
+   ]
+  },
+  {
+   "index": 26,
+   "keys": [
+    "evaluation_payload"
+   ],
+   "payload_fields": [
+    "evaluator_wall_seconds"
+   ]
+  },
+  {
+   "index": 27,
+   "keys": [
+    "evaluation_payload"
+   ],
+   "payload_fields": [
+    "evaluator_wall_seconds"
+   ]
+  },
+  {
+   "index": 28,
+   "keys": [
+    "evaluation_payload"
+   ],
+   "payload_fields": [
+    "evaluator_wall_seconds"
+   ]
+  },
+  {
+   "index": 30,
+   "keys": [
+    "evaluation_payload"
+   ],
+   "payload_fields": [
+    "evaluator_wall_seconds"
+   ]
+  },
+  {
+   "index": 31,
+   "keys": [
+    "evaluation_payload"
+   ],
+   "payload_fields": [
+    "evaluator_wall_seconds"
+   ]
+  },
+  {
+   "index": 33,
+   "keys": [
+    "evaluation_payload"
+   ],
+   "payload_fields": [
+    "evaluator_wall_seconds"
+   ]
+  },
+  {
+   "index": 35,
+   "keys": [
+    "evaluation_payload"
+   ],
+   "payload_fields": [
+    "evaluator_wall_seconds"
+   ]
+  },
+  {
+   "index": 37,
+   "keys": [
+    "evaluation_payload"
+   ],
+   "payload_fields": [
+    "evaluator_wall_seconds"
+   ]
+  },
+  {
+   "index": 39,
+   "keys": [
+    "evaluation_payload"
+   ],
+   "payload_fields": [
+    "evaluator_wall_seconds"
+   ]
+  },
+  {
+   "index": 41,
+   "keys": [
+    "evaluation_payload"
+   ],
+   "payload_fields": [
+    "evaluator_wall_seconds"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,62 @@
+{
+  "scope": "CPU regression on the shared host; scientific rows and independent geometry/derivative checks are in their own receipts.",
+  "python": "3.13.5",
+  "numpy": "2.1.3",
+  "cuda_visible_devices": "",
+  "runs": [
+    {
+      "entry": [
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+        "--disable-warnings",
+        "experiments/compact_pino_v21/stratum"
+      ],
+      "summary": "59 passed in 0.74s",
+      "stdout": "...........................................................              [100%]\n59 passed in 0.74s\n",
+      "stdout_sha256": "2424bbb153330ced0aea2cd0e572ea9e8e3ca77974fc362bd7a06921951b3577"
+    },
+    {
+      "entry": [
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+        "-rs",
+        "--disable-warnings",
+        "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/tests"
+      ],
+      "summary": "418 passed, 6 skipped, 6437 warnings in 453.93s (0:07:33)",
+      "stdout": "......................................s................................. [ 16%]\n........................................................................ [ 33%]\n..............................................s......................... [ 50%]\n..s......s.....s......s................................................. [ 67%]\n........................................................................ [ 84%]\n................................................................         [100%]\n=========================== short test summary info ============================\nSKIPPED [1] research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/tests/test_batched_moment_operator.py:221: CUDA unavailable\nSKIPPED [1] research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/tests/test_quadrann_3d.py:140: CUDA unavailable\nSKIPPED [1] research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/tests/test_spin_moment_operator.py:180: CUDA unavailable\nSKIPPED [1] research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/tests/test_spin_quadrann.py:158: CUDA unavailable\nSKIPPED [1] research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/tests/test_spin_quadrann_v11.py:209: CUDA unavailable\nSKIPPED [1] research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/tests/test_spin_quadrann_v12.py:202: CUDA unavailable\n418 passed, 6 skipped, 6437 warnings in 453.93s (0:07:33)\n",
+      "stdout_sha256": "abe1ef3f43f9fb81412f82b98562d790668de6dea5c3752f871bcf5e419b1a91"
+    },
+    {
+      "entry": [
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+        "--disable-warnings",
+        "research/NeuralMoments/models/pcraft_ufno/spin_pino/tests"
+      ],
+      "summary": "205 passed, 1 warning in 6.35s",
+      "stdout": "........................................................................ [ 35%]\n........................................................................ [ 70%]\n.............................................................            [100%]\n205 passed, 1 warning in 6.35s\n",
+      "stdout_sha256": "6ddef66e695da1f45d04d7fff6827d2424e5ecab3f34b665754d57c3fafa0ad4"
+    },
+    {
+      "entry": [
+        "python",
+        "-m",
+        "pytest",
+        "-q",
+        "--disable-warnings",
+        "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/training_v13/tests",
+        "tests/compact_pino_v21"
+      ],
+      "summary": "55 passed, 187 warnings in 30.89s",
+      "stdout": ".......................................................                  [100%]\n55 passed, 187 warnings in 30.89s\n",
+      "stdout_sha256": "90aef98374f01f1aef440a6428489a8677821427118811a74890deaa155a54e2"
+    }
+  ]
+}

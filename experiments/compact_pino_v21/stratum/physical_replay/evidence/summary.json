@@ -1,0 +1,718 @@
+{
+  "archive": "registered_physical_replay.json.gz",
+  "archive_sha256": "efda654c07e64fb1fea5d904933b8c1aefe681fd118647eb50f81976a6f1e30c",
+  "center_topology_sha256": "3eb8f7cabe71e7db6133713d53567930842291770c14081d231c298e6caa7f36",
+  "exceptional_directions": {
+    "closed_euler_changes": [
+      {
+        "center_minus_plus": [
+          -202,
+          -202,
+          -200
+        ],
+        "h": 2e-05,
+        "raw_column": 0,
+        "row_id": "combB_R3_021"
+      }
+    ],
+    "numerical_column_failures": []
+  },
+  "groups": {
+    "R01": {
+      "cap_depth_doublings": {
+        "0": 16,
+        "1": 4
+      },
+      "center_source_configurations": [
+        {
+          "cap_faces": 10,
+          "faces": 12,
+          "operation": "difference",
+          "rows": 5
+        },
+        {
+          "cap_faces": 10,
+          "faces": 12,
+          "operation": "intersection",
+          "rows": 11
+        },
+        {
+          "cap_faces": 1344,
+          "faces": 2496,
+          "operation": "intersection",
+          "rows": 4
+        }
+      ],
+      "directional_counts": {
+        "all_checks_passed": 0,
+        "attempted_column_steps": 160,
+        "closed_Euler_compared": 160,
+        "closed_Euler_equal": 160,
+        "matched_retained_velocity_FD_passed": 160,
+        "material_J_FD_passed": 160,
+        "material_endpoint_values": 320,
+        "numeric_material_FD": 160,
+        "retained_constructions_equal": 28,
+        "retained_oriented_incidence_equal": 0,
+        "retained_triangulation_equal": 0,
+        "retained_unoriented_incidence_equal": 0,
+        "source_endpoint_calls": 320,
+        "source_side_caps_faces_equal": 160,
+        "source_velocity_FD_passed": 160
+      },
+      "distributions": {
+        "fraction_of_center_constructions_matched_in_both_signs": {
+          "maximum": 1.0,
+          "median": 0.9998828371425699,
+          "minimum": 0.998816318291094,
+          "n": 160
+        },
+        "h=1e-05_retained_J_Frobenius_relative": {
+          "max": 1.5961719238999233e-06,
+          "median": 1.9058962242137828e-08,
+          "n": 20,
+          "p95": 2.243805365131987e-07
+        },
+        "h=2e-05_retained_J_Frobenius_relative": {
+          "max": 6.3791858985079124e-06,
+          "median": 7.658732980086412e-08,
+          "n": 20,
+          "p95": 8.972695986383648e-07
+        }
+      },
+      "geometry_rows": {
+        "J": 20,
+        "M": 20,
+        "all_closed_euler_unchanged": 20,
+        "all_complete_retained_ids": 1,
+        "all_matched_retained_velocity_FD": 20,
+        "all_material_columns_FD": 20,
+        "all_retained_topology_and_ids": 0,
+        "all_scoped_sampled_checks": 0,
+        "all_source_velocity_FD": 20,
+        "registered": 20,
+        "same_source_side_caps_faces_all_probes": 20,
+        "source_motion": 20,
+        "source_primal_motion_bitwise": 20,
+        "source_value": 20,
+        "tetra_J": 20,
+        "tetra_M": 20
+      },
+      "maxima": {
+        "center_chart_tangent_residual": 9.159339953157541e-16,
+        "center_nearest_quadratic_eigenvalue_absolute": 2.220446049250313e-16,
+        "endpoint_nearest_eigenvalue_drift_absolute": 3.885780586188048e-16,
+        "h=1e-05_retained_J_Frobenius_relative": 1.5961719238999233e-06,
+        "h=2e-05_retained_J_Frobenius_relative": 6.3791858985079124e-06,
+        "matched_retained_velocity_FD_max_component_error": 0.00034360537276967307,
+        "matched_retained_velocity_FD_relative": 5.9924775943300265e-06,
+        "material_FD_max_component_error": 2.337945661373686e-07,
+        "material_FD_relative": 7.248504077882414e-06,
+        "retracted_raw_tangent_max_component_error": 1.6751247056134844e-09,
+        "source_FD_max_component_error": 1.4974920503618705e-07,
+        "source_FD_relative": 3.919091033126566e-09,
+        "tetra_J_absolute": 4.0245584642661925e-16,
+        "tetra_M_absolute": 4.163336342344337e-17
+      },
+      "rejection_reasons": {}
+    },
+    "R02": {
+      "cap_depth_doublings": {
+        "0": 17,
+        "1": 4
+      },
+      "center_source_configurations": [
+        {
+          "cap_faces": 10,
+          "faces": 12,
+          "operation": "difference",
+          "rows": 5
+        },
+        {
+          "cap_faces": 1344,
+          "faces": 2496,
+          "operation": "difference",
+          "rows": 1
+        },
+        {
+          "cap_faces": 10,
+          "faces": 12,
+          "operation": "intersection",
+          "rows": 11
+        },
+        {
+          "cap_faces": 1344,
+          "faces": 2496,
+          "operation": "intersection",
+          "rows": 4
+        }
+      ],
+      "directional_counts": {
+        "all_checks_passed": 0,
+        "attempted_column_steps": 176,
+        "closed_Euler_compared": 176,
+        "closed_Euler_equal": 176,
+        "matched_retained_velocity_FD_passed": 176,
+        "material_J_FD_passed": 176,
+        "material_endpoint_values": 352,
+        "numeric_material_FD": 176,
+        "retained_constructions_equal": 34,
+        "retained_oriented_incidence_equal": 0,
+        "retained_triangulation_equal": 0,
+        "retained_unoriented_incidence_equal": 0,
+        "source_endpoint_calls": 352,
+        "source_side_caps_faces_equal": 176,
+        "source_velocity_FD_passed": 176
+      },
+      "distributions": {
+        "fraction_of_center_constructions_matched_in_both_signs": {
+          "maximum": 1.0,
+          "median": 0.9998697407841605,
+          "minimum": 0.9988269447242135,
+          "n": 176
+        },
+        "h=1e-05_retained_J_Frobenius_relative": {
+          "max": 5.5666915347668e-07,
+          "median": 3.391870233364974e-08,
+          "n": 21,
+          "p95": 2.8877514651942855e-07
+        },
+        "h=2e-05_retained_J_Frobenius_relative": {
+          "max": 2.2299289619638015e-06,
+          "median": 1.3444571896010006e-07,
+          "n": 21,
+          "p95": 5.845900023027559e-07
+        }
+      },
+      "geometry_rows": {
+        "J": 21,
+        "M": 21,
+        "all_closed_euler_unchanged": 21,
+        "all_complete_retained_ids": 2,
+        "all_matched_retained_velocity_FD": 21,
+        "all_material_columns_FD": 21,
+        "all_retained_topology_and_ids": 0,
+        "all_scoped_sampled_checks": 0,
+        "all_source_velocity_FD": 21,
+        "registered": 21,
+        "same_source_side_caps_faces_all_probes": 21,
+        "source_motion": 21,
+        "source_primal_motion_bitwise": 21,
+        "source_value": 21,
+        "tetra_J": 21,
+        "tetra_M": 21
+      },
+      "maxima": {
+        "center_chart_tangent_residual": 3.608224830031759e-16,
+        "center_nearest_quadratic_eigenvalue_absolute": 9.020562075079397e-17,
+        "endpoint_nearest_eigenvalue_drift_absolute": 2.918699359696329e-16,
+        "h=1e-05_retained_J_Frobenius_relative": 5.5666915347668e-07,
+        "h=2e-05_retained_J_Frobenius_relative": 2.2299289619638015e-06,
+        "matched_retained_velocity_FD_max_component_error": 6.524445831956882e-05,
+        "matched_retained_velocity_FD_relative": 2.2074375732126324e-06,
+        "material_FD_max_component_error": 6.872750995742805e-08,
+        "material_FD_relative": 2.7017247300847063e-06,
+        "retracted_raw_tangent_max_component_error": 1.4531491565605847e-09,
+        "source_FD_max_component_error": 5.430087064439704e-07,
+        "source_FD_relative": 3.012541382778325e-08,
+        "tetra_J_absolute": 3.95516952522712e-16,
+        "tetra_M_absolute": 3.642919299551295e-17
+      },
+      "rejection_reasons": {}
+    },
+    "R3": {
+      "cap_depth_doublings": {
+        "0": 64
+      },
+      "center_source_configurations": [
+        {
+          "cap_faces": 10,
+          "faces": 12,
+          "operation": "difference",
+          "rows": 25
+        },
+        {
+          "cap_faces": 10,
+          "faces": 12,
+          "operation": "intersection",
+          "rows": 39
+        }
+      ],
+      "directional_counts": {
+        "all_checks_passed": 0,
+        "attempted_column_steps": 384,
+        "closed_Euler_compared": 384,
+        "closed_Euler_equal": 383,
+        "matched_retained_velocity_FD_passed": 384,
+        "material_J_FD_passed": 384,
+        "material_endpoint_values": 768,
+        "numeric_material_FD": 384,
+        "retained_constructions_equal": 126,
+        "retained_oriented_incidence_equal": 0,
+        "retained_triangulation_equal": 0,
+        "retained_unoriented_incidence_equal": 0,
+        "source_endpoint_calls": 768,
+        "source_side_caps_faces_equal": 384,
+        "source_velocity_FD_passed": 384
+      },
+      "distributions": {
+        "fraction_of_center_constructions_matched_in_both_signs": {
+          "maximum": 1.0,
+          "median": 0.9999360777294809,
+          "minimum": 0.9976295539914664,
+          "n": 384
+        },
+        "h=1e-05_retained_J_Frobenius_relative": {
+          "max": 4.288157065188541e-07,
+          "median": 2.1730178396991002e-08,
+          "n": 64,
+          "p95": 1.5732034736933847e-07
+        },
+        "h=2e-05_retained_J_Frobenius_relative": {
+          "max": 1.653965368521173e-06,
+          "median": 8.688010684100976e-08,
+          "n": 64,
+          "p95": 6.051240352464872e-07
+        }
+      },
+      "geometry_rows": {
+        "J": 64,
+        "M": 64,
+        "all_closed_euler_unchanged": 63,
+        "all_complete_retained_ids": 9,
+        "all_matched_retained_velocity_FD": 64,
+        "all_material_columns_FD": 64,
+        "all_retained_topology_and_ids": 0,
+        "all_scoped_sampled_checks": 0,
+        "all_source_velocity_FD": 64,
+        "registered": 64,
+        "same_source_side_caps_faces_all_probes": 64,
+        "source_motion": 64,
+        "source_primal_motion_bitwise": 64,
+        "source_value": 64,
+        "tetra_J": 64,
+        "tetra_M": 64
+      },
+      "maxima": {
+        "center_chart_tangent_residual": 0.0,
+        "center_nearest_quadratic_eigenvalue_absolute": 0.0,
+        "endpoint_nearest_eigenvalue_drift_absolute": 0.0,
+        "h=1e-05_retained_J_Frobenius_relative": 4.288157065188541e-07,
+        "h=2e-05_retained_J_Frobenius_relative": 1.653965368521173e-06,
+        "matched_retained_velocity_FD_max_component_error": 0.00011939111520575807,
+        "matched_retained_velocity_FD_relative": 2.8019440248206973e-06,
+        "material_FD_max_component_error": 3.804994667608308e-08,
+        "material_FD_relative": 1.8192716997362855e-06,
+        "retracted_raw_tangent_max_component_error": 5.524341400997557e-12,
+        "source_FD_max_component_error": 7.898911746906379e-09,
+        "source_FD_relative": 5.787051622836449e-10,
+        "tetra_J_absolute": 3.95516952522712e-16,
+        "tetra_M_absolute": 5.117434254131581e-17
+      },
+      "rejection_reasons": {}
+    },
+    "R8": {
+      "cap_depth_doublings": {
+        "0": 1,
+        "1": 12,
+        "2": 10,
+        "3": 2
+      },
+      "center_source_configurations": [
+        {
+          "cap_faces": 1344,
+          "faces": 2496,
+          "operation": "difference",
+          "rows": 1
+        },
+        {
+          "cap_faces": 1344,
+          "faces": 2496,
+          "operation": "intersection",
+          "rows": 24
+        }
+      ],
+      "directional_counts": {
+        "all_checks_passed": 0,
+        "attempted_column_steps": 400,
+        "closed_Euler_compared": 400,
+        "closed_Euler_equal": 400,
+        "matched_retained_velocity_FD_passed": 400,
+        "material_J_FD_passed": 400,
+        "material_endpoint_values": 800,
+        "numeric_material_FD": 400,
+        "retained_constructions_equal": 28,
+        "retained_oriented_incidence_equal": 0,
+        "retained_triangulation_equal": 0,
+        "retained_unoriented_incidence_equal": 0,
+        "source_endpoint_calls": 800,
+        "source_side_caps_faces_equal": 400,
+        "source_velocity_FD_passed": 400
+      },
+      "distributions": {
+        "fraction_of_center_constructions_matched_in_both_signs": {
+          "maximum": 1.0,
+          "median": 0.9998152914085877,
+          "minimum": 0.9969759712308615,
+          "n": 400
+        },
+        "h=1e-05_retained_J_Frobenius_relative": {
+          "max": 6.440360484832621e-06,
+          "median": 2.960085123129637e-08,
+          "n": 25,
+          "p95": 1.5163261589983291e-06
+        },
+        "h=2e-05_retained_J_Frobenius_relative": {
+          "max": 2.4786318456925086e-05,
+          "median": 1.24182797338095e-07,
+          "n": 25,
+          "p95": 6.0562685284458935e-06
+        }
+      },
+      "geometry_rows": {
+        "J": 25,
+        "M": 25,
+        "all_closed_euler_unchanged": 25,
+        "all_complete_retained_ids": 0,
+        "all_matched_retained_velocity_FD": 25,
+        "all_material_columns_FD": 25,
+        "all_retained_topology_and_ids": 0,
+        "all_scoped_sampled_checks": 0,
+        "all_source_velocity_FD": 25,
+        "registered": 25,
+        "same_source_side_caps_faces_all_probes": 25,
+        "source_motion": 25,
+        "source_primal_motion_bitwise": 25,
+        "source_value": 25,
+        "tetra_J": 25,
+        "tetra_M": 25
+      },
+      "maxima": {
+        "center_chart_tangent_residual": 9.159339953157541e-16,
+        "center_nearest_quadratic_eigenvalue_absolute": 2.220446049250313e-16,
+        "endpoint_nearest_eigenvalue_drift_absolute": 6.800116025829084e-16,
+        "h=1e-05_retained_J_Frobenius_relative": 6.440360484832621e-06,
+        "h=2e-05_retained_J_Frobenius_relative": 2.4786318456925086e-05,
+        "matched_retained_velocity_FD_max_component_error": 0.007311935606551856,
+        "matched_retained_velocity_FD_relative": 6.415522382348096e-05,
+        "material_FD_max_component_error": 1.6058092499743326e-06,
+        "material_FD_relative": 3.812451528525705e-05,
+        "retracted_raw_tangent_max_component_error": 1.6751247056134844e-09,
+        "source_FD_max_component_error": 0.00014548411448345178,
+        "source_FD_relative": 1.3984318331160272e-06,
+        "tetra_J_absolute": 1.1310397063368782e-15,
+        "tetra_M_absolute": 4.163336342344337e-17
+      },
+      "rejection_reasons": {}
+    },
+    "all": {
+      "cap_depth_doublings": {
+        "0": 65,
+        "1": 12,
+        "2": 10,
+        "3": 2
+      },
+      "center_source_configurations": [
+        {
+          "cap_faces": 10,
+          "faces": 12,
+          "operation": "difference",
+          "rows": 25
+        },
+        {
+          "cap_faces": 1344,
+          "faces": 2496,
+          "operation": "difference",
+          "rows": 1
+        },
+        {
+          "cap_faces": 10,
+          "faces": 12,
+          "operation": "intersection",
+          "rows": 39
+        },
+        {
+          "cap_faces": 1344,
+          "faces": 2496,
+          "operation": "intersection",
+          "rows": 24
+        }
+      ],
+      "directional_counts": {
+        "all_checks_passed": 0,
+        "attempted_column_steps": 784,
+        "closed_Euler_compared": 784,
+        "closed_Euler_equal": 783,
+        "matched_retained_velocity_FD_passed": 784,
+        "material_J_FD_passed": 784,
+        "material_endpoint_values": 1568,
+        "numeric_material_FD": 784,
+        "retained_constructions_equal": 154,
+        "retained_oriented_incidence_equal": 0,
+        "retained_triangulation_equal": 0,
+        "retained_unoriented_incidence_equal": 0,
+        "source_endpoint_calls": 1568,
+        "source_side_caps_faces_equal": 784,
+        "source_velocity_FD_passed": 784
+      },
+      "distributions": {
+        "fraction_of_center_constructions_matched_in_both_signs": {
+          "maximum": 1.0,
+          "median": 0.9998850207985222,
+          "minimum": 0.9969759712308615,
+          "n": 784
+        },
+        "h=1e-05_retained_J_Frobenius_relative": {
+          "max": 6.440360484832621e-06,
+          "median": 2.7923544073723818e-08,
+          "n": 89,
+          "p95": 4.2803723025594326e-07
+        },
+        "h=2e-05_retained_J_Frobenius_relative": {
+          "max": 2.4786318456925086e-05,
+          "median": 1.0360093519350483e-07,
+          "n": 89,
+          "p95": 1.6739663988372267e-06
+        }
+      },
+      "geometry_rows": {
+        "J": 89,
+        "M": 89,
+        "all_closed_euler_unchanged": 88,
+        "all_complete_retained_ids": 9,
+        "all_matched_retained_velocity_FD": 89,
+        "all_material_columns_FD": 89,
+        "all_retained_topology_and_ids": 0,
+        "all_scoped_sampled_checks": 0,
+        "all_source_velocity_FD": 89,
+        "registered": 89,
+        "same_source_side_caps_faces_all_probes": 89,
+        "source_motion": 89,
+        "source_primal_motion_bitwise": 89,
+        "source_value": 89,
+        "tetra_J": 89,
+        "tetra_M": 89
+      },
+      "maxima": {
+        "center_chart_tangent_residual": 9.159339953157541e-16,
+        "center_nearest_quadratic_eigenvalue_absolute": 2.220446049250313e-16,
+        "endpoint_nearest_eigenvalue_drift_absolute": 6.800116025829084e-16,
+        "h=1e-05_retained_J_Frobenius_relative": 6.440360484832621e-06,
+        "h=2e-05_retained_J_Frobenius_relative": 2.4786318456925086e-05,
+        "matched_retained_velocity_FD_max_component_error": 0.007311935606551856,
+        "matched_retained_velocity_FD_relative": 6.415522382348096e-05,
+        "material_FD_max_component_error": 1.6058092499743326e-06,
+        "material_FD_relative": 3.812451528525705e-05,
+        "retracted_raw_tangent_max_component_error": 1.6751247056134844e-09,
+        "source_FD_max_component_error": 0.00014548411448345178,
+        "source_FD_relative": 1.3984318331160272e-06,
+        "tetra_J_absolute": 1.1310397063368782e-15,
+        "tetra_M_absolute": 5.117434254131581e-17
+      },
+      "rejection_reasons": {}
+    },
+    "combB": {
+      "cap_depth_doublings": {
+        "0": 16,
+        "1": 3,
+        "2": 4
+      },
+      "center_source_configurations": [
+        {
+          "cap_faces": 10,
+          "faces": 12,
+          "operation": "difference",
+          "rows": 8
+        },
+        {
+          "cap_faces": 10,
+          "faces": 12,
+          "operation": "intersection",
+          "rows": 8
+        },
+        {
+          "cap_faces": 1344,
+          "faces": 2496,
+          "operation": "intersection",
+          "rows": 7
+        }
+      ],
+      "directional_counts": {
+        "all_checks_passed": 0,
+        "attempted_column_steps": 208,
+        "closed_Euler_compared": 208,
+        "closed_Euler_equal": 207,
+        "matched_retained_velocity_FD_passed": 208,
+        "material_J_FD_passed": 208,
+        "material_endpoint_values": 416,
+        "numeric_material_FD": 208,
+        "retained_constructions_equal": 33,
+        "retained_oriented_incidence_equal": 0,
+        "retained_triangulation_equal": 0,
+        "retained_unoriented_incidence_equal": 0,
+        "source_endpoint_calls": 416,
+        "source_side_caps_faces_equal": 208,
+        "source_velocity_FD_passed": 208
+      },
+      "distributions": {
+        "fraction_of_center_constructions_matched_in_both_signs": {
+          "maximum": 1.0,
+          "median": 0.999823931838851,
+          "minimum": 0.9974440171906809,
+          "n": 208
+        },
+        "h=1e-05_retained_J_Frobenius_relative": {
+          "max": 6.440360484832621e-06,
+          "median": 9.065839300255343e-08,
+          "n": 23,
+          "p95": 1.1201303601046468e-06
+        },
+        "h=2e-05_retained_J_Frobenius_relative": {
+          "max": 2.4786318456925086e-05,
+          "median": 3.664395333910988e-07,
+          "n": 23,
+          "p95": 4.456869185282845e-06
+        }
+      },
+      "geometry_rows": {
+        "J": 23,
+        "M": 23,
+        "all_closed_euler_unchanged": 22,
+        "all_complete_retained_ids": 2,
+        "all_matched_retained_velocity_FD": 23,
+        "all_material_columns_FD": 23,
+        "all_retained_topology_and_ids": 0,
+        "all_scoped_sampled_checks": 0,
+        "all_source_velocity_FD": 23,
+        "registered": 23,
+        "same_source_side_caps_faces_all_probes": 23,
+        "source_motion": 23,
+        "source_primal_motion_bitwise": 23,
+        "source_value": 23,
+        "tetra_J": 23,
+        "tetra_M": 23
+      },
+      "maxima": {
+        "center_chart_tangent_residual": 3.0531133177191805e-16,
+        "center_nearest_quadratic_eigenvalue_absolute": 2.0085812053993922e-16,
+        "endpoint_nearest_eigenvalue_drift_absolute": 4.141295808866035e-16,
+        "h=1e-05_retained_J_Frobenius_relative": 6.440360484832621e-06,
+        "h=2e-05_retained_J_Frobenius_relative": 2.4786318456925086e-05,
+        "matched_retained_velocity_FD_max_component_error": 0.0012221064094717349,
+        "matched_retained_velocity_FD_relative": 6.88713930157343e-06,
+        "material_FD_max_component_error": 1.6058092499743326e-06,
+        "material_FD_relative": 2.741373585970592e-05,
+        "retracted_raw_tangent_max_component_error": 6.900028326484176e-10,
+        "source_FD_max_component_error": 9.689869393980644e-06,
+        "source_FD_relative": 2.922635018326413e-07,
+        "tetra_J_absolute": 3.677613769070831e-16,
+        "tetra_M_absolute": 2.5153490401663703e-17
+      },
+      "rejection_reasons": {}
+    },
+    "maskB": {
+      "cap_depth_doublings": {
+        "0": 16,
+        "1": 1,
+        "2": 6,
+        "3": 2
+      },
+      "center_source_configurations": [
+        {
+          "cap_faces": 10,
+          "faces": 12,
+          "operation": "difference",
+          "rows": 7
+        },
+        {
+          "cap_faces": 10,
+          "faces": 12,
+          "operation": "intersection",
+          "rows": 9
+        },
+        {
+          "cap_faces": 1344,
+          "faces": 2496,
+          "operation": "intersection",
+          "rows": 9
+        }
+      ],
+      "directional_counts": {
+        "all_checks_passed": 0,
+        "attempted_column_steps": 240,
+        "closed_Euler_compared": 240,
+        "closed_Euler_equal": 240,
+        "matched_retained_velocity_FD_passed": 240,
+        "material_J_FD_passed": 240,
+        "material_endpoint_values": 480,
+        "numeric_material_FD": 240,
+        "retained_constructions_equal": 59,
+        "retained_oriented_incidence_equal": 0,
+        "retained_triangulation_equal": 0,
+        "retained_unoriented_incidence_equal": 0,
+        "source_endpoint_calls": 480,
+        "source_side_caps_faces_equal": 240,
+        "source_velocity_FD_passed": 240
+      },
+      "distributions": {
+        "fraction_of_center_constructions_matched_in_both_signs": {
+          "maximum": 1.0,
+          "median": 0.9999260628465804,
+          "minimum": 0.9969759712308615,
+          "n": 240
+        },
+        "h=1e-05_retained_J_Frobenius_relative": {
+          "max": 3.4970271972054804e-07,
+          "median": 5.424737063940316e-09,
+          "n": 25,
+          "p95": 5.842352860954991e-08
+        },
+        "h=2e-05_retained_J_Frobenius_relative": {
+          "max": 1.3944563531647453e-06,
+          "median": 2.1596775558002895e-08,
+          "n": 25,
+          "p95": 2.33607940334002e-07
+        }
+      },
+      "geometry_rows": {
+        "J": 25,
+        "M": 25,
+        "all_closed_euler_unchanged": 25,
+        "all_complete_retained_ids": 4,
+        "all_matched_retained_velocity_FD": 25,
+        "all_material_columns_FD": 25,
+        "all_retained_topology_and_ids": 0,
+        "all_scoped_sampled_checks": 0,
+        "all_source_velocity_FD": 25,
+        "registered": 25,
+        "same_source_side_caps_faces_all_probes": 25,
+        "source_motion": 25,
+        "source_primal_motion_bitwise": 25,
+        "source_value": 25,
+        "tetra_J": 25,
+        "tetra_M": 25
+      },
+      "maxima": {
+        "center_chart_tangent_residual": 6.938893903907228e-16,
+        "center_nearest_quadratic_eigenvalue_absolute": 2.2136697856722787e-16,
+        "endpoint_nearest_eigenvalue_drift_absolute": 6.800116025829084e-16,
+        "h=1e-05_retained_J_Frobenius_relative": 3.4970271972054804e-07,
+        "h=2e-05_retained_J_Frobenius_relative": 1.3944563531647453e-06,
+        "matched_retained_velocity_FD_max_component_error": 0.007311935606551856,
+        "matched_retained_velocity_FD_relative": 6.415522382348096e-05,
+        "material_FD_max_component_error": 7.994497626157178e-08,
+        "material_FD_relative": 3.812451528525705e-05,
+        "retracted_raw_tangent_max_component_error": 8.706524390333925e-10,
+        "source_FD_max_component_error": 0.00014548411448345178,
+        "source_FD_relative": 1.3984318331160272e-06,
+        "tetra_J_absolute": 1.1310397063368782e-15,
+        "tetra_M_absolute": 5.117434254131581e-17
+      },
+      "rejection_reasons": {}
+    }
+  },
+  "historical_scope_manifest_sha256": "82c8d1dfab7959af6c133110f0aaec712450b75f88ebfceeedb128d09e8dde01",
+  "protocol_sha256": "7e68cbd3f99d3871cabb70371cc0d95d7abce26fad11bcc2504c9090a6c196b8",
+  "registered_query_archive_sha256": "161b98c6128960763ab99c66f9c9ff52550532ba73f51a3a24dfb4f2b5a8410c",
+  "schema": "compact-v21.physical-stratum-replay.summary.v1"
+}

@@ -1,0 +1,39 @@
+{
+  "schema": "compact-pino.algebraic-stratum.physical-protocol.v1",
+  "existing_registration_revision": "6eca32d",
+  "population": {
+    "split": "development",
+    "source_restricted_valid": 1,
+    "selectors": {"maskB": [16, 9], "combB": [16, 7], "R01": [16, 4], "R02": [16, 5]},
+    "order": ["PLANE/R3", "PARABOLOID/R8"],
+    "join": "Match query_id and exact ten raw coefficients in the two authorized development archives. Use the original ordered raw tangent columns."
+  },
+  "base": {
+    "source": "Independent motion and primal entries must agree bitwise on target-frame vertices, indexed triangles, cap bits and operated side. Audit the actual transformed binary64 physical operand.",
+    "physics": "Use the versioned typed teacher, actual full registered design, Cherchi, oriented retained boundary and native rational material integration. Record old-context full and typed rejections separately.",
+    "audit": "Calculate all ten editable and fixed-plus-editable signed-tetrahedron moments. Differentiate those tetrahedra using the post-Boolean retained-vertex motion in each raw chart column.",
+    "tetra_elementwise_rtol": 1e-9,
+    "tetra_elementwise_atol": 1e-11
+  },
+  "central_difference": {
+    "raw_steps": [0.00002, 0.00001],
+    "path": "Use the full signed raw step along each original basis column. Keep a zero quadratic block for planes. For paraboloids keep the center signed near-zero eigenvalue fixed by subtracting the change of the smallest-absolute eigenvalue times its spectral projector. Explicitly return the original bits at h=0. A binary64 center can have a tiny nonzero determinant; report its spectrum, tangent residual and measured central-path error.",
+    "numerical_rank_relative_tolerance": 1e-10,
+    "tangent_relative_tolerance": 1e-9,
+    "sides": [-1, 1],
+    "denominator": "2h on the raw tangent. No coefficient renormalization or change to the units of h is applied by the harness.",
+    "source": "Check each side using the separate native value-only source. Compare source index connectivity, cap mask, selected side and vertex count to the moving center. Compare every source vertex against the center raw velocity using both signs.",
+    "retained": "Recompute each physical Boolean using the two actual geometry operands. Compare signed retained ten-moment differences, and compare all uniquely corresponding retained-vertex velocities using exact construction support identities. Discretization changes and rejected sides remain in the ledger. Integration of the same perturbed Cherchi boundary can use a verified fast-value path.",
+    "material_fd_rtol_norm": 0.0002,
+    "material_fd_atol_norm": 5e-8,
+    "source_fd_rtol_norm": 0.0002,
+    "source_fd_atol_norm": 5e-8,
+    "retained_fd_rtol_norm": 0.002,
+    "retained_fd_atol_norm": 5e-7,
+    "acceptance_formula": "||estimate-reference||_2 <= atol + rtol * max(||estimate||_2, ||reference||_2); report relative, absolute maximum, and norm errors for each raw column separately.",
+    "column_support": "The material FD comparison is reported whenever both cut moments and center J exist. Stable source topology requires exact equality of side, cap mask and indexed source faces. Record retained construction-set equality, oriented or unordered canonical triangle incidence, matched counts and retained-velocity errors separately. A verified sampled column requires complete stable retained construction correspondence/topology and all three checks.",
+    "failure": "Retain every source/physical/derivative rejection and exact diagnostic. Missing values and masks are explicit, and successes on a subset never count as a full-row finite-difference pass."
+  },
+  "event_status": "ambient_event_valid = restricted_event_valid = -1. Numerical observations at finitely many settings do not certify a neighbourhood.",
+  "scope": "New versioned algebraic source only for the primary replay. An archived diagnostic on a different source map and manufactured examples are controls only. No blind-case files, labels, fitting, or model training."
+}

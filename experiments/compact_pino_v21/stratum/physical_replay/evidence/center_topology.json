@@ -1,0 +1,2244 @@
+{
+ "schema": "compact-v21.center-surface-topology.v1",
+ "rows": {
+  "R01_R3_003": {
+   "retained_boundary_sha256": "8750a54e77d04548b5f965376c66d43bda04925612c7115c26a5b71cd37590b5",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 163798,
+     "edges": 491394,
+     "faces": 327596,
+     "euler_characteristic": 0
+    },
+    {
+     "vertices": 1130,
+     "edges": 3384,
+     "faces": 2256,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 164928,
+   "edges": 494778,
+   "faces": 329852,
+   "euler_characteristic": 2
+  },
+  "R01_R3_004": {
+   "retained_boundary_sha256": "306d63beea10544e7320261bfbbbf1442a322318548983d203e7efa13b57a416",
+   "closed_edge_valence_two": true,
+   "connected_components": 1,
+   "component_counts": [
+    {
+     "vertices": 88004,
+     "edges": 264024,
+     "faces": 176016,
+     "euler_characteristic": -4
+    }
+   ],
+   "vertices": 88004,
+   "edges": 264024,
+   "faces": 176016,
+   "euler_characteristic": -4
+  },
+  "R01_R3_005": {
+   "retained_boundary_sha256": "0d6207a3daeb3644379a41fa7930d7d75d490415c0e16adebc822fee7226619e",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 121780,
+     "edges": 365352,
+     "faces": 243568,
+     "euler_characteristic": -4
+    },
+    {
+     "vertices": 1130,
+     "edges": 3384,
+     "faces": 2256,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 122910,
+   "edges": 368736,
+   "faces": 245824,
+   "euler_characteristic": -2
+  },
+  "R01_R3_006": {
+   "retained_boundary_sha256": "9f84fce8a45d211bb611b6beff575f561ff261a72308872182fe7f49a1b0a3a1",
+   "closed_edge_valence_two": true,
+   "connected_components": 1,
+   "component_counts": [
+    {
+     "vertices": 63106,
+     "edges": 189324,
+     "faces": 126216,
+     "euler_characteristic": -2
+    }
+   ],
+   "vertices": 63106,
+   "edges": 189324,
+   "faces": 126216,
+   "euler_characteristic": -2
+  },
+  "R01_R3_007": {
+   "retained_boundary_sha256": "567708d2427086c64d27e80f285efdc023826c4f4bf1e90315497830daead7a9",
+   "closed_edge_valence_two": true,
+   "connected_components": 1,
+   "component_counts": [
+    {
+     "vertices": 102003,
+     "edges": 306003,
+     "faces": 204002,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 102003,
+   "edges": 306003,
+   "faces": 204002,
+   "euler_characteristic": 2
+  },
+  "R01_R3_008": {
+   "retained_boundary_sha256": "9f876a6e96a7fd56edd2ffc02ac05017b1c985f2313ab6403be672ccdd70e895",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 135849,
+     "edges": 407553,
+     "faces": 271702,
+     "euler_characteristic": -2
+    },
+    {
+     "vertices": 1130,
+     "edges": 3384,
+     "faces": 2256,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 136979,
+   "edges": 410937,
+   "faces": 273958,
+   "euler_characteristic": 0
+  },
+  "R01_R3_009": {
+   "retained_boundary_sha256": "44d096b3a98ed6a6155f206bd6311088019ea4d05eb4bce4cbdeabfed73a298c",
+   "closed_edge_valence_two": true,
+   "connected_components": 1,
+   "component_counts": [
+    {
+     "vertices": 39987,
+     "edges": 119955,
+     "faces": 79970,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 39987,
+   "edges": 119955,
+   "faces": 79970,
+   "euler_characteristic": 2
+  },
+  "R01_R3_010": {
+   "retained_boundary_sha256": "f53f444bd3aef6b6f86925e8d9188cea90b661a5ce7d6fff74c3985aa0d5b08c",
+   "closed_edge_valence_two": true,
+   "connected_components": 3,
+   "component_counts": [
+    {
+     "vertices": 162268,
+     "edges": 486822,
+     "faces": 324548,
+     "euler_characteristic": -6
+    },
+    {
+     "vertices": 1130,
+     "edges": 3384,
+     "faces": 2256,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 373,
+     "edges": 1113,
+     "faces": 742,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 163771,
+   "edges": 491319,
+   "faces": 327546,
+   "euler_characteristic": -2
+  },
+  "R01_R3_011": {
+   "retained_boundary_sha256": "6c4a5b44d95e486bc0966d41385a5122cf3b1e3b62c448029433e1c1cf90c1f6",
+   "closed_edge_valence_two": true,
+   "connected_components": 1,
+   "component_counts": [
+    {
+     "vertices": 47204,
+     "edges": 141618,
+     "faces": 94412,
+     "euler_characteristic": -2
+    }
+   ],
+   "vertices": 47204,
+   "edges": 141618,
+   "faces": 94412,
+   "euler_characteristic": -2
+  },
+  "R01_R3_015": {
+   "retained_boundary_sha256": "5f93f7001fed3cadae8d7b5ee5e136027f223191beb41fc37e3af55decf39e25",
+   "closed_edge_valence_two": true,
+   "connected_components": 1,
+   "component_counts": [
+    {
+     "vertices": 94375,
+     "edges": 283125,
+     "faces": 188750,
+     "euler_characteristic": 0
+    }
+   ],
+   "vertices": 94375,
+   "edges": 283125,
+   "faces": 188750,
+   "euler_characteristic": 0
+  },
+  "R01_R3_019": {
+   "retained_boundary_sha256": "45196a5bbf002c4961e84499ca4dd2630896c736bdec51fe57e80518ba7695d4",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 188208,
+     "edges": 564642,
+     "faces": 376428,
+     "euler_characteristic": -6
+    },
+    {
+     "vertices": 1130,
+     "edges": 3384,
+     "faces": 2256,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 189338,
+   "edges": 568026,
+   "faces": 378684,
+   "euler_characteristic": -4
+  },
+  "R01_R3_027": {
+   "retained_boundary_sha256": "c9791288d8dfba073b4ec5b95bd94608631a5e1c15521bba690b291711f9bbd9",
+   "closed_edge_valence_two": true,
+   "connected_components": 1,
+   "component_counts": [
+    {
+     "vertices": 79112,
+     "edges": 237348,
+     "faces": 158232,
+     "euler_characteristic": -4
+    }
+   ],
+   "vertices": 79112,
+   "edges": 237348,
+   "faces": 158232,
+   "euler_characteristic": -4
+  },
+  "R01_R3_033": {
+   "retained_boundary_sha256": "19288d14f4fb159c1b2b1e957a9cba2c95869fe250bfe14c12494f2d5d869ebd",
+   "closed_edge_valence_two": true,
+   "connected_components": 1,
+   "component_counts": [
+    {
+     "vertices": 111675,
+     "edges": 335031,
+     "faces": 223354,
+     "euler_characteristic": -2
+    }
+   ],
+   "vertices": 111675,
+   "edges": 335031,
+   "faces": 223354,
+   "euler_characteristic": -2
+  },
+  "R01_R3_037": {
+   "retained_boundary_sha256": "1b7a8c3216d6dc948d3252b5b88917e31f77a10407c3b630611a3b7381a7bf02",
+   "closed_edge_valence_two": true,
+   "connected_components": 1,
+   "component_counts": [
+    {
+     "vertices": 184153,
+     "edges": 552483,
+     "faces": 368322,
+     "euler_characteristic": -8
+    }
+   ],
+   "vertices": 184153,
+   "edges": 552483,
+   "faces": 368322,
+   "euler_characteristic": -8
+  },
+  "R01_R3_041": {
+   "retained_boundary_sha256": "53db1f15615521e335924ee4f342018aeff4ab0a5a9ab5dd7dd3369edab14550",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 37752,
+     "edges": 113250,
+     "faces": 75500,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 1130,
+     "edges": 3384,
+     "faces": 2256,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 38882,
+   "edges": 116634,
+   "faces": 77756,
+   "euler_characteristic": 4
+  },
+  "R01_R3_047": {
+   "retained_boundary_sha256": "e7efae52c2b9556f693822622b5cf3280001c043baa1e5ad6e03f6b7ff144207",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 140324,
+     "edges": 420984,
+     "faces": 280656,
+     "euler_characteristic": -4
+    },
+    {
+     "vertices": 1130,
+     "edges": 3384,
+     "faces": 2256,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 141454,
+   "edges": 424368,
+   "faces": 282912,
+   "euler_characteristic": -2
+  },
+  "R01_R8_024": {
+   "retained_boundary_sha256": "f91bdd72442b7e2ff7c8f25947009c00603a0eae515c2c92b2312cc57e50c447",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 178980,
+     "edges": 536958,
+     "faces": 357972,
+     "euler_characteristic": -6
+    },
+    {
+     "vertices": 1130,
+     "edges": 3384,
+     "faces": 2256,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 180110,
+   "edges": 540342,
+   "faces": 360228,
+   "euler_characteristic": -4
+  },
+  "R01_R8_032": {
+   "retained_boundary_sha256": "fb6a0437b9863b53a6d310e87bdc3a8e589ada0ee517dc41f74af57335602cc9",
+   "closed_edge_valence_two": true,
+   "connected_components": 1,
+   "component_counts": [
+    {
+     "vertices": 146554,
+     "edges": 439686,
+     "faces": 293124,
+     "euler_characteristic": -8
+    }
+   ],
+   "vertices": 146554,
+   "edges": 439686,
+   "faces": 293124,
+   "euler_characteristic": -8
+  },
+  "R01_R8_039": {
+   "retained_boundary_sha256": "89a90912b5efc436e52b35448b4c57b8103b41f95f7c0df90e56998322f54be9",
+   "closed_edge_valence_two": true,
+   "connected_components": 3,
+   "component_counts": [
+    {
+     "vertices": 108883,
+     "edges": 326655,
+     "faces": 217770,
+     "euler_characteristic": -2
+    },
+    {
+     "vertices": 87,
+     "edges": 255,
+     "faces": 170,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 12,
+     "edges": 30,
+     "faces": 20,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 108982,
+   "edges": 326940,
+   "faces": 217960,
+   "euler_characteristic": 2
+  },
+  "R01_R8_043": {
+   "retained_boundary_sha256": "74c2cac598a82c42578d77f96e8d394ef4feca2f6c5f78af9306afec09081b42",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 164030,
+     "edges": 492108,
+     "faces": 328072,
+     "euler_characteristic": -6
+    },
+    {
+     "vertices": 1130,
+     "edges": 3384,
+     "faces": 2256,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 165160,
+   "edges": 495492,
+   "faces": 330328,
+   "euler_characteristic": -4
+  },
+  "R02_R3_004": {
+   "retained_boundary_sha256": "96806a2f7dc915943315e517d21e45ce0e3eb095026deec37847c045f67edc16",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 87857,
+     "edges": 263613,
+     "faces": 175742,
+     "euler_characteristic": -14
+    },
+    {
+     "vertices": 1658,
+     "edges": 4968,
+     "faces": 3312,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 89515,
+   "edges": 268581,
+   "faces": 179054,
+   "euler_characteristic": -12
+  },
+  "R02_R3_005": {
+   "retained_boundary_sha256": "ae850cb41c3184433ba66b0812a0784c6cc3bb9f81ab5adb2eb35670b6cee741",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 62541,
+     "edges": 187665,
+     "faces": 125110,
+     "euler_characteristic": -14
+    },
+    {
+     "vertices": 1658,
+     "edges": 4968,
+     "faces": 3312,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 64199,
+   "edges": 192633,
+   "faces": 128422,
+   "euler_characteristic": -12
+  },
+  "R02_R3_006": {
+   "retained_boundary_sha256": "813564d3cc39605b1b50822915e1764460a339b19674962ca6292bda569f442d",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 87395,
+     "edges": 262233,
+     "faces": 174822,
+     "euler_characteristic": -16
+    },
+    {
+     "vertices": 1658,
+     "edges": 4968,
+     "faces": 3312,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 89053,
+   "edges": 267201,
+   "faces": 178134,
+   "euler_characteristic": -14
+  },
+  "R02_R3_007": {
+   "retained_boundary_sha256": "457ab87a7c680537ef86e7b56eff07cc3731878499188f88ca133b90b565639a",
+   "closed_edge_valence_two": true,
+   "connected_components": 1,
+   "component_counts": [
+    {
+     "vertices": 80414,
+     "edges": 241242,
+     "faces": 160828,
+     "euler_characteristic": 0
+    }
+   ],
+   "vertices": 80414,
+   "edges": 241242,
+   "faces": 160828,
+   "euler_characteristic": 0
+  },
+  "R02_R3_008": {
+   "retained_boundary_sha256": "8f73d16a7081217224bf4dd88c20b572824b69817c7b4a6061056d9e7f9313a2",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 94091,
+     "edges": 282291,
+     "faces": 188194,
+     "euler_characteristic": -6
+    },
+    {
+     "vertices": 2845,
+     "edges": 8529,
+     "faces": 5686,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 96936,
+   "edges": 290820,
+   "faces": 193880,
+   "euler_characteristic": -4
+  },
+  "R02_R3_009": {
+   "retained_boundary_sha256": "783a0d761e313bf191b9a5096d63fe87dd4e8d9a88ee125fcd8fa9d63b16f77d",
+   "closed_edge_valence_two": true,
+   "connected_components": 1,
+   "component_counts": [
+    {
+     "vertices": 140176,
+     "edges": 420594,
+     "faces": 280396,
+     "euler_characteristic": -22
+    }
+   ],
+   "vertices": 140176,
+   "edges": 420594,
+   "faces": 280396,
+   "euler_characteristic": -22
+  },
+  "R02_R3_010": {
+   "retained_boundary_sha256": "e96c40ee26488dd8e1e72021870f7315240abc0563f60f24ba6b38cc6d348ebe",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 39184,
+     "edges": 117564,
+     "faces": 78376,
+     "euler_characteristic": -4
+    },
+    {
+     "vertices": 1658,
+     "edges": 4968,
+     "faces": 3312,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 40842,
+   "edges": 122532,
+   "faces": 81688,
+   "euler_characteristic": -2
+  },
+  "R02_R3_011": {
+   "retained_boundary_sha256": "99239fcf68fd1889857e5d51500f5811a44a1e4d61ffc6d9f4e0eda333cf3baf",
+   "closed_edge_valence_two": true,
+   "connected_components": 1,
+   "component_counts": [
+    {
+     "vertices": 146707,
+     "edges": 440175,
+     "faces": 293450,
+     "euler_characteristic": -18
+    }
+   ],
+   "vertices": 146707,
+   "edges": 440175,
+   "faces": 293450,
+   "euler_characteristic": -18
+  },
+  "R02_R3_012": {
+   "retained_boundary_sha256": "6dbc9026c8ff350948d14d054a7019d2bf1d2035d9e9ccd2af5a9a1798cf4b66",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 148774,
+     "edges": 446394,
+     "faces": 297596,
+     "euler_characteristic": -24
+    },
+    {
+     "vertices": 1658,
+     "edges": 4968,
+     "faces": 3312,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 150432,
+   "edges": 451362,
+   "faces": 300908,
+   "euler_characteristic": -22
+  },
+  "R02_R3_016": {
+   "retained_boundary_sha256": "b7189fe6684e2f1d5f866d6f5acdd2d68061acbf9c0a432799e9d0e27e12e1e4",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 76539,
+     "edges": 229635,
+     "faces": 153090,
+     "euler_characteristic": -6
+    },
+    {
+     "vertices": 1658,
+     "edges": 4968,
+     "faces": 3312,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 78197,
+   "edges": 234603,
+   "faces": 156402,
+   "euler_characteristic": -4
+  },
+  "R02_R3_019": {
+   "retained_boundary_sha256": "fdfa97563e49bbcdd8d4f876985970c47131f706307beebfd734d52d9f52cc60",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 147981,
+     "edges": 444003,
+     "faces": 296002,
+     "euler_characteristic": -20
+    },
+    {
+     "vertices": 1658,
+     "edges": 4968,
+     "faces": 3312,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 149639,
+   "edges": 448971,
+   "faces": 299314,
+   "euler_characteristic": -18
+  },
+  "R02_R3_029": {
+   "retained_boundary_sha256": "853b1c9b26ad586e71164518e92f6bfaa385f30e7bf5536ad5d3dff7390f2d3d",
+   "closed_edge_valence_two": true,
+   "connected_components": 1,
+   "component_counts": [
+    {
+     "vertices": 63990,
+     "edges": 191976,
+     "faces": 127984,
+     "euler_characteristic": -2
+    }
+   ],
+   "vertices": 63990,
+   "edges": 191976,
+   "faces": 127984,
+   "euler_characteristic": -2
+  },
+  "R02_R3_034": {
+   "retained_boundary_sha256": "e9c0cb7cb24fcda113f6dc4df63d6dfedcb7d4db3fad0be869443984a9eae4cd",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 114233,
+     "edges": 342735,
+     "faces": 228490,
+     "euler_characteristic": -12
+    },
+    {
+     "vertices": 1658,
+     "edges": 4968,
+     "faces": 3312,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 115891,
+   "edges": 347703,
+   "faces": 231802,
+   "euler_characteristic": -10
+  },
+  "R02_R3_038": {
+   "retained_boundary_sha256": "aec7c5d2754d211452df000a2fb192fa4e3196dc10df88d81ce3fc8ff176fc21",
+   "closed_edge_valence_two": true,
+   "connected_components": 1,
+   "component_counts": [
+    {
+     "vertices": 84395,
+     "edges": 253221,
+     "faces": 168814,
+     "euler_characteristic": -12
+    }
+   ],
+   "vertices": 84395,
+   "edges": 253221,
+   "faces": 168814,
+   "euler_characteristic": -12
+  },
+  "R02_R3_043": {
+   "retained_boundary_sha256": "f34cb3bb3c6cf1289b908679f460206b0b4b6c5e92a9c184bfddf251cefd8b54",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 86629,
+     "edges": 259929,
+     "faces": 173286,
+     "euler_characteristic": -14
+    },
+    {
+     "vertices": 1658,
+     "edges": 4968,
+     "faces": 3312,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 88287,
+   "edges": 264897,
+   "faces": 176598,
+   "euler_characteristic": -12
+  },
+  "R02_R3_046": {
+   "retained_boundary_sha256": "d05edb3feeb8becea0794d7e9054c0ef95b3a8b1a1644360787444fe21c52b22",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 149423,
+     "edges": 448341,
+     "faces": 298894,
+     "euler_characteristic": -24
+    },
+    {
+     "vertices": 1658,
+     "edges": 4968,
+     "faces": 3312,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 151081,
+   "edges": 453309,
+   "faces": 302206,
+   "euler_characteristic": -22
+  },
+  "R02_R8_022": {
+   "retained_boundary_sha256": "2b9f5efc4e368d9e3ce8e84a67f2f90d1fe7781fa4d9cba4bef9de39fe58ff83",
+   "closed_edge_valence_two": true,
+   "connected_components": 1,
+   "component_counts": [
+    {
+     "vertices": 144476,
+     "edges": 433494,
+     "faces": 288996,
+     "euler_characteristic": -22
+    }
+   ],
+   "vertices": 144476,
+   "edges": 433494,
+   "faces": 288996,
+   "euler_characteristic": -22
+  },
+  "R02_R8_032": {
+   "retained_boundary_sha256": "fc265421caaaf3fef1de7112d476cc155d38f31d614061dc0087438e96a8c55c",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 146273,
+     "edges": 438879,
+     "faces": 292586,
+     "euler_characteristic": -20
+    },
+    {
+     "vertices": 1658,
+     "edges": 4968,
+     "faces": 3312,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 147931,
+   "edges": 443847,
+   "faces": 295898,
+   "euler_characteristic": -18
+  },
+  "R02_R8_041": {
+   "retained_boundary_sha256": "98904f5c33e003d0079e32ae3715e4bee6dde97421177ed3cfaec4ccd7ba9f38",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 52081,
+     "edges": 156255,
+     "faces": 104170,
+     "euler_characteristic": -4
+    },
+    {
+     "vertices": 1658,
+     "edges": 4968,
+     "faces": 3312,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 53739,
+   "edges": 161223,
+   "faces": 107482,
+   "euler_characteristic": -2
+  },
+  "R02_R8_048": {
+   "retained_boundary_sha256": "08c42257bd17b8e05f9db93c2dcc2dc67e4e5c0c8cedac45fa503d7e44782c12",
+   "closed_edge_valence_two": true,
+   "connected_components": 3,
+   "component_counts": [
+    {
+     "vertices": 332,
+     "edges": 990,
+     "faces": 660,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 79219,
+     "edges": 237693,
+     "faces": 158462,
+     "euler_characteristic": -12
+    },
+    {
+     "vertices": 1658,
+     "edges": 4968,
+     "faces": 3312,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 81209,
+   "edges": 243651,
+   "faces": 162434,
+   "euler_characteristic": -8
+  },
+  "R02_R8_054": {
+   "retained_boundary_sha256": "f3bdea9f734f9129d632424fbb529ac230393bf0f5bd317ab700b63d1634884b",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 112584,
+     "edges": 337800,
+     "faces": 225200,
+     "euler_characteristic": -16
+    },
+    {
+     "vertices": 1658,
+     "edges": 4968,
+     "faces": 3312,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 114242,
+   "edges": 342768,
+   "faces": 228512,
+   "euler_characteristic": -14
+  },
+  "combB_R3_004": {
+   "retained_boundary_sha256": "1a06baf46784b9e4860453eac81e6f5a9a491b25a750431630a97a23b9a20f79",
+   "closed_edge_valence_two": true,
+   "connected_components": 3,
+   "component_counts": [
+    {
+     "vertices": 59148,
+     "edges": 178200,
+     "faces": 118800,
+     "euler_characteristic": -252
+    },
+    {
+     "vertices": 16,
+     "edges": 42,
+     "faces": 28,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 57,
+     "edges": 165,
+     "faces": 110,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 59221,
+   "edges": 178407,
+   "faces": 118938,
+   "euler_characteristic": -248
+  },
+  "combB_R3_005": {
+   "retained_boundary_sha256": "6028b96308ab05e7e66542a1f7fcdfbac043599e4adee3588966e44430f85953",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 69919,
+     "edges": 210651,
+     "faces": 140434,
+     "euler_characteristic": -298
+    },
+    {
+     "vertices": 16,
+     "edges": 42,
+     "faces": 28,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 69935,
+   "edges": 210693,
+   "faces": 140462,
+   "euler_characteristic": -296
+  },
+  "combB_R3_006": {
+   "retained_boundary_sha256": "c35251216a64f6fb2d248f0b325d9f1e38faab06260cf7404fba762fe53751e2",
+   "closed_edge_valence_two": true,
+   "connected_components": 4,
+   "component_counts": [
+    {
+     "vertices": 90310,
+     "edges": 271518,
+     "faces": 181012,
+     "euler_characteristic": -196
+    },
+    {
+     "vertices": 12,
+     "edges": 30,
+     "faces": 20,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 12,
+     "edges": 30,
+     "faces": 20,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 12,
+     "edges": 30,
+     "faces": 20,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 90346,
+   "edges": 271608,
+   "faces": 181072,
+   "euler_characteristic": -190
+  },
+  "combB_R3_007": {
+   "retained_boundary_sha256": "383a0e97b6419976c6fe27a31b79e7b9c1604d2862234a9ed7ca3158cba94136",
+   "closed_edge_valence_two": true,
+   "connected_components": 3,
+   "component_counts": [
+    {
+     "vertices": 53292,
+     "edges": 160524,
+     "faces": 107016,
+     "euler_characteristic": -216
+    },
+    {
+     "vertices": 175,
+     "edges": 519,
+     "faces": 346,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 30,
+     "edges": 84,
+     "faces": 56,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 53497,
+   "edges": 161127,
+   "faces": 107418,
+   "euler_characteristic": -212
+  },
+  "combB_R3_008": {
+   "retained_boundary_sha256": "aa8ab09ba4995320fadbe3dd84ba8ff5edb191b99104b6a31d9d12b6b914491a",
+   "closed_edge_valence_two": true,
+   "connected_components": 4,
+   "component_counts": [
+    {
+     "vertices": 82421,
+     "edges": 247737,
+     "faces": 165158,
+     "euler_characteristic": -158
+    },
+    {
+     "vertices": 12,
+     "edges": 30,
+     "faces": 20,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 12,
+     "edges": 30,
+     "faces": 20,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 12,
+     "edges": 30,
+     "faces": 20,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 82457,
+   "edges": 247827,
+   "faces": 165218,
+   "euler_characteristic": -152
+  },
+  "combB_R3_009": {
+   "retained_boundary_sha256": "d9181a0a3ce57983ff376b4e1e2bcfd4991c43771271f504720ba2959a52b252",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 83099,
+     "edges": 250023,
+     "faces": 166682,
+     "euler_characteristic": -242
+    },
+    {
+     "vertices": 16,
+     "edges": 42,
+     "faces": 28,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 83115,
+   "edges": 250065,
+   "faces": 166710,
+   "euler_characteristic": -240
+  },
+  "combB_R3_010": {
+   "retained_boundary_sha256": "a518f39fdfcecb0b566c4866e1acdd7fbaaad3a14ddbbe0bf537de829c323979",
+   "closed_edge_valence_two": true,
+   "connected_components": 3,
+   "component_counts": [
+    {
+     "vertices": 72345,
+     "edges": 217791,
+     "faces": 145194,
+     "euler_characteristic": -252
+    },
+    {
+     "vertices": 16,
+     "edges": 42,
+     "faces": 28,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 12,
+     "edges": 30,
+     "faces": 20,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 72373,
+   "edges": 217863,
+   "faces": 145242,
+   "euler_characteristic": -248
+  },
+  "combB_R3_011": {
+   "retained_boundary_sha256": "a1a8329b66b1191333fcf6a89f024ac8d583fe1b66f85489b07c7987b6eee78f",
+   "closed_edge_valence_two": true,
+   "connected_components": 3,
+   "component_counts": [
+    {
+     "vertices": 76002,
+     "edges": 228942,
+     "faces": 152628,
+     "euler_characteristic": -312
+    },
+    {
+     "vertices": 16,
+     "edges": 42,
+     "faces": 28,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 12,
+     "edges": 30,
+     "faces": 20,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 76030,
+   "edges": 229014,
+   "faces": 152676,
+   "euler_characteristic": -308
+  },
+  "combB_R3_012": {
+   "retained_boundary_sha256": "91b34ae5e6729f999381e6dd82674e27fea8e18f8268f94b9aaf6422237890a7",
+   "closed_edge_valence_two": true,
+   "connected_components": 4,
+   "component_counts": [
+    {
+     "vertices": 84974,
+     "edges": 255954,
+     "faces": 170636,
+     "euler_characteristic": -344
+    },
+    {
+     "vertices": 16,
+     "edges": 42,
+     "faces": 28,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 12,
+     "edges": 30,
+     "faces": 20,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 12,
+     "edges": 30,
+     "faces": 20,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 85014,
+   "edges": 256056,
+   "faces": 170704,
+   "euler_characteristic": -338
+  },
+  "combB_R3_016": {
+   "retained_boundary_sha256": "c8595a4c66f41b6abda3d4d6399c8d3326ef57969f7e363f5063b66b00dbb2fd",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 31659,
+     "edges": 95403,
+     "faces": 63602,
+     "euler_characteristic": -142
+    },
+    {
+     "vertices": 16,
+     "edges": 42,
+     "faces": 28,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 31675,
+   "edges": 95445,
+   "faces": 63630,
+   "euler_characteristic": -140
+  },
+  "combB_R3_021": {
+   "retained_boundary_sha256": "bd82aedc490a52981a60c2102bf271965b40df54523ff0b7dacfd080d725070f",
+   "closed_edge_valence_two": true,
+   "connected_components": 6,
+   "component_counts": [
+    {
+     "vertices": 73683,
+     "edges": 221679,
+     "faces": 147786,
+     "euler_characteristic": -210
+    },
+    {
+     "vertices": 16,
+     "edges": 42,
+     "faces": 28,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 12,
+     "edges": 30,
+     "faces": 20,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 801,
+     "edges": 2403,
+     "faces": 1602,
+     "euler_characteristic": 0
+    },
+    {
+     "vertices": 13,
+     "edges": 33,
+     "faces": 22,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 15,
+     "edges": 39,
+     "faces": 26,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 74540,
+   "edges": 224226,
+   "faces": 149484,
+   "euler_characteristic": -202
+  },
+  "combB_R3_027": {
+   "retained_boundary_sha256": "96a5feeedb62d2a720fef2876063689e8bf0da910ff55b38933acaaaa85b16be",
+   "closed_edge_valence_two": true,
+   "connected_components": 1,
+   "component_counts": [
+    {
+     "vertices": 46764,
+     "edges": 140394,
+     "faces": 93596,
+     "euler_characteristic": -34
+    }
+   ],
+   "vertices": 46764,
+   "edges": 140394,
+   "faces": 93596,
+   "euler_characteristic": -34
+  },
+  "combB_R3_031": {
+   "retained_boundary_sha256": "f7db94dd637ca7d40958376953fee957e0590bc97be05445c06305d94305aeaf",
+   "closed_edge_valence_two": true,
+   "connected_components": 1,
+   "component_counts": [
+    {
+     "vertices": 29968,
+     "edges": 90258,
+     "faces": 60172,
+     "euler_characteristic": -118
+    }
+   ],
+   "vertices": 29968,
+   "edges": 90258,
+   "faces": 60172,
+   "euler_characteristic": -118
+  },
+  "combB_R3_034": {
+   "retained_boundary_sha256": "81e5dac9c461bb158460d0edf5d78f23f4d6b1b09ba136d3c64d20df37bfccdd",
+   "closed_edge_valence_two": true,
+   "connected_components": 4,
+   "component_counts": [
+    {
+     "vertices": 25062,
+     "edges": 75582,
+     "faces": 50388,
+     "euler_characteristic": -132
+    },
+    {
+     "vertices": 2331,
+     "edges": 7035,
+     "faces": 4690,
+     "euler_characteristic": -14
+    },
+    {
+     "vertices": 16,
+     "edges": 42,
+     "faces": 28,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 12,
+     "edges": 30,
+     "faces": 20,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 27421,
+   "edges": 82689,
+   "faces": 55126,
+   "euler_characteristic": -142
+  },
+  "combB_R3_039": {
+   "retained_boundary_sha256": "a8e60f2b9dc629756a0aea44ed3bc25a8a01df873d60e934dddd8efc08c0919c",
+   "closed_edge_valence_two": true,
+   "connected_components": 1,
+   "component_counts": [
+    {
+     "vertices": 22767,
+     "edges": 68349,
+     "faces": 45566,
+     "euler_characteristic": -16
+    }
+   ],
+   "vertices": 22767,
+   "edges": 68349,
+   "faces": 45566,
+   "euler_characteristic": -16
+  },
+  "combB_R3_042": {
+   "retained_boundary_sha256": "94a45a5f58fdbe874737da4381ea367c090da2cbce0dfe2362319d647454d6f1",
+   "closed_edge_valence_two": true,
+   "connected_components": 4,
+   "component_counts": [
+    {
+     "vertices": 102786,
+     "edges": 309276,
+     "faces": 206184,
+     "euler_characteristic": -306
+    },
+    {
+     "vertices": 16,
+     "edges": 42,
+     "faces": 28,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 12,
+     "edges": 30,
+     "faces": 20,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 12,
+     "edges": 30,
+     "faces": 20,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 102826,
+   "edges": 309378,
+   "faces": 206252,
+   "euler_characteristic": -300
+  },
+  "combB_R8_022": {
+   "retained_boundary_sha256": "978143742a1d0d197884813d8455d804a2e78bceaf65d3664c5c1a8306f612d3",
+   "closed_edge_valence_two": true,
+   "connected_components": 5,
+   "component_counts": [
+    {
+     "vertices": 86986,
+     "edges": 261612,
+     "faces": 174408,
+     "euler_characteristic": -218
+    },
+    {
+     "vertices": 241,
+     "edges": 717,
+     "faces": 478,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 73,
+     "edges": 213,
+     "faces": 142,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 25,
+     "edges": 69,
+     "faces": 46,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 16,
+     "edges": 42,
+     "faces": 28,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 87341,
+   "edges": 262653,
+   "faces": 175102,
+   "euler_characteristic": -210
+  },
+  "combB_R8_030": {
+   "retained_boundary_sha256": "48982e7d6fc8856e1dae6c0254bb0c7f07c42d02826c4f3a7056ee7ba288b8b3",
+   "closed_edge_valence_two": true,
+   "connected_components": 4,
+   "component_counts": [
+    {
+     "vertices": 39570,
+     "edges": 119214,
+     "faces": 79476,
+     "euler_characteristic": -168
+    },
+    {
+     "vertices": 555,
+     "edges": 1659,
+     "faces": 1106,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 11003,
+     "edges": 33003,
+     "faces": 22002,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 16,
+     "edges": 42,
+     "faces": 28,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 51144,
+   "edges": 153918,
+   "faces": 102612,
+   "euler_characteristic": -162
+  },
+  "combB_R8_032": {
+   "retained_boundary_sha256": "21588168bd4a10250b51798b7277f009755ca43685c256e4f579aec0c0e2e111",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 84314,
+     "edges": 253812,
+     "faces": 169208,
+     "euler_characteristic": -290
+    },
+    {
+     "vertices": 16,
+     "edges": 42,
+     "faces": 28,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 84330,
+   "edges": 253854,
+   "faces": 169236,
+   "euler_characteristic": -288
+  },
+  "combB_R8_036": {
+   "retained_boundary_sha256": "1ddff5f7af117b777a9ffdcb340092e66e211bf248fe930a80d97da4e33731ea",
+   "closed_edge_valence_two": true,
+   "connected_components": 3,
+   "component_counts": [
+    {
+     "vertices": 104920,
+     "edges": 315810,
+     "faces": 210540,
+     "euler_characteristic": -350
+    },
+    {
+     "vertices": 16,
+     "edges": 42,
+     "faces": 28,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 12,
+     "edges": 30,
+     "faces": 20,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 104948,
+   "edges": 315882,
+   "faces": 210588,
+   "euler_characteristic": -346
+  },
+  "combB_R8_037": {
+   "retained_boundary_sha256": "3cfd9b14aba7ebc7a09cdbc18e7a40feb5d77331ae71fd8a404dffc36667c680",
+   "closed_edge_valence_two": true,
+   "connected_components": 9,
+   "component_counts": [
+    {
+     "vertices": 43333,
+     "edges": 130113,
+     "faces": 86742,
+     "euler_characteristic": -38
+    },
+    {
+     "vertices": 25,
+     "edges": 69,
+     "faces": 46,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 18960,
+     "edges": 57018,
+     "faces": 38012,
+     "euler_characteristic": -46
+    },
+    {
+     "vertices": 12,
+     "edges": 30,
+     "faces": 20,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 134,
+     "edges": 396,
+     "faces": 264,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 207,
+     "edges": 615,
+     "faces": 410,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 78,
+     "edges": 228,
+     "faces": 152,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 61,
+     "edges": 177,
+     "faces": 118,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 33,
+     "edges": 93,
+     "faces": 62,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 62843,
+   "edges": 188739,
+   "faces": 125826,
+   "euler_characteristic": -70
+  },
+  "combB_R8_052": {
+   "retained_boundary_sha256": "2300c4994cb7bc9edc278d7ab6c7c1bfd61cca2717d119fbc9944d6bb1edb1be",
+   "closed_edge_valence_two": true,
+   "connected_components": 3,
+   "component_counts": [
+    {
+     "vertices": 88392,
+     "edges": 265884,
+     "faces": 177256,
+     "euler_characteristic": -236
+    },
+    {
+     "vertices": 16,
+     "edges": 42,
+     "faces": 28,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 12,
+     "edges": 30,
+     "faces": 20,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 88420,
+   "edges": 265956,
+   "faces": 177304,
+   "euler_characteristic": -232
+  },
+  "combB_R8_053": {
+   "retained_boundary_sha256": "a2d2de706f0eb12095a153a16f9be9637b873881c54da8b70cbea58c46d7cf17",
+   "closed_edge_valence_two": true,
+   "connected_components": 1,
+   "component_counts": [
+    {
+     "vertices": 49133,
+     "edges": 147567,
+     "faces": 98378,
+     "euler_characteristic": -56
+    }
+   ],
+   "vertices": 49133,
+   "edges": 147567,
+   "faces": 98378,
+   "euler_characteristic": -56
+  },
+  "maskB_R3_004": {
+   "retained_boundary_sha256": "248bec572731258c4512d92042b84c013a571fbc2a7d89c71ec275336a7d5f35",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 75257,
+     "edges": 225789,
+     "faces": 150526,
+     "euler_characteristic": -6
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 75361,
+   "edges": 226095,
+   "faces": 150730,
+   "euler_characteristic": -4
+  },
+  "maskB_R3_005": {
+   "retained_boundary_sha256": "4dcc736884102b5a060452cd4ca06e9f998cf7047df22a5ee861aa96123a4595",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 87630,
+     "edges": 262908,
+     "faces": 175272,
+     "euler_characteristic": -6
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 87734,
+   "edges": 263214,
+   "faces": 175476,
+   "euler_characteristic": -4
+  },
+  "maskB_R3_006": {
+   "retained_boundary_sha256": "f409a725104282178eab8f9fa50ba8dc77236eb01eda4e2f10c2d3c2f283a87c",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 100334,
+     "edges": 301020,
+     "faces": 200680,
+     "euler_characteristic": -6
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 100438,
+   "edges": 301326,
+   "faces": 200884,
+   "euler_characteristic": -4
+  },
+  "maskB_R3_007": {
+   "retained_boundary_sha256": "cbbea97b019a63963c9c16b67401a980ab08a647feedf8670ac241be8d8719a0",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 51027,
+     "edges": 153081,
+     "faces": 102054,
+     "euler_characteristic": 0
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 51131,
+   "edges": 153387,
+   "faces": 102258,
+   "euler_characteristic": 2
+  },
+  "maskB_R3_008": {
+   "retained_boundary_sha256": "1a8a262cdc737976bd12ee96c58a039193eff67bbd3b639bc5fea31e71b1ab0e",
+   "closed_edge_valence_two": true,
+   "connected_components": 3,
+   "component_counts": [
+    {
+     "vertices": 104513,
+     "edges": 313557,
+     "faces": 209038,
+     "euler_characteristic": -6
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 104721,
+   "edges": 314169,
+   "faces": 209446,
+   "euler_characteristic": -2
+  },
+  "maskB_R3_009": {
+   "retained_boundary_sha256": "405aafe85d51bd03bb9beabec32c7b665240dc845650d517ad4d4f16dbe2ccb5",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 39332,
+     "edges": 117996,
+     "faces": 78664,
+     "euler_characteristic": 0
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 39436,
+   "edges": 118302,
+   "faces": 78868,
+   "euler_characteristic": 2
+  },
+  "maskB_R3_010": {
+   "retained_boundary_sha256": "674417f73e2895e5f4ad4aaac5d0135f623f0b243db55e98ed0dfbf59fd7f89c",
+   "closed_edge_valence_two": true,
+   "connected_components": 3,
+   "component_counts": [
+    {
+     "vertices": 72911,
+     "edges": 218751,
+     "faces": 145834,
+     "euler_characteristic": -6
+    },
+    {
+     "vertices": 1215,
+     "edges": 3639,
+     "faces": 2426,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 74230,
+   "edges": 222696,
+   "faces": 148464,
+   "euler_characteristic": -2
+  },
+  "maskB_R3_011": {
+   "retained_boundary_sha256": "ecc8b4dbb12ec6e39e54a775e3313f6a5b6d4b5d20198b3cb553265d8388f5b2",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 46828,
+     "edges": 140478,
+     "faces": 93652,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 46932,
+   "edges": 140784,
+   "faces": 93856,
+   "euler_characteristic": 4
+  },
+  "maskB_R3_012": {
+   "retained_boundary_sha256": "e99edc122faa7dee4e46e0b0496471009d62e72cf516149b257061832e556a14",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 25965,
+     "edges": 77895,
+     "faces": 51930,
+     "euler_characteristic": 0
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 26069,
+   "edges": 78201,
+   "faces": 52134,
+   "euler_characteristic": 2
+  },
+  "maskB_R3_016": {
+   "retained_boundary_sha256": "a882972cce6e5358fca09421ffa7afdb2730a09ec88af2db58cdc438548b49f4",
+   "closed_edge_valence_two": true,
+   "connected_components": 3,
+   "component_counts": [
+    {
+     "vertices": 101747,
+     "edges": 305259,
+     "faces": 203506,
+     "euler_characteristic": -6
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 101955,
+   "edges": 305871,
+   "faces": 203914,
+   "euler_characteristic": -2
+  },
+  "maskB_R3_020": {
+   "retained_boundary_sha256": "89d4aebe81691c763681556369a9828c6d0c42934d1af62224372998d10e92d3",
+   "closed_edge_valence_two": true,
+   "connected_components": 3,
+   "component_counts": [
+    {
+     "vertices": 81627,
+     "edges": 244899,
+     "faces": 163266,
+     "euler_characteristic": -6
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 81835,
+   "edges": 245511,
+   "faces": 163674,
+   "euler_characteristic": -2
+  },
+  "maskB_R3_027": {
+   "retained_boundary_sha256": "e683d4474b8e2fda7e090f35addf3d5c02164b370ca020108de36c801b31f207",
+   "closed_edge_valence_two": true,
+   "connected_components": 3,
+   "component_counts": [
+    {
+     "vertices": 75298,
+     "edges": 225912,
+     "faces": 150608,
+     "euler_characteristic": -6
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 75506,
+   "edges": 226524,
+   "faces": 151016,
+   "euler_characteristic": -2
+  },
+  "maskB_R3_032": {
+   "retained_boundary_sha256": "dfd970fecfab93be70b1b6eb07f3f66f5ea63f72e416c54e4c93cf007890aaea",
+   "closed_edge_valence_two": true,
+   "connected_components": 3,
+   "component_counts": [
+    {
+     "vertices": 61855,
+     "edges": 185565,
+     "faces": 123710,
+     "euler_characteristic": 0
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 560,
+     "edges": 1674,
+     "faces": 1116,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 62519,
+   "edges": 187545,
+   "faces": 125030,
+   "euler_characteristic": 4
+  },
+  "maskB_R3_040": {
+   "retained_boundary_sha256": "1b57c0db265007381dbd33689f32d46c3befe3234ed28691078fafa54b75ebbc",
+   "closed_edge_valence_two": true,
+   "connected_components": 3,
+   "component_counts": [
+    {
+     "vertices": 63995,
+     "edges": 192003,
+     "faces": 128002,
+     "euler_characteristic": -6
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 64203,
+   "edges": 192615,
+   "faces": 128410,
+   "euler_characteristic": -2
+  },
+  "maskB_R3_045": {
+   "retained_boundary_sha256": "e256e4aa2fbdc0d1de8de348d7773457dbda9ec45be46fb2c30683e439368dbb",
+   "closed_edge_valence_two": true,
+   "connected_components": 3,
+   "component_counts": [
+    {
+     "vertices": 100200,
+     "edges": 300618,
+     "faces": 200412,
+     "euler_characteristic": -6
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 100408,
+   "edges": 301230,
+   "faces": 200820,
+   "euler_characteristic": -2
+  },
+  "maskB_R3_048": {
+   "retained_boundary_sha256": "b41948d602ca0b860d2d4afb666d1f6196b10242de80ef0bae3f438e819edaab",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 52344,
+     "edges": 157026,
+     "faces": 104684,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 52448,
+   "edges": 157332,
+   "faces": 104888,
+   "euler_characteristic": 4
+  },
+  "maskB_R8_025": {
+   "retained_boundary_sha256": "d47012107987298f3fcdf9a3d87b11f7e3616162c5c94f1b1c5d7aa818c25766",
+   "closed_edge_valence_two": true,
+   "connected_components": 4,
+   "component_counts": [
+    {
+     "vertices": 31206,
+     "edges": 93612,
+     "faces": 62408,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 5243,
+     "edges": 15723,
+     "faces": 10482,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 153,
+     "edges": 453,
+     "faces": 302,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 36706,
+   "edges": 110094,
+   "faces": 73396,
+   "euler_characteristic": 8
+  },
+  "maskB_R8_031": {
+   "retained_boundary_sha256": "add64dc73fc0421f690b4d84c77a82894045d1ceee1a823bd7b920b266198600",
+   "closed_edge_valence_two": true,
+   "connected_components": 2,
+   "component_counts": [
+    {
+     "vertices": 44703,
+     "edges": 134103,
+     "faces": 89402,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 44807,
+   "edges": 134409,
+   "faces": 89606,
+   "euler_characteristic": 4
+  },
+  "maskB_R8_033": {
+   "retained_boundary_sha256": "8e064463ea3a47c70a5a8bb9036f2970b46de2e2030cc639993cc61abb4f093b",
+   "closed_edge_valence_two": true,
+   "connected_components": 3,
+   "component_counts": [
+    {
+     "vertices": 112424,
+     "edges": 337290,
+     "faces": 224860,
+     "euler_characteristic": -6
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 112632,
+   "edges": 337902,
+   "faces": 225268,
+   "euler_characteristic": -2
+  },
+  "maskB_R8_035": {
+   "retained_boundary_sha256": "69eebeff3ee0c863276d7c58883f3afa27f3580f4a75c85eb34ec3243eb65786",
+   "closed_edge_valence_two": true,
+   "connected_components": 3,
+   "component_counts": [
+    {
+     "vertices": 107992,
+     "edges": 324000,
+     "faces": 216000,
+     "euler_characteristic": -8
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 108200,
+   "edges": 324612,
+   "faces": 216408,
+   "euler_characteristic": -4
+  },
+  "maskB_R8_036": {
+   "retained_boundary_sha256": "5910d6b37812ce840dce99063ac4f101ccd8f9bc23a1be2734d1956ae08064ce",
+   "closed_edge_valence_two": true,
+   "connected_components": 3,
+   "component_counts": [
+    {
+     "vertices": 97610,
+     "edges": 292848,
+     "faces": 195232,
+     "euler_characteristic": -6
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 97818,
+   "edges": 293460,
+   "faces": 195640,
+   "euler_characteristic": -2
+  },
+  "maskB_R8_037": {
+   "retained_boundary_sha256": "478c7df7324bf3ac48fe88bcce992585ed18da4c6d668298788b1fc449f9db7a",
+   "closed_edge_valence_two": true,
+   "connected_components": 3,
+   "component_counts": [
+    {
+     "vertices": 34375,
+     "edges": 103119,
+     "faces": 68746,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 34583,
+   "edges": 103731,
+   "faces": 69154,
+   "euler_characteristic": 6
+  },
+  "maskB_R8_042": {
+   "retained_boundary_sha256": "3af28cbc1239abdd0a6ee3ceb3ba4ab80adb7ecfaf7b683adceb29a04335d5e1",
+   "closed_edge_valence_two": true,
+   "connected_components": 3,
+   "component_counts": [
+    {
+     "vertices": 85574,
+     "edges": 256728,
+     "faces": 171152,
+     "euler_characteristic": -2
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 85782,
+   "edges": 257340,
+   "faces": 171560,
+   "euler_characteristic": 2
+  },
+  "maskB_R8_054": {
+   "retained_boundary_sha256": "e14b62dc528a833c9210f60d2249c1c1a8ea2cd26f88038cd3cac1cbd4e3770e",
+   "closed_edge_valence_two": true,
+   "connected_components": 3,
+   "component_counts": [
+    {
+     "vertices": 86379,
+     "edges": 259137,
+     "faces": 172758,
+     "euler_characteristic": 0
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 86587,
+   "edges": 259749,
+   "faces": 173166,
+   "euler_characteristic": 4
+  },
+  "maskB_R8_055": {
+   "retained_boundary_sha256": "b4d594af28c46b2417542865f9ed6792fe2666d1005a0357b637e432fffc234b",
+   "closed_edge_valence_two": true,
+   "connected_components": 3,
+   "component_counts": [
+    {
+     "vertices": 113944,
+     "edges": 341850,
+     "faces": 227900,
+     "euler_characteristic": -6
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    },
+    {
+     "vertices": 104,
+     "edges": 306,
+     "faces": 204,
+     "euler_characteristic": 2
+    }
+   ],
+   "vertices": 114152,
+   "edges": 342462,
+   "faces": 228308,
+   "euler_characteristic": -2
+  }
+ }
+}
