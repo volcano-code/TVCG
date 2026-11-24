@@ -1,0 +1,40 @@
+[
+ {
+  "row_id": "T2_ellipsoid_plus",
+  "frozen_context": "7ab1da46b4bc35f3b9a4885ce64bd7fb76904abf1c7faee0a2f81893cb9e51ec",
+  "reference_seconds": 5.443064618855715,
+  "accepted": true,
+  "faces": 77756,
+  "vertices": 38880,
+  "moments": [
+   0.001134685614627878,
+   -1.4411412238975027e-05,
+   -0.00013695255226321685,
+   -2.899156222695209e-05,
+   1.4892569133044262e-05,
+   3.750122056552049e-05,
+   3.7196608005566157e-06,
+   8.317417063139217e-06,
+   -1.52739255295772e-08,
+   4.258375087268715e-06
+  ],
+  "equal_moments": true,
+  "equal_ordered_vertices": true,
+  "equal_oriented_faces": true,
+  "arithmetic": {
+   "enclosure_certified": true,
+   "precision_bits": 256,
+   "fallback_components": 0
+  },
+  "route": "coherent exact affine",
+  "accelerated_seconds": 2.4710645680315793
+ },
+ {
+  "row_id": "T2_endpoint_minus",
+  "frozen_context": "7ab1da46b4bc35f3b9a4885ce64bd7fb76904abf1c7faee0a2f81893cb9e51ec",
+  "reference_seconds": 0.3190842492040247,
+  "accepted": false,
+  "diagnostic": "orientation input vertices are invalid",
+  "accelerated_seconds": 0.3178181848488748
+ }
+]

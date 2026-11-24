@@ -1,0 +1,19 @@
+{
+  "../receipt.json": "151ac36da2da2a6f5608b753a276993d33a01abd7f8ace0c716a97d3ea913b14",
+  "/home/lin/anaconda3/lib/libboost_atomic.a": "fbbcd1a7f709e633744883fa2e67f242b8b2dcb54c4de326a81355aee8667637",
+  "/home/lin/anaconda3/lib/libboost_chrono.a": "00b950cc8260061e725cbb6b47d1aa1eef3881cef45e60cfea489a53fd934344",
+  "/home/lin/anaconda3/lib/libboost_system.a": "adea56b0b5d16c50abcea921cd07e9b85b2ee97c28cd8bc0bbfaf808b9ad1ac9",
+  "/home/lin/anaconda3/lib/libboost_thread.a": "b530898fbee29de88df1337f6a7434c865efae26aefc4b48d27b7f295b1f0994",
+  "/usr/bin/c++": "1353e9bdd29a7295c7226bf6c63abccce056d8cac31f112e5cdbecc3f28c2769",
+  "/usr/lib/x86_64-linux-gnu/libgmp.so": "0ccdfb6d6f5c039465f6d002cf7e4c072d48ac6a2cffc8dd6c748dec31592804",
+  "/usr/lib/x86_64-linux-gnu/libmpfr.so": "2156351fa3dedd04a7381c6ac7a8a26efa2d6fb08b80f8a2d644ccdd653710ae",
+  "/usr/lib/x86_64-linux-gnu/libz.so": "f61677c7bdb7c2aa2a243ea781bfd16afcb361cede7b4ef76127a9d8eb9a5242",
+  "CMakeFiles/_make_it_stand.dir/link.txt": "1acc5487f2be71e803490ebbab379e482fccf0d356d4e863d6cab6f375822cdd",
+  "compile_commands.json": "690b5197e29f65ecead932fa3f5c8bf158fb0e20574231ecc99a364ca8e9759e",
+  "compiler-runtime/libstdc++.so.6": "1fd75fe70354a416d75aef22bcae68c47bd25d20e2d0568c30b1a9838cf62f11",
+  "lib/libhighs.a": "175c0a4021300d724f3ca0eaf1725c739df8d16b72f1ef6f51809f98dd9d5d59",
+  "libmake_it_stand_core.a": "0848f51fb4c0a89beb9078a1393d72a1ad8b7e109c3e49d8d8e903fda539daff",
+  "libmake_it_stand_faster_fullrank.a": "a494446ea3425437e7ce70bc7e4a5527a7fb20b29b8d878495cb79192252da21",
+  "libmake_it_stand_spin2014_quadric.a": "3ae37d72d85b57a94404c34972e0f9a2fe97308a0fc506101905b7e20642837d",
+  "python/_make_it_stand.cpython-313-x86_64-linux-gnu.so": "f403aaf4dfb51170fcd0376665a997b46183a28f5079df278c89513da8736fba"
+}

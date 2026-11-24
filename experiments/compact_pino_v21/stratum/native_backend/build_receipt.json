@@ -1,0 +1,24 @@
+{
+  "archive": "/data/xvxinyao/moment-guided-spin-v1/code/make-it-balance-paper-sim/experiments/noodles_v8_20261017/native-side-build-job-03/output/build",
+  "module_file": "_compact_stratum_v1.cpython-313-x86_64-linux-gnu.so",
+  "module_sha256": "a2bc6ae680b50680930697136561ba9303a51bd8c0a3fc4118dc31617f99d9af",
+  "patched_triangulator_sha256": "4a6e70eaaa155a38c965e01f2e425fd4d5e881137595386f8b363080d88ad47c",
+  "recipe": {
+    "bindings.cpp": "154cbd83d450981e61d0c973abe801ec2927730f9aab0f6de85dd560b8cecd04",
+    "build.py": "b8e1903d7e4a03c935b3cc77200df71966f3b6235dbd05e3fcc34ba84cc203eb",
+    "candidate03-stratum.patch": "f8854e4e6415454b757c60b98c59ea612f730f2a92572dac1536f3ea4eee2bf1",
+    "stratum_api.h": "5d9acb0fcc29e9f8e03f428486e773f728a9a42a6073b05bb43f86242e9935c2",
+    "stratum_geometry.inc": "47fab3b750e3631b633edd646bcd8e3131a5ba50d2d8088444fefada284ef8d4",
+    "upstream_inputs.json": "735d8760da9aff46769efaec9c9e537d428b809e76024505aad6210ea8037b86"
+  },
+  "recovered_receipt_headers": {
+    "/data/xvxinyao/moment-guided-spin-v1/code/make-it-balance-paper-sim/include/spin/SpinDesignRequest.h": "6b199ccff7a339292e77156e703b257c0230d82c5fab5e137f733a9c5af0e4a8",
+    "/data/xvxinyao/moment-guided-spin-v1/code/make-it-balance-paper-sim/include/verification/ExactRationalCoordinates.h": "f8781b7edbeae6ec1e042666186357e7b4f9d32a385ebca560191d198cb670f9"
+  },
+  "schema": "compact.stratum.native.build.1",
+  "source_map_version": "ALGEBRAIC_FINITE_GRAPH_EXTRUSION_R3_R8_V1",
+  "upstream_compiler_dependency_count": 2444,
+  "upstream_compiler_dependency_sha256": "4b9236aa6d1a499e89bba2bba24efb29742924838ee1de9d4ead569c6ddb725d",
+  "upstream_module_sha256": "f403aaf4dfb51170fcd0376665a997b46183a28f5079df278c89513da8736fba",
+  "upstream_receipt_sha256": "151ac36da2da2a6f5608b753a276993d33a01abd7f8ace0c716a97d3ea913b14"
+}

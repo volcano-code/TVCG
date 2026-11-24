@@ -1,0 +1,171 @@
+{
+ "rows": [
+  {
+   "row": "R01_R3_019",
+   "raw_norm": 2.75,
+   "source_hash": "016c4d25a4ced58cc2f4f57a0dfa4c223c0a14b6aff483101563d54dcdcbeecd",
+   "motion_hash": "fd0de2a439e94b1e0af20d052f646b21225175e9670dc6600734439c1a865b04",
+   "vertices": 8,
+   "faces": 12,
+   "cap_faces": 10,
+   "operation": "difference",
+   "polarity_geometry_equal": true,
+   "physical_boundary_digest": "2489ffd268e0d5ea6dcd70e44737b78c5b46c1611d4c429132b3b9570c62d58b",
+   "raw_chart_fd_relative_per_column": [
+    3.9710465628334544e-11,
+    3.1813049103655496e-11,
+    4.138022148459274e-11
+   ],
+   "source_witness": {
+    "unit_coefficients": [
+     0.1989109421729992,
+     -0.7316339487976523,
+     -0.1989790306153804,
+     0.6209295833071312,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "coefficient_sign": -1,
+    "coefficient_pivot": 1,
+    "coefficient_pivot_gap": 0.1107043654905211,
+    "axis": [
+     0.7465518694317634,
+     0.2030361870546773,
+     -0.6335902563914926
+    ],
+    "first": [
+     0.0,
+     -0.9522987182797465,
+     -0.3051674149753737
+    ],
+    "second": [
+     -0.6653272174260867,
+     0.22782330413952395,
+     -0.710940388389217
+    ],
+    "frame_margin": 0.15344813056823658,
+    "frame_reference_axis": 0,
+    "canonical_quadratic_eigenvalues": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "eigen_residual_max_abs": 0.0,
+    "eigen_orthogonality_max_abs": 0.0,
+    "eigen_verification_bound": 2.2737367544323206e-13,
+    "least_eigenvalue_index": -1,
+    "paraboloid_grid_resolution": 24,
+    "initial_radius": 2.3975283870296797,
+    "cap_depth": 9.590113548118719,
+    "cap_depth_doublings": 0,
+    "maximum_radius_doublings": 8,
+    "far_support_gap": 9.230717849714592,
+    "previous_far_support_gap": 0.0,
+    "lateral_support_gap": 1.8526941997783217,
+    "minimum_interface_root_slope": 0.9800175697832411,
+    "target_boundary_audit_digest": "d0a9c5a4044c7f994b2aa3917c289cf70e300a0c99e1e539857fcae542ec918b"
+   }
+  },
+  {
+   "row": "R02_R8_048",
+   "raw_norm": 2.75,
+   "source_hash": "53510a9c2c2f784983984219884aa39d9cf10b011e63494b21df51757d0db863",
+   "motion_hash": "4fb66c010f0352a7088e1b64e887626d64b3f485dee1db78579ea2cc2484d074",
+   "vertices": 1250,
+   "faces": 2496,
+   "cap_faces": 1344,
+   "operation": "intersection",
+   "polarity_geometry_equal": true,
+   "physical_boundary_digest": "66b25901b37f02aec7d3826cf83f55014a15929135df5877bc615920f69b7bdb",
+   "raw_chart_fd_relative_per_column": [
+    6.332297587950789e-10,
+    1.959431216906618e-10,
+    1.6884276995903142e-10,
+    1.468793617132896e-10,
+    3.5115593450425085e-10,
+    2.0927739564911846e-10,
+    2.0312559110438647e-10,
+    2.13862033312376e-10
+   ],
+   "source_witness": {
+    "unit_coefficients": [
+     -0.05647109608586612,
+     -0.3276417394957266,
+     0.06143053933157938,
+     0.33135878013734266,
+     0.29461663600919374,
+     0.7364572858104365,
+     0.256245953357453,
+     -0.01275798109482199,
+     0.2666647576150843,
+     0.0989262848092083
+    ],
+    "coefficient_sign": 1,
+    "coefficient_pivot": 5,
+    "coefficient_pivot_gap": 0.4050985056730938,
+    "axis": [
+     -0.6864656358641755,
+     0.10467680034919294,
+     0.7195885617811393
+    ],
+    "first": [
+     0.6755841436516251,
+     -0.27424374334370966,
+     0.6843803285332877
+    ],
+    "second": [
+     0.26898140386297,
+     0.9559461996919518,
+     0.11754091913210973
+    ],
+    "frame_margin": 0.03312292591696375,
+    "frame_reference_axis": -1,
+    "canonical_quadratic_eigenvalues": [
+     3.2476009295008786e-17,
+     0.5245956863224539,
+     0.7627241888546297
+    ],
+    "eigen_residual_max_abs": 2.0143737135760894e-16,
+    "eigen_orthogonality_max_abs": 9.01676280865888e-16,
+    "eigen_verification_bound": 2.2737367544323206e-13,
+    "least_eigenvalue_index": 0,
+    "paraboloid_grid_resolution": 24,
+    "initial_radius": 2.469834275279324,
+    "cap_depth": 19.75867420223459,
+    "cap_depth_doublings": 1,
+    "maximum_radius_doublings": 8,
+    "far_support_gap": 2.5339065416747815,
+    "previous_far_support_gap": -7.345430559442514,
+    "lateral_support_gap": 1.9173999599205604,
+    "minimum_interface_root_slope": 0.46978713537211564,
+    "target_boundary_audit_digest": "b62003822b980c02af58d090e3cc8998cf0cea152cdcb41bb5c08276afc8882c"
+   }
+  },
+  {
+   "row": "T2_ellipsoid_plus",
+   "full_rank_source_bitwise": true,
+   "source_hash": "26bb8e929657336499b48f2409bcf4a2cc3dca8622b4afbc8a40e1b99ffd8836"
+  }
+ ],
+ "identity": {
+  "source_map_version": "ALGEBRAIC_FINITE_GRAPH_EXTRUSION_R3_R8_V1",
+  "module_sha256": "a2bc6ae680b50680930697136561ba9303a51bd8c0a3fc4118dc31617f99d9af",
+  "module_file": "_compact_stratum_v1.cpython-313-x86_64-linux-gnu.so",
+  "upstream_module_sha256": "f403aaf4dfb51170fcd0376665a997b46183a28f5079df278c89513da8736fba",
+  "upstream_receipt_sha256": "151ac36da2da2a6f5608b753a276993d33a01abd7f8ace0c716a97d3ea913b14",
+  "patched_triangulator_sha256": "4a6e70eaaa155a38c965e01f2e425fd4d5e881137595386f8b363080d88ad47c",
+  "recipe": {
+   "bindings.cpp": "154cbd83d450981e61d0c973abe801ec2927730f9aab0f6de85dd560b8cecd04",
+   "build.py": "b8e1903d7e4a03c935b3cc77200df71966f3b6235dbd05e3fcc34ba84cc203eb",
+   "candidate03-stratum.patch": "f8854e4e6415454b757c60b98c59ea612f730f2a92572dac1536f3ea4eee2bf1",
+   "stratum_api.h": "5d9acb0fcc29e9f8e03f428486e773f728a9a42a6073b05bb43f86242e9935c2",
+   "stratum_geometry.inc": "47fab3b750e3631b633edd646bcd8e3131a5ba50d2d8088444fefada284ef8d4",
+   "upstream_inputs.json": "735d8760da9aff46769efaec9c9e537d428b809e76024505aad6210ea8037b86"
+  },
+  "upstream_compiler_dependency_sha256": "4b9236aa6d1a499e89bba2bba24efb29742924838ee1de9d4ead569c6ddb725d"
+ }
+}

@@ -44,6 +44,7 @@ class NativePhysicalTargets:
     topology_hash: str | None = None
     ambient_event_valid: int = -1
     restricted_event_valid: int = -1
+    topology_diagnostic: str | None = None
 
     @property
     def moment_valid(self):
@@ -102,7 +103,7 @@ def _construction_records(evaluator, raw_records, physical_source, exact_fractio
 
 
 def evaluate_operand_physics(evaluator, operand: FiniteOperand, *, chart: RawChart | None = None,
-                             capture_boundary: bool = False):
+                             capture_boundary: bool = False, capture_topology: bool = False):
     """Integrate an explicit finite operand, using only the supplied raw motion columns.
 
     For a frozen operand, omit velocity to obtain Moment alone. On a typed
@@ -146,6 +147,16 @@ def evaluate_operand_physics(evaluator, operand: FiniteOperand, *, chart: RawCha
         return result
     try:
         records = _construction_records(evaluator,packet['construction_records'],physical,ci.exact_fraction)
+        if capture_topology:
+            # An exact same-call feature fingerprint. It identifies observed mesh branches;
+            # its existence alone does not establish validity on a neighbourhood.
+            try:
+                branch = ci.feature_branch_identity(operand.operation,faces.tolist(),operand.faces.tolist(),
+                            chart.surface if chart else 'FULL',int(operand.face_is_cap.sum()),[],records)
+                result.topology_hash = ci.digest(dict(schema='finite-stratum-feature-connectivity-v1',branch=branch,
+                                             cap_faces=np.flatnonzero(operand.face_is_cap).tolist()))
+            except _NATIVE_ERRORS as exc:
+                result.topology_diagnostic = str(exc)
         physical_velocity = np.einsum('vkd,jk->vjd',velocity,axes)*evaluator.length
         moving = recover_construction_vertex_motion(records,evaluator.design,physical,physical_velocity,retained)
         target_motion = np.einsum('vkd,kj->vjd',moving/evaluator.length,axes)

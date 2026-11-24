@@ -1,0 +1,2 @@
+# Unified diff context lines for empty upstream lines contain one space.
+candidate03-stratum.patch whitespace=-blank-at-eol

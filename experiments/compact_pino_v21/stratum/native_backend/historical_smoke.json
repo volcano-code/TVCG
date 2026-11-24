@@ -1,0 +1,20 @@
+{
+ "rows": [
+  {
+   "row": "R01_R3_019",
+   "defined": false,
+   "diagnostic": "algebraic finite-map source requires full rank; rank-deficient source integration is not implemented"
+  },
+  {
+   "row": "R02_R8_048",
+   "defined": false,
+   "diagnostic": "algebraic finite-map source requires full rank; rank-deficient source integration is not implemented"
+  },
+  {
+   "row": "T2_ellipsoid_plus",
+   "defined": true,
+   "diagnostic": "regular fixed-normal/truncation-root/cap-centroid construction"
+  }
+ ],
+ "identity": "historical"
+}

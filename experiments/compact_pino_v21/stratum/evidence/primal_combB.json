@@ -1,0 +1,32 @@
+[
+ {
+  "row_id": "combB_hyperbolic_plus",
+  "frozen_context": "17dccbd178378bbec68fedf0c85ef88130b098fff12520414cd983a22b52ada6",
+  "reference_seconds": 13.572112889029086,
+  "accepted": true,
+  "faces": 144716,
+  "vertices": 72264,
+  "moments": [
+   0.003261828450800779,
+   -1.2607637450897765e-05,
+   0.0003103605316040929,
+   0.0001494182175983682,
+   6.8653485158657685e-06,
+   0.0002870072329305297,
+   2.5691580325444294e-05,
+   5.345459823900569e-06,
+   5.056078099073801e-07,
+   7.330251003440905e-07
+  ],
+  "equal_moments": true,
+  "equal_ordered_vertices": true,
+  "equal_oriented_faces": true,
+  "arithmetic": {
+   "enclosure_certified": true,
+   "precision_bits": 256,
+   "fallback_components": 0
+  },
+  "route": "coherent exact affine",
+  "accelerated_seconds": 7.7968405950814486
+ }
+]

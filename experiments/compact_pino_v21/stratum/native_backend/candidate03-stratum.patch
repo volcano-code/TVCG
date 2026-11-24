@@ -1,0 +1,10 @@
+--- a/QuadricTriangulator.cpp
++++ b/QuadricTriangulator.cpp
+@@ -3100,3 +3100,7 @@
+ 
+ 
+ } // namespace spin
++
++// Versioned rank-chart entry. The historical entry above retains its guard.
++// This translation unit supplies its native frames, radius and finite closure.
++#include "stratum_geometry.inc"
