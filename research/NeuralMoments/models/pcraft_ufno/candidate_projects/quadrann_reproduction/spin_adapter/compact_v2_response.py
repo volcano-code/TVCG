@@ -140,8 +140,14 @@ class CutAwareMomentResponse(nn.Module):
         d=self.cut(memory.local[None]+self.query(q)[:,None]+self.context(context)[:,None]).to(t)
         # Interval arithmetic in normalized monomial coordinates. Each token
         # bound covers entire native intervals, including long RLE runs.
-        a=t[:,None,:]*memory.lower[None];b=t[:,None,:]*memory.upper[None]
-        low=torch.minimum(a,b).sum(-1);high=torch.maximum(a,b).sum(-1)
+        midpoint=(memory.lower+memory.upper)*.5
+        radius=(memory.upper-memory.lower)*.5
+        center=t@midpoint.T
+        # A smooth upper bound on |t| avoids artificial derivative kinks
+        # when plane/restricted-chart coefficients cross zero. The enclosure
+        # is conservative (slightly wider than exact interval arithmetic).
+        bound=(t.square()+1e-12).sqrt()@radius.T
+        low=center-bound;high=center+bound
         span=high-low
         interior=(low<0)&(high>0)
         # Do not even divide by a tiny width for saturated cells: masked

@@ -83,7 +83,9 @@ def initialize_from_reference(
     if not copied:
         raise ValueError("reference and target have no compatible state tensors")
     v2_shared_only=(getattr(target,"operator_kind",None)=="compact_pino_v2" and not mismatched
-                    and all(key.startswith("response.") for key in missing))
+                    and all(key.startswith("response.") for key in missing)
+                    and all(key in copied for key in destination if key.startswith("shared_encoder."))
+                    and any(key.startswith("shared_encoder.") for key in copied))
     if require_complete and (missing or mismatched) and not v2_shared_only:
         details = json.dumps({"missing_keys": missing, "mismatched_keys": mismatched},
                              sort_keys=True)

@@ -138,3 +138,14 @@ def test_admission_rejects_missing_or_changed_receipt(admitted):
     contract.write_text(json.dumps(doc))
     with pytest.raises(ValueError,match="receipt/asset"):
         admit_native_training(c,"compact_lite_256",contract)
+
+
+def test_v2_requires_independent_review_of_positive_quadric_domain(admitted):
+    manifest,contract=admitted
+    c=UnifiedOperatorCorpus(manifest,grid_size=64)
+    with pytest.raises(ValueError,match="positive-quadric restriction"):
+        admit_native_training(c,"compact_pino_v2_256",contract)
+    doc=json.loads(contract.read_text())
+    doc["response_domain"]="positive_quadric_on_editable_domain"
+    contract.write_text(json.dumps(doc))
+    assert admit_native_training(c,"compact_pino_v2_256",contract)["response_domain"]==doc["response_domain"]

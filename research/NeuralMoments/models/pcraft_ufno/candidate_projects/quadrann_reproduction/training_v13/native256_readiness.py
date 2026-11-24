@@ -110,6 +110,7 @@ def admit_native_training(corpus, config_name, contract_path=None):
             "contract_path": str(path), "native_resolution": required,
             "reviewed_train_dev_records": len(rows), "teacher_version": doc["teacher_version"],
             "derivative_support": derivative_support,
+            "response_domain": doc.get("response_domain"),
             "locked_test_labels_opened": False,
             "scope": "receipt_and_asset_verification_not_independent_native_physics"}
 

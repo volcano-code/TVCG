@@ -78,7 +78,15 @@ def main():
     base_m=_measure(lambda x:model.predict_moments(cache,x),q,device,args.warmup,args.repeats)
     base_j=_measure(lambda x:model.evaluate_queries(cache,x),q,device,args.warmup,args.repeats)
     _sync(device);start=time.perf_counter()
-    fast,cache_report=model.prepare_inference_acceleration(cache,max_extra_bytes=args.cache_mib*1024**2)
+    intrinsic=getattr(model,"operator_kind",None)=="compact_pino_v2"
+    if intrinsic:
+        # V2 stores token K/V and physical moments as part of its one encoding;
+        # it has no uncached full-domain SQNO path or optional V1 acceleration.
+        fast=cache
+        cache_report={"mode":"intrinsic_v2_token_memory","physical_tokens":len(cache.token_cache.moments),
+                      "native_intervals":cache.native_intervals,"optional_acceleration_applicable":False}
+    else:
+        fast,cache_report=model.prepare_inference_acceleration(cache,max_extra_bytes=args.cache_mib*1024**2)
     _sync(device);setup=time.perf_counter()-start
     errors={"moment_abs_max":0.,"jacobian_abs_max":0.,"moment_only_abs_max":0.}
     # All valid queries get a parity check, independent of the timed subset.
@@ -92,8 +100,8 @@ def main():
                 errors[name]=max(errors[name],float((cached[key]-direct[key]).abs().max()))
             torch.testing.assert_close(m,direct["moments"],rtol=2e-6,atol=2e-8)
             errors["moment_only_abs_max"]=max(errors["moment_only_abs_max"],float((m-direct["moments"]).abs().max()))
-    fast_m=_measure(lambda x:model.predict_moments(fast,x),q,device,args.warmup,args.repeats)
-    fast_j=_measure(lambda x:model.evaluate_queries(fast,x),q,device,args.warmup,args.repeats)
+    fast_m=None if intrinsic else _measure(lambda x:model.predict_moments(fast,x),q,device,args.warmup,args.repeats)
+    fast_j=None if intrinsic else _measure(lambda x:model.evaluate_queries(fast,x),q,device,args.warmup,args.repeats)
     result={"schema":"tvcg.native256.inference-benchmark.v1","device":str(device),
             "gpu":torch.cuda.get_device_name(device) if device.type=="cuda" else None,
             "torch_version":str(torch.__version__),"cuda_version":torch.version.cuda,
@@ -104,6 +112,10 @@ def main():
             "cache":cache_report,"parity":errors,"uncached_moment":base_m,"uncached_moment_jacobian":base_j,
             "cached_moment":fast_m,"cached_moment_jacobian":fast_j,
             "scope":"single_query_inference_not_native_solver_end_to_end"}
+    if intrinsic:
+        result["intrinsic_token_moment"]=result.pop("uncached_moment")
+        result["intrinsic_token_moment_jacobian"]=result.pop("uncached_moment_jacobian")
+        result["acceleration_setup_seconds"]=None
     output.parent.mkdir(parents=True,exist_ok=True)
     with output.open("x",encoding="utf-8") as stream:
         json.dump(result,stream,indent=2,allow_nan=False);stream.write("\n")
