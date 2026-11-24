@@ -323,6 +323,7 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
         coefficients: torch.Tensor,
         *,
         with_jacobian=True,
+        prepared_query=None,
     ):
         """Evaluate many queries without rerunning geometry encoders."""
 
@@ -343,20 +344,24 @@ class SpinQuadrANNV12(SpinQuadrANNV11):
         # M83 teacher queries are float64. Cast cached geometry
         # differentiably rather than requiring model/label dtypes
         # to be identical.
-        query_xyz = cache.node_xyz.to(
-            device=coefficients.device,
-            dtype=coefficients.dtype,
-        )
-        query_weights = cache.node_weights.to(
-            device=coefficients.device,
-            dtype=coefficients.dtype,
-        )
+        if prepared_query is None:
+            query_xyz = cache.node_xyz.to(
+                device=coefficients.device, dtype=coefficients.dtype)
+            query_weights = cache.node_weights.to(
+                device=coefficients.device, dtype=coefficients.dtype)
+            basis = None
+        else:
+            if self.training or torch.is_grad_enabled() or not cache.inference_only:
+                raise ValueError("prepared quadrature requires inference-only cache and no_grad")
+            query_xyz, query_weights, basis = prepared_query
+            if query_xyz.shape!=cache.node_xyz.shape or query_weights.shape!=cache.node_weights.shape:
+                raise ValueError("prepared quadrature shape mismatch")
 
         result = self.batched_moment_operator.evaluate(
             query_xyz,
             query_weights,
             coefficients,
-            with_jacobian=with_jacobian,
+            with_jacobian=with_jacobian, prepared_basis=basis,
         )
 
         moments_editable = result["moments"]

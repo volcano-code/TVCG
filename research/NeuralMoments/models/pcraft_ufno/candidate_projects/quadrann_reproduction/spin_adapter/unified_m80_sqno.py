@@ -1,6 +1,6 @@
 """Unified M80 + SQNO with one shared P-CRAFT encoder (Phase 2.8.4)."""
 from __future__ import annotations
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from contextlib import nullcontext
 import hashlib, math, os, random, tempfile
 from pathlib import Path
@@ -17,6 +17,7 @@ from .spin_quadrann_v12 import SpinQuadrANNV12, SQNOGeometryCache
 from .geometry_physics_attention import GeometryPhysicsCrossAttention
 from .cross_scale_attention import QueryConditionedCrossScaleAttention
 from .masked_derivative_supervision import derivative_supervision_loss
+from .inference_acceleration import InferenceAcceleration, prepare_acceleration
 from .unified_training_state import (
     parameter_partition, make_training_contract, optimizer_contract,
     checkpoint_training_metadata, validate_resume,
@@ -34,6 +35,7 @@ class UnifiedGeometryCache:
     versions: tuple
     native_intervals: int
     inference_only: bool = False
+    acceleration: InferenceAcceleration | None = None
 
 def _source_fingerprints():
     here=Path(__file__).resolve().parent
@@ -185,6 +187,30 @@ class UnifiedM80SQNO(nn.Module):
         return UnifiedGeometryCache(shared.geometry_sha256,shared,sqno_cache,id(self),
                                      self._versions(),shared.native_intervals,bool(inference or sqno_cache.inference_only))
 
+    def prepare_inference_acceleration(self,cache:UnifiedGeometryCache,*,max_extra_bytes:int,
+                                       attention=True,quadrature=True):
+        """Return a new cache plus an explicit persistent-memory accounting."""
+        state,report=prepare_acceleration(self,cache,max_extra_bytes,attention=attention,quadrature=quadrature)
+        return replace(cache,acceleration=state),report
+
+    def _cached_sqno(self,cache,q,*,with_jacobian):
+        acceleration=cache.acceleration
+        if acceleration is None or acceleration.prepared_query is None:
+            return self.sqno.evaluate_queries(cache.sqno_cache,q,with_jacobian=with_jacobian)
+        with torch.no_grad():
+            return self.sqno.evaluate_queries(cache.sqno_cache,q,with_jacobian=with_jacobian,
+                                              prepared_query=acceleration.prepared_query)
+
+    def _geometry_correction(self,cache,q,*,with_jacobian):
+        module=self.geometry_physics_attention
+        call=module.forward_with_query_jacobian if with_jacobian else module
+        arguments=(q,cache.shared_cache.interval_features,cache.shared_cache.interval_mass)
+        acceleration=cache.acceleration
+        if acceleration is None or acceleration.attention_kv is None:
+            return call(*arguments)
+        with torch.no_grad():
+            return call(*arguments,projected_kv=acceleration.attention_kv)
+
     @torch.no_grad()
     def predict_moments(self, cache:UnifiedGeometryCache, coefficients:Tensor):
         """Inference-only Moment path; never constructs the coefficient Jacobian.
@@ -196,6 +222,8 @@ class UnifiedM80SQNO(nn.Module):
             raise ValueError("predict_moments requires eval() and an inference-only cache")
         if cache.owner!=id(self) or cache.versions!=self._versions():
             raise ValueError("foreign or stale unified geometry cache")
+        if cache.acceleration is not None:
+            cache.acceleration.validate(cache)
         q=torch.as_tensor(coefficients,device=cache.shared_cache.latent.device,dtype=torch.float64)
         single=q.ndim==1
         qb=q.unsqueeze(0) if single else q
@@ -204,7 +232,7 @@ class UnifiedM80SQNO(nn.Module):
         if not torch.isfinite(qb).all() or (qb.abs().amax(-1)<=0).any():
             raise ValueError("coefficients must be finite and nonzero")
         m80=self.shared_encoder.predict(cache.shared_cache,qb).detach()
-        ms=self.sqno.evaluate_queries(cache.sqno_cache,qb,with_jacobian=False)["moments"]
+        ms=self._cached_sqno(cache,qb,with_jacobian=False)["moments"]
         if m80.shape!=ms.shape:
             raise RuntimeError("M80/SQNO output contract mismatch")
         if self.fusion_mode=="global_scalar":
@@ -218,8 +246,7 @@ class UnifiedM80SQNO(nn.Module):
         gate=None if self.parallel_interaction_logit is None else torch.sigmoid(
             self.parallel_interaction_logit).to(qb)
         if self.geometry_physics_attention is not None:
-            correction,_=self.geometry_physics_attention(qb,cache.shared_cache.interval_features,
-                                                          cache.shared_cache.interval_mass)
+            correction,_=self._geometry_correction(cache,qb,with_jacobian=False)
             result=result+(correction if gate is None else gate*correction).to(result)
         if self.cross_scale_attention is not None:
             correction,_=self.cross_scale_attention(qb,cache.shared_cache.scale_features,
@@ -234,6 +261,10 @@ class UnifiedM80SQNO(nn.Module):
             raise ValueError("foreign or stale unified geometry cache")
         if cache.inference_only and (self.training or create_graph):
             raise ValueError("inference-only geometry cache cannot be used for training or higher-order gradients")
+        if cache.acceleration is not None:
+            if self.training or create_graph or not cache.inference_only:
+                raise ValueError("acceleration cache requires eval/inference-only queries")
+            cache.acceleration.validate(cache)
         if not with_jacobian: raise ValueError("unified contract currently requires Moment Jacobians")
         q=torch.as_tensor(coefficients,device=cache.shared_cache.latent.device,dtype=torch.float64)
         single=q.ndim==1
@@ -247,7 +278,7 @@ class UnifiedM80SQNO(nn.Module):
                     else self.shared_encoder.query_head)
             profile_adjoint("m80_coefficient_jacobian", (m80, j80), (cache.shared_cache.latent, qb),
                             head.parameters())
-        sq=self.sqno.evaluate_queries(cache.sqno_cache,qb,with_jacobian=True)
+        sq=self._cached_sqno(cache,qb,with_jacobian=True)
         ms=sq["moments"]
         # M80.moments_and_jacobian differentiates with respect to the raw
         # coefficient tensor supplied to this wrapper. SQNO's jacobian_q is
@@ -299,8 +330,7 @@ class UnifiedM80SQNO(nn.Module):
 
         if self.geometry_physics_attention is not None:
             with profile_stage("geometry_query_jacobian", queries=len(qb)):
-                corr,jac,diag=self.geometry_physics_attention.forward_with_query_jacobian(
-                    qb,cache.shared_cache.interval_features,cache.shared_cache.interval_mass)
+                corr,jac,diag=self._geometry_correction(cache,qb,with_jacobian=True)
                 profile_adjoint("geometry_query_jacobian", (corr, jac),
                     (qb, cache.shared_cache.interval_features, cache.shared_cache.interval_mass),
                     self.geometry_physics_attention.parameters())

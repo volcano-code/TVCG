@@ -44,6 +44,10 @@ def admit_native_training(corpus, config_name, contract_path=None):
         raise ValueError("native cut contract is not approved")
     if doc.get("moment_order") != MOMENT_ORDER or doc.get("jacobian_basis") != "raw_coefficients":
         raise ValueError("native cut moment/Jacobian convention mismatch")
+    if doc.get("retained_side") != "positive":
+        raise ValueError("native256 expects positive retained side in model coefficient coordinates")
+    if doc.get("coefficient_multipliers") != [1,1,1,1,1,1,1,2,2,2]:
+        raise ValueError("native raw coefficient cross-term multipliers mismatch")
     for field in PHYSICAL_FIELDS:
         value = doc.get(field)
         if not isinstance(value, str) or not value.strip():
@@ -54,6 +58,7 @@ def admit_native_training(corpus, config_name, contract_path=None):
     rows = corpus.splits["train"] + corpus.splits["val"]
     if not isinstance(receipts, dict) or set(receipts) != {r["id"] for r in rows}:
         raise ValueError("native cut receipts must exactly cover train/dev records")
+    derivative_support = {"train":0,"val":0}
     for row in rows:
         rid = row["id"]
         if str(row["source_type"]).casefold() != "trellis":
@@ -90,14 +95,18 @@ def admit_native_training(corpus, config_name, contract_path=None):
         restricted = labels.get("restricted_valid", np.zeros(len(valid), dtype=bool))
         if np.any((full | restricted) & ~valid):
             raise ValueError(f"{rid}: derivative supervision outside Moment validity")
+        derivative_support[row["split"]] += int(full.sum()+restricted.sum())
         if restricted.any():
             d = labels["restricted_dimension"][restricted]
             if not np.isin(d, (3, 8)).all():
                 raise ValueError(f"{rid}: native256 requires integer R3/R8 dimensions")
+    if not all(derivative_support.values()):
+        raise ValueError("native256 requires valid derivative supervision in train and development")
     return {"schema": SCHEMA, "manifest_sha256": corpus.manifest_sha256,
             "contract_sha256": hashlib.sha256(raw).hexdigest(),
             "contract_path": str(path), "native_resolution": required,
             "reviewed_train_dev_records": len(rows), "teacher_version": doc["teacher_version"],
+            "derivative_support": derivative_support,
             "locked_test_labels_opened": False,
             "scope": "receipt_and_asset_verification_not_independent_native_physics"}
 

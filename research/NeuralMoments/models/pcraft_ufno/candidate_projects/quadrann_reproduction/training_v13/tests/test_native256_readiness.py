@@ -99,6 +99,7 @@ def admitted(tmp_path):
     contract=tmp_path/"contract.json"
     data={k:"synthetic-only" for k in PHYSICAL_FIELDS}
     data.update(schema=SCHEMA,manifest_sha256=file_sha256(manifest),native_resolution=256,
+                retained_side="positive",coefficient_multipliers=[1,1,1,1,1,1,1,2,2,2],
                 status="approved_native_discrete",moment_order=MOMENT_ORDER,jacobian_basis="raw_coefficients",
                 records=receipts)
     contract.write_text(json.dumps(data))
