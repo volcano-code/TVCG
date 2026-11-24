@@ -172,6 +172,9 @@ class UnifiedM80SQNO(nn.Module):
         if inference and self.training:
             raise ValueError("inference=True requires model.eval()")
         geometry=PreparedNativeGeometry.prepare(geometry, borrow=True)
+        required=self.architecture_metadata.get("config",{}).get("native_resolution")
+        if required is not None and int(np.asarray(geometry["native_resolution"]))!=required:
+            raise ValueError(f"exact native resolution {required} required")
         context=torch.no_grad() if inference else nullcontext()
         with context:
             with profile_stage("pcraft_native_encoding", native_intervals=len(geometry["xyz"])):
@@ -181,6 +184,49 @@ class UnifiedM80SQNO(nn.Module):
         self.geometry_encode_calls+=1
         return UnifiedGeometryCache(shared.geometry_sha256,shared,sqno_cache,id(self),
                                      self._versions(),shared.native_intervals,bool(inference or sqno_cache.inference_only))
+
+    @torch.no_grad()
+    def predict_moments(self, cache:UnifiedGeometryCache, coefficients:Tensor):
+        """Inference-only Moment path; never constructs the coefficient Jacobian.
+
+        The existing full-J API and training graph are unchanged. A caller must
+        explicitly opt into this path only for residual-only evaluations.
+        """
+        if self.training or not cache.inference_only:
+            raise ValueError("predict_moments requires eval() and an inference-only cache")
+        if cache.owner!=id(self) or cache.versions!=self._versions():
+            raise ValueError("foreign or stale unified geometry cache")
+        q=torch.as_tensor(coefficients,device=cache.shared_cache.latent.device,dtype=torch.float64)
+        single=q.ndim==1
+        qb=q.unsqueeze(0) if single else q
+        if qb.ndim!=2 or qb.shape[1]!=10 or len(qb)==0:
+            raise ValueError("coefficients must be nonempty [10] or [Q,10]")
+        if not torch.isfinite(qb).all() or (qb.abs().amax(-1)<=0).any():
+            raise ValueError("coefficients must be finite and nonzero")
+        m80=self.shared_encoder.predict(cache.shared_cache,qb).detach()
+        ms=self.sqno.evaluate_queries(cache.sqno_cache,qb,with_jacobian=False)["moments"]
+        if m80.shape!=ms.shape:
+            raise RuntimeError("M80/SQNO output contract mismatch")
+        if self.fusion_mode=="global_scalar":
+            alpha=self.fusion_weight.to(m80).expand(len(qb),1)
+        else:
+            qnorm=qb/torch.linalg.vector_norm(qb,dim=-1,keepdim=True).clamp_min(1e-30)
+            context=cache.shared_cache.latent.reshape(1,-1).expand(len(qb),-1).to(qb)
+            gate_input=torch.cat((qnorm,context),dim=-1).to(self.query_fusion_gate[0].weight)
+            alpha=torch.sigmoid(self.query_fusion_gate(gate_input)).to(m80)
+        result=alpha*m80+(1-alpha)*ms
+        gate=None if self.parallel_interaction_logit is None else torch.sigmoid(
+            self.parallel_interaction_logit).to(qb)
+        if self.geometry_physics_attention is not None:
+            correction,_=self.geometry_physics_attention(qb,cache.shared_cache.interval_features,
+                                                          cache.shared_cache.interval_mass)
+            result=result+(correction if gate is None else gate*correction).to(result)
+        if self.cross_scale_attention is not None:
+            correction,_=self.cross_scale_attention(qb,cache.shared_cache.scale_features,
+                cache.shared_cache.scale_ids,disabled_scale_ids=self.cross_scale_disabled_ids)
+            result=result+(correction if gate is None else (1-gate)*correction).to(result)
+        self.query_evaluation_calls+=1
+        return result[0] if single else result
 
     def evaluate_queries(self,cache:UnifiedGeometryCache,coefficients:Tensor,*,
                          create_graph=False,with_jacobian=True):

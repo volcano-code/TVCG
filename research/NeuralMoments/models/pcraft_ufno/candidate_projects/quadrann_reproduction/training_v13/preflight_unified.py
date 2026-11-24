@@ -18,6 +18,7 @@ from research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_repro
 from ..spin_adapter.memory_profile import MemoryProfile, profile_stage
 from .train_unified import MomentNormalizer, _load_training_batch, _seed_all, _train_geometry
 from .unified_corpus import UnifiedOperatorCorpus
+from .native256_readiness import resolve_readiness
 
 
 def _sync(device: torch.device) -> None:
@@ -57,6 +58,8 @@ def run_preflight(
     geometry_id: str | None = None,
     memory_profile: str | Path | None = None,
     seed: int | None = None,
+    native_cut_contract: str | Path | None = None,
+    derivative_normalization: str | None = None,
 ) -> dict[str, Any]:
     device_obj = torch.device(device)
     if seed is not None:
@@ -99,6 +102,10 @@ def run_preflight(
         split_summary=summary,
     )
 
+    admission, derivative_norm = resolve_readiness(corpus, config_name, native_cut_contract, derivative_normalization)
+    if admission is not None:
+        check("native_cut_admission", **admission)
+    check("derivative_normalization", **derivative_norm)
     normalizer = MomentNormalizer.fit(corpus)
     check("train_only_normalizer", query_count=normalizer.count,
           scales=normalizer.scales.tolist())
@@ -155,7 +162,9 @@ def run_preflight(
             optimizer = model.build_optimizer()
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=2)
             scales = torch.as_tensor(normalizer.scales, device=device_obj, dtype=torch.float64)
-            training_contract = model.training_contract(moment_scale=scales)
+            derivative_options = {key: torch.as_tensor(derivative_norm[key], device=device_obj, dtype=torch.float64)
+                                  for key in ("jacobian_scale", "restricted_scale")} if derivative_norm["mode"] != "legacy" else {}
+            training_contract = model.training_contract(moment_scale=scales, **derivative_options)
             before = {name: p.detach().to("cpu", copy=True)
                       for name, p in model.named_parameters() if p.requires_grad}
             if device_obj.type == "cuda" and profile is None:
@@ -165,7 +174,7 @@ def run_preflight(
             _sync(device_obj)
             started = time.perf_counter()
             with profile_stage("one_optimizer_update"):
-                cache, metrics = _train_geometry(model, optimizer, geometry, tensors, moment_scale=scales)
+                cache, metrics = _train_geometry(model, optimizer, geometry, tensors, moment_scale=scales, **derivative_options)
             _sync(device_obj)
             elapsed = time.perf_counter() - started
             peak_allocated = (profile.peak_allocated if profile is not None else torch.cuda.max_memory_allocated(device_obj)
@@ -280,6 +289,8 @@ def main() -> int:
     parser.add_argument("--smoke-update", action="store_true")
     parser.add_argument("--geometry-id", help="select a complete record from the training split")
     parser.add_argument("--memory-profile", help="write stage measurements to JSON and sibling Markdown")
+    parser.add_argument("--native-cut-contract")
+    parser.add_argument("--derivative-normalization", choices=("legacy", "train_rms"))
     parser.add_argument("--seed", type=int, help="seed model initialization and update")
     parser.add_argument("--allow-absolute-assets", action="store_true",
                         help="allow Work manifests to reference absolute local asset paths")
@@ -294,6 +305,7 @@ def main() -> int:
         output=args.output,
         allow_absolute_assets=args.allow_absolute_assets, geometry_id=args.geometry_id,
         memory_profile=args.memory_profile, seed=args.seed,
+        native_cut_contract=args.native_cut_contract, derivative_normalization=args.derivative_normalization,
     )
     if args.smoke_update:
         report_path = Path(args.output).with_suffix(".report.json")

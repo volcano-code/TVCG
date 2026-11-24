@@ -27,6 +27,7 @@ from research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_repro
 from ..spin_adapter.ablation_initialization import initialize_from_reference
 from ..spin_adapter.memory_profile import MemoryProfile, profile_cache_tensors, profile_count, profile_stage, profile_tensors
 from .unified_corpus import UnifiedOperatorCorpus
+from .native256_readiness import resolve_readiness
 
 
 class MomentNormalizer:
@@ -122,6 +123,8 @@ def _evaluate_split(model, corpus, split: str, normalizer: MomentNormalizer,
     full_j_count = 0
     restricted_sq = 0.0
     restricted_count = 0
+    restricted_modes = {3: [0., 0], 8: [0., 0]}
+    source_moment = {}
     geometry_count = 0
     query_count = 0
     started = time.perf_counter()
@@ -139,8 +142,13 @@ def _evaluate_split(model, corpus, split: str, normalizer: MomentNormalizer,
         if not prediction.prediction_finite.all():
             raise FloatingPointError(f"{row['id']}: nonfinite validation prediction")
         error = (prediction.moments[valid] - target[valid]) / scales
-        moment_sq += float(error.square().sum().detach())
+        squared = float(error.square().sum().detach())
+        moment_sq += squared
         moment_count += error.numel()
+        group = row["group_id"]
+        entry = source_moment.setdefault(group, [0., 0])
+        entry[0] += squared
+        entry[1] += error.numel()
 
         if "target_jacobian" in values:
             mask = values.get("jacobian_valid_mask", valid).bool()
@@ -159,12 +167,21 @@ def _evaluate_split(model, corpus, split: str, normalizer: MomentNormalizer,
                     idx = torch.nonzero(mask & (dims == d), as_tuple=False).flatten()
                     predicted = prediction.jacobian_coefficients[idx] @ basis[idx, :, :d]
                     delta = predicted - target_r[idx, :, :d]
-                    restricted_sq += float(delta.square().sum().detach())
+                    squared = float(delta.square().sum().detach())
+                    restricted_sq += squared
                     restricted_count += delta.numel()
+                    if d in restricted_modes:
+                        restricted_modes[d][0] += squared
+                        restricted_modes[d][1] += delta.numel()
         geometry_count += 1
         query_count += len(values["coefficients"])
 
+    per_source = {k: math.sqrt(v[0]/v[1]) for k,v in source_moment.items() if v[1]}
     return {
+        "source_macro_moment_rmse": sum(per_source.values())/len(per_source) if per_source else None,
+        "source_moment_rmse": per_source,
+        "restricted_by_dimension": {str(d): {"rmse": math.sqrt(s/n) if n else None, "elements": n}
+                                    for d,(s,n) in restricted_modes.items()},
         "split": split,
         "geometries": geometry_count,
         "queries": query_count,
@@ -197,6 +214,8 @@ def train(
     allow_absolute_assets: bool = False,
     memory_profile: str | Path | None = None,
     initialization_reference: str | None = None,
+    native_cut_contract: str | Path | None = None,
+    derivative_normalization: str | None = None,
 ) -> dict[str, Any]:
     if epochs < 1:
         raise ValueError("epochs must be positive")
@@ -209,6 +228,7 @@ def train(
         grid_size=grid_size,
         allow_absolute_paths=allow_absolute_assets,
     )
+    admission, derivative_norm = resolve_readiness(corpus, config_name, native_cut_contract, derivative_normalization)
     normalizer = MomentNormalizer.fit(corpus)
     _seed_all(seed)
     model = build_model(config_name, device=device)
@@ -225,12 +245,14 @@ def train(
     optimizer = model.build_optimizer(learning_rate=learning_rate, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
     scales = torch.as_tensor(normalizer.scales, device=device_obj, dtype=torch.float64)
+    derivative_options = {key: torch.as_tensor(derivative_norm[key], device=device_obj, dtype=torch.float64)
+                          for key in ("jacobian_scale", "restricted_scale")} if derivative_norm["mode"] != "legacy" else {}
     training_contract = model.training_contract(
         gradient_mode=gradient_mode,
         jacobian_weight=jacobian_weight,
         branch_aux_weight=branch_aux_weight,
         gradient_clip=gradient_clip,
-        moment_scale=scales,
+        moment_scale=scales, **derivative_options,
     )
     start_epoch = 0
     global_step = 0
@@ -246,7 +268,11 @@ def train(
         )
         start_epoch = int(payload.get("extra", {}).get("epoch", 0))
         global_step = int(payload.get("extra", {}).get("global_step", 0))
-        initialization = payload.get("extra", {}).get("config", {}).get("initialization")
+        previous_config = payload.get("extra", {}).get("config", {})
+        initialization = previous_config.get("initialization")
+        if admission is not None and (previous_config.get("native_cut_admission") or {}).get(
+                "contract_sha256") != admission["contract_sha256"]:
+            raise ValueError("resume native cut contract hash mismatch")
 
     config_record = {
         "schema": "tvcg.unified-training-v13.run.v1",
@@ -260,6 +286,8 @@ def train(
         "epochs": epochs,
         "architecture_manifest": model.architecture_contract(),
         "initialization": initialization,
+        "native_cut_admission": admission,
+        "derivative_normalization": derivative_norm,
     }
     (output / "training_config.json").write_text(json.dumps(config_record, indent=2, allow_nan=False))
 
@@ -285,7 +313,7 @@ def train(
                 cache, metrics = _train_geometry(
                     model, optimizer, batch["geometry"], tensors, moment_scale=scales,
                     jacobian_weight=jacobian_weight, branch_aux_weight=branch_aux_weight,
-                    gradient_clip=gradient_clip, gradient_mode=gradient_mode,
+                    gradient_clip=gradient_clip, gradient_mode=gradient_mode, **derivative_options,
                 )
                 epoch_seconds += time.perf_counter() - started
                 if profile is not None:
@@ -328,6 +356,13 @@ def train(
             extra={"epoch": epoch + 1, "global_step": global_step,
                    "normalizer": normalizer.state_dict(), "config": config_record},
         )
+        if admission is not None:
+            model.save_checkpoint(
+                output / "checkpoints" / f"epoch_{epoch+1:04d}.pt",
+                optimizer=optimizer, scheduler=scheduler,
+                data_fingerprint=corpus.manifest_sha256, training_contract=training_contract,
+                extra={"epoch":epoch+1,"global_step":global_step,
+                       "normalizer":normalizer.state_dict(),"config":config_record})
         if val_metrics["moment_normalized_rmse"] < best_val:
             best_val = val_metrics["moment_normalized_rmse"]
             model.save_checkpoint(
@@ -362,6 +397,8 @@ def main() -> int:
     parser.add_argument("--resume")
     parser.add_argument("--initialization-reference",
                         help="fresh CPU random reference config for common ablation initialization; incompatible with --resume")
+    parser.add_argument("--native-cut-contract", help="Work A approved native256 manifest/asset receipt")
+    parser.add_argument("--derivative-normalization", choices=("legacy", "train_rms"))
     parser.add_argument("--memory-profile", help="write first-update JSON and sibling Markdown profiles")
     parser.add_argument("--allow-absolute-assets", action="store_true",
                         help="allow Work manifests to reference absolute local asset paths")
@@ -374,6 +411,7 @@ def main() -> int:
         gradient_clip=args.gradient_clip, gradient_mode=args.gradient_mode, resume=args.resume,
         allow_absolute_assets=args.allow_absolute_assets, memory_profile=args.memory_profile,
         initialization_reference=args.initialization_reference,
+        native_cut_contract=args.native_cut_contract, derivative_normalization=args.derivative_normalization,
     )
     print(json.dumps(result, indent=2, allow_nan=False))
     return 0

@@ -13,10 +13,14 @@ import torch
 
 from ..spin_adapter.ablation_initialization import initialize_from_reference
 from ..spin_adapter.unified_factory import architecture_manifest, build_model
-from .unified_corpus import UnifiedOperatorCorpus
+from .unified_corpus import UnifiedOperatorCorpus, file_sha256
+from .native256_readiness import admit_native_training
 
 
 STAGES = {
+    "screen256": ("ablation_g1_t1_256", "ablation_no_cross_scale_256", "compact_v1_candidate_256"),
+    "interaction256": ("ablation_g1_t1_256", "ablation_g0_t0_256", "ablation_g1_t0_256", "ablation_g0_t1_256"),
+    "scales256": ("compact_v1_candidate_256", "compact_lite_256", "compact_single_256"),
     "screen": ("ablation_g1_t1", "ablation_no_cross_scale", "compact_v1_candidate"),
     "interaction": ("ablation_g1_t1", "ablation_g0_t0", "ablation_g1_t0", "ablation_g0_t1"),
     "scales": ("ablation_g1_t1", "ablation_two_scales", "ablation_one_scale"),
@@ -77,6 +81,8 @@ def _script(plan: dict[str, Any], phase: str) -> str:
         "}",
         "check_inputs", "",
     ]
+    if plan.get("native_cut_contract"):
+        lines.insert(lines.index("}"), f'  "$TVCG_PYTHON" -c {q(hash_check)} {q(plan["native_cut_contract"])} {q(plan["native_cut_contract_sha256"])}')
     for arm in plan["arms"]:
         target = Path(arm[f"{phase}_output"])
         lines.extend([
@@ -106,6 +112,8 @@ def generate_plan(
     geometry_id: str | None = None,
     allow_absolute_assets: bool = False,
     repository_root: str | Path | None = None,
+    native_cut_contract: str | Path | None = None,
+    derivative_normalization: str | None = None,
 ) -> dict[str, Any]:
     """Validate manifest metadata, count CPU models, and write a new plan folder.
 
@@ -130,11 +138,16 @@ def generate_plan(
                                    allow_absolute_paths=allow_absolute_assets)
     if geometry_id is not None and geometry_id not in {row["id"] for row in corpus.splits["train"]}:
         raise ValueError("geometry_id must identify a complete admitted training record")
+    admission = admit_native_training(corpus, STAGES[stage][0], native_cut_contract)
     repository, commit = _git_snapshot(repository_root)
     common = ["--manifest", str(corpus.path), "--device", device,
               "--grid-size", "64", "--seed", str(seed)]
     if allow_absolute_assets:
         common.append("--allow-absolute-assets")
+    if admission is not None:
+        common.extend(("--native-cut-contract", admission["contract_path"]))
+    if derivative_normalization is not None:
+        common.extend(("--derivative-normalization", derivative_normalization))
     arms = []
     for name in STAGES[stage]:
         with torch.random.fork_rng(devices=[]):
@@ -171,6 +184,9 @@ def generate_plan(
         "source_commit": commit,
         "manifest_path": str(corpus.path),
         "manifest_sha256": corpus.manifest_sha256,
+        "native_cut_contract": None if admission is None else admission["contract_path"],
+        "native_cut_contract_sha256": None if admission is None else admission["contract_sha256"],
+        "derivative_normalization": derivative_normalization or ("train_rms" if admission is not None else "legacy"),
         "split_summary": corpus.split_summary(),
         "seed": seed,
         "epochs": epochs,
@@ -207,11 +223,14 @@ def main() -> int:
     parser.add_argument("--lr", type=float, default=3e-5)
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--geometry-id")
+    parser.add_argument("--native-cut-contract")
+    parser.add_argument("--derivative-normalization", choices=("legacy", "train_rms"))
     parser.add_argument("--allow-absolute-assets", action="store_true")
     args = parser.parse_args()
     plan = generate_plan(args.manifest, args.output, stage=args.stage, epochs=args.epochs,
                          seed=args.seed, learning_rate=args.lr, device=args.device,
-                         geometry_id=args.geometry_id, allow_absolute_assets=args.allow_absolute_assets)
+                         geometry_id=args.geometry_id, allow_absolute_assets=args.allow_absolute_assets,
+                         native_cut_contract=args.native_cut_contract, derivative_normalization=args.derivative_normalization)
     print(json.dumps({"output": str(Path(args.output).resolve()), "stage": plan["stage"],
                       "arms": [arm["config_name"] for arm in plan["arms"]],
                       "source_commit": plan["source_commit"], "training_started": False}, indent=2))

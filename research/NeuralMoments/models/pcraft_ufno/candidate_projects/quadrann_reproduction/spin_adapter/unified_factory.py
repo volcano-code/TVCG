@@ -26,6 +26,7 @@ class SpinNeuralOperatorConfig:
     name: str
     pcraft_preset: str
     pcraft_grid_size: int | None = None
+    native_resolution: int | None = None
     multiscale_grids: tuple[int, ...] | None = None
     pcraft_gno_enabled: bool | None = None
     pcraft_transolver_enabled: bool | None = None
@@ -60,6 +61,11 @@ class SpinNeuralOperatorConfig:
             raise ValueError("unsupported fusion_mode")
         if self.attention_mixing not in {"legacy", "sum", "gated"}:
             raise ValueError("unsupported attention_mixing")
+        if self.native_resolution is not None and (
+            isinstance(self.native_resolution, bool) or not isinstance(self.native_resolution, int)
+            or self.native_resolution < 8
+        ):
+            raise ValueError("native_resolution must be a positive integer >=8")
         if self.pcraft_grid_size is not None and (
             isinstance(self.pcraft_grid_size, bool)
             or not isinstance(self.pcraft_grid_size, int)
@@ -98,6 +104,7 @@ class SpinNeuralOperatorConfig:
         values = asdict(self)
         for field, default in (
             ("pcraft_grid_size", None),
+            ("native_resolution", None),
             ("multiscale_grids", None),
             ("pcraft_gno_enabled", None),
             ("pcraft_transolver_enabled", None),
@@ -176,6 +183,21 @@ CONFIGS["compact_v1_candidate"] = replace(
     event_enabled=False,
 )
 
+# Explicit 256-native candidates. Historical configurations are unchanged.
+# The common reference is a weight initializer, not a 256 geometry encoder.
+for _old in ("ablation_g1_t1", "ablation_g0_t0", "ablation_g1_t0", "ablation_g0_t1",
+             "ablation_no_cross_scale", "compact_v1_candidate"):
+    _name = _old + "_256"
+    CONFIGS[_name] = replace(CONFIGS[_old], name=_name, native_resolution=256)
+CONFIGS["compact_lite_256"] = replace(
+    CONFIGS["compact_v1_candidate_256"], name="compact_lite_256",
+    multiscale_grids=(32, 64),
+)
+CONFIGS["compact_single_256"] = replace(
+    CONFIGS["compact_v1_candidate_256"], name="compact_single_256",
+    multiscale_grids=(64,),
+)
+
 
 def get_config(name: str, **overrides: Any) -> SpinNeuralOperatorConfig:
     """Return a named immutable config, optionally with explicit overrides."""
@@ -196,6 +218,8 @@ def _make_native_config(cfg: SpinNeuralOperatorConfig):
         "uq_enabled": cfg.uq_enabled,
         "event_validity_head_enabled": cfg.event_enabled,
     }
+    if cfg.native_resolution is not None:
+        overrides["min_native_resolution"] = cfg.native_resolution
     if cfg.pcraft_grid_size is not None:
         overrides["grid_size"] = cfg.pcraft_grid_size
     if cfg.pcraft_gno_enabled is not None:
@@ -212,7 +236,12 @@ def _make_native_config(cfg: SpinNeuralOperatorConfig):
             overrides.update(grid_size=grid, multiscale_enabled=False)
         else:
             overrides.update(multiscale_enabled=True, multiscale_grids=cfg.multiscale_grids)
-    return make_pcraft_config(cfg.pcraft_preset, **overrides)
+    native = make_pcraft_config(cfg.pcraft_preset, **overrides)
+    if cfg.native_resolution is not None:
+        grids = native.multiscale_grids if native.multiscale_enabled else (native.grid_size,)
+        if any(cfg.native_resolution % g for g in grids):
+            raise ValueError("all context grids must divide exact native_resolution")
+    return native
 
 
 def build_model(
@@ -285,6 +314,7 @@ def architecture_manifest(
             "multiscale_enabled": pcraft.multiscale_enabled,
             "grids": list(effective_grids),
             "representation": "native_rle",
+            "required_native_resolution": cfg.native_resolution,
             "quadrature_order": cfg.quadrature_order,
         },
         "attention_mixing": cfg.attention_mixing,
