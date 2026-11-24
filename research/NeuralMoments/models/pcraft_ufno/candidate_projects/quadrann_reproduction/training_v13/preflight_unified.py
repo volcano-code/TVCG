@@ -160,6 +160,8 @@ def run_preflight(
             profile.metadata["batch"] = batch_check
 
         if run_update:
+            if admission is not None and (moment_count == 0 or full_count + sum(by_dim.values()) == 0):
+                raise ValueError(f"{row['id']}: a native256 joint preflight needs valid Moment and derivative labels on the selected geometry")
             model.train()
             optimizer = model.build_optimizer()
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=2)

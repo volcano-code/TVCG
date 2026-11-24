@@ -167,3 +167,32 @@ def test_cli_only_generates_selected_plan(plan_inputs, monkeypatch, capsys):
     assert summary["stage"] == "interaction" and len(summary["arms"]) == 4
     assert not summary["training_started"]
     assert not (output / "training").exists()
+
+
+def test_v2_screen_waits_for_all_preflights_and_checks_artifacts(plan_inputs):
+    root, manifest, _ = plan_inputs
+    output = root / "three arm screen"
+    plan = simplification_plan.generate_plan(manifest, output, stage="screen", repository_root=root)
+    # Exercise generated shell verification independently of physical data admission.
+    plan["stage"] = "v2_screen256"
+    for phase, name in (("preflight", "preflight.sh"), ("training", "train.sh")):
+        (output/name).write_text(simplification_plan._script(plan, phase))
+    log = root/"invocations"
+    wrapper = mock_python(root)
+    env = dict(os.environ, TVCG_PYTHON=str(wrapper), TVCG_TEST_LOG=str(log))
+    def execute(script):
+        return subprocess.run(["bash", str(output/script)], env=env, capture_output=True, text=True)
+    assert execute("train.sh").returncode != 0 and not log.exists()
+    # Model three successful test-fixture executables. Each must leave all its evidence.
+    wrapper.write_text(wrapper.read_text() +
+        "if '--smoke-update' in sys.argv:\n"
+        "    out=pathlib.Path(sys.argv[sys.argv.index('--output')+1])\n"
+        "    for item in (out,out.with_suffix('.report.json'),out.parent/'memory_profile.json'):\n"
+        "        item.write_text('fixture')\n")
+    assert execute("preflight.sh").returncode == 0
+    profile = Path(plan["arms"][-1]["preflight_output"])/"memory_profile.json"
+    profile.write_text("changed")
+    assert execute("train.sh").returncode != 0
+    assert not any(Path(arm["training_output"]).exists() for arm in plan["arms"])
+    profile.write_text("fixture")
+    assert execute("train.sh").returncode == 0

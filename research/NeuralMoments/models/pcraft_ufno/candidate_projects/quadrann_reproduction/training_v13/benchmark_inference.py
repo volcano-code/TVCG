@@ -35,7 +35,7 @@ def _measure(fn, queries, device, warmup, repeats):
             _sync(device)
             elapsed.append(time.perf_counter()-start)
     return {"seconds":elapsed,"p50_seconds":float(np.percentile(elapsed,50)),
-            "p95_seconds":float(np.percentile(elapsed,95)),"mean_seconds":float(np.mean(elapsed)),
+            "p95_seconds":float(np.percentile(elapsed,95)),"p99_seconds":float(np.percentile(elapsed,99)),"mean_seconds":float(np.mean(elapsed)),
             "peak_allocated_bytes":torch.cuda.max_memory_allocated(device) if device.type=="cuda" else None,
             "peak_reserved_bytes":torch.cuda.max_memory_reserved(device) if device.type=="cuda" else None}
 
@@ -109,7 +109,12 @@ def main():
             "config":args.config,"geometry_id":row["id"],"geometry_sha256":row["geometry_sha256"],
             "checkpoint_sha256":file_sha256(args.checkpoint),"manifest_sha256":corpus.manifest_sha256,
             "contract_sha256":admission["contract_sha256"],"native_resolution":int(geom["native_resolution"]),
-            "valid_queries":len(q),"encoding_seconds":encoding,"acceleration_setup_seconds":setup,
+            "valid_queries":len(q),"warmup_count":args.warmup,"repeat_count":args.repeats,
+            "synchronization":"torch.cuda.synchronize before and after each timed query" if device.type=="cuda" else "synchronous CPU",
+            "parameter_count":sum(p.numel() for p in model.parameters()),
+            "trainable_parameter_count":sum(p.numel() for p in model.parameters() if p.requires_grad),
+            "parameter_bytes":sum(p.numel()*p.element_size() for p in model.parameters()),
+            "checkpoint_bytes":Path(args.checkpoint).stat().st_size,"encoding_seconds":encoding,"acceleration_setup_seconds":setup,
             "cache":cache_report,"parity":errors,"uncached_moment":base_m,"uncached_moment_jacobian":base_j,
             "cached_moment":fast_m,"cached_moment_jacobian":fast_j,
             "scope":"single_query_inference_not_native_solver_end_to_end"}

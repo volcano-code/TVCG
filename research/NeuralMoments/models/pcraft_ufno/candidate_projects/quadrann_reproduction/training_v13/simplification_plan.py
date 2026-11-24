@@ -84,6 +84,14 @@ def _script(plan: dict[str, Any], phase: str) -> str:
     ]
     if plan.get("native_cut_contract"):
         lines.insert(lines.index("}"), f'  "$TVCG_PYTHON" -c {q(hash_check)} {q(plan["native_cut_contract"])} {q(plan["native_cut_contract_sha256"])}')
+    paired_screen = plan["stage"] == "v2_screen256"
+    if paired_screen:
+        # Only the successfully completed preflight script writes this ledger.
+        run_root = Path(plan["arms"][0]["preflight_output"]).parent.parent
+        ledger = run_root / "preflight.sha256"
+        if phase == "training":
+            lines.append(f"sha256sum --check --status -- {q(str(ledger))} || "
+                         "{ echo 'All three matching joint preflights must pass before training' >&2; exit 1; }")
     for arm in plan["arms"]:
         target = Path(arm[f"{phase}_output"])
         lines.extend([
@@ -98,6 +106,14 @@ def _script(plan: dict[str, Any], phase: str) -> str:
                 + " 2>&1 | tee -- " + q(str(target / "console.log")),
             "",
         ])
+    if paired_screen and phase == "preflight":
+        evidence = [run_root / "plan.json"]
+        for arm in plan["arms"]:
+            directory = Path(arm["preflight_output"])
+            evidence.extend(directory / name for name in ("checkpoint.report.json", "checkpoint.pt", "memory_profile.json"))
+        paths = shlex.join([str(path) for path in evidence])
+        lines.extend([f"sha256sum -- {paths} > {q(str(ledger) + '.tmp')}",
+                      f"mv -- {q(str(ledger) + '.tmp')} {q(str(ledger))}", ""])
     return "\n".join(lines)
 
 
