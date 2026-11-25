@@ -1,0 +1,175 @@
+{
+  "schema": "tvcg.v22.integration-validation.v1",
+  "created_at": "2026-11-25T22:34:18+08:00",
+  "plan_id": "CPINO-20261125-1756-R1",
+  "base_commit": "41a2f9619192cb2b1d2f040592624b360868bf61",
+  "implementation": "Compact PINO V2.1 operator with V2.2-plan integration; no backbone/bandwidth/loss-auxiliary change",
+  "status": "SOFTWARE_INTEGRATION_VERIFIED_REAL_PHYSICS_AND_TRAINING_PENDING",
+  "software_tests": {
+    "tests": 222,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 74.502
+  },
+  "test_environment": {
+    "python": "3.12",
+    "torch": "2.8.0+cpu",
+    "device": "cpu",
+    "threads_per_process": 1,
+    "native_library_explicitly_enabled": true,
+    "gpu_training_validated": false
+  },
+  "actual_model_resume": {
+    "status": "PASS",
+    "scope": "synthetic_software_only",
+    "checks": {
+      "model": true,
+      "optimizer": true,
+      "scheduler": true,
+      "scaler": true,
+      "rng": true,
+      "sampler": true,
+      "global_step": true,
+      "attempts": true,
+      "same_second_batch": true,
+      "same_second_loss": true,
+      "parameters_updated": true,
+      "joint_loss_effective": true,
+      "encoder_and_response_finite_nonzero_gradients": true
+    },
+    "actual_optimizer_calls": 3,
+    "logical_final_step": 2,
+    "model_tensor_sha256": "c52b2e3f300a99ae8d5bbd9bedaacb117148d171c5cec51a41d59aa7a8a81d7f",
+    "gpu_bitwise_resume_verified": false
+  },
+  "export_training_screen": {
+    "status": "PASS",
+    "scope": "synthetic_software_only",
+    "checks": {
+      "real_updates": true,
+      "distinct_geometry_hashes": true,
+      "candidate_is_post_update": true,
+      "original_teacher_retained": true,
+      "matched_evaluation_membership": true,
+      "missing_full_j_is_explicit": true,
+      "synthetic_never_authorizes_long": true,
+      "no_physics_or_speed_claim": true
+    },
+    "screen_decision": "NO_GO"
+  },
+  "native_kernel": {
+    "profile": "TVCG_REPO_DUAL_MONOMIAL_RAW_V1_CABI_V1",
+    "kernel_sha256": "a3eaddfb1412a34d7e00a70d8e85f7f8b99c749058b68201e0e295c6963e77b2",
+    "manufactured_numerical_mapping_executed": true,
+    "private_1756_solver_reproduced": false,
+    "live_native_mesh_reproduced": false,
+    "deployed_Cherchi_teacher_connected": false
+  },
+  "real_v21_pilot": {
+    "decision": "NO_GO",
+    "evidence_origin": "user-provided Work B summary; original per-query package not locally available",
+    "recomputed_from_original_1756_artifacts": false,
+    "new_real_dataset_training_performed": false
+  },
+  "remaining": [
+    {
+      "item": "1756 frozen real cases/checkpoints/private solver reproduction",
+      "status": "BLOCKED_MISSING_WORK_ASSETS_AND_EXECUTION_ENTRY"
+    },
+    {
+      "item": "deployed Cherchi same-point Moment/Jacobian and native line-search attribution",
+      "status": "PENDING_REAL_ADAPTER_AND_REPLAY"
+    },
+    {
+      "item": "deterministic baseline on real trajectories and independent training geometries",
+      "status": "PENDING_REAL_ASSETS"
+    },
+    {
+      "item": "Work A targeted endpoint/high-retention/R8/Full-J labels",
+      "status": "PENDING_EXTERNAL_DATA_RECEIPT"
+    },
+    {
+      "item": "choose one data/initialization/boundary/physical-loss change",
+      "status": "CONDITIONAL_ON_REAL_ATTRIBUTION_NOT_APPLIED_SPECULATIVELY"
+    },
+    {
+      "item": "target RTX 5090 D trial, qualified long training and trained scientific checkpoint",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "item": "native warm-start/correction and frozen independent-geometry seeds 0-49 physical/timing comparison",
+      "status": "NOT_EXECUTED"
+    }
+  ],
+  "long_training_authorized": false,
+  "trained_production_model_released": false,
+  "native_physical_acceptance_passed": false,
+  "speedup_claim": false,
+  "evidence": {
+    "software_tests.xml": {
+      "path": "integration_evidence/software_tests.xml",
+      "sha256": "9cf9221f6b17ec3133e9a0b0a47774250e268aa97748c9e7c326a3e369d440bb",
+      "bytes": 43122
+    },
+    "actual_model_resume.json": {
+      "path": "integration_evidence/actual_model_resume.json",
+      "sha256": "af4d2a26d6e2d3dd3111523c148be46944c20444d9a9f5daa5a72dee72747f40",
+      "bytes": 13876
+    },
+    "export_training_screen.json": {
+      "path": "integration_evidence/export_training_screen.json",
+      "sha256": "84baa1d8c56baa3e1e51dc22475182950ff5c325bbb93b76476b4b106cc7195e",
+      "bytes": 1089
+    },
+    "synthetic_screen.json": {
+      "path": "integration_evidence/synthetic_screen.json",
+      "sha256": "47a47cae532a70da75950f2d428dd8d4413fc72be81e8e2339f3690453cdb6f3",
+      "bytes": 26144
+    },
+    "synthetic_training_result.json": {
+      "path": "integration_evidence/synthetic_training_result.json",
+      "sha256": "38eb0d3973c4f139475afcd1f1aeca9c867928547e59b00c372a3f0783367573",
+      "bytes": 2876
+    },
+    "synthetic_export_receipt.json": {
+      "path": "integration_evidence/synthetic_export_receipt.json",
+      "sha256": "c07c69bb32060fba5cffd363f0ba71602ad94198a119a2ef6dc429db1d1fb6fb",
+      "bytes": 3370
+    },
+    "native_kernel.json": {
+      "path": "integration_evidence/native_kernel.json",
+      "sha256": "e8695205a00afa1f8e7e076da5707cf5a2a8043b5f1fd724ea86634e8ee05e4f",
+      "bytes": 20836
+    },
+    "native_build.json": {
+      "path": "integration_evidence/native_build.json",
+      "sha256": "644ef206d2f19932c140f87f0dd4d37aafecc17942f63deb7baec56c27bc75c2",
+      "bytes": 165729
+    }
+  },
+  "reproduction_note": "Software smoke checkpoint paths in copied receipts name the actual execution workspace. They are synthetic test states, not production-model releases. Re-run the committed smoke commands to reconstruct the controlled tests.",
+  "source_sha256": {
+    "experiments/compact_pino_v21/p0_diagnostics/baseline_cases.py": "9fe7d0b95e85fbb78a45539a9f02be3b1d84680f4ec027407845d7ac6d672ab3",
+    "experiments/compact_pino_v21/p0_diagnostics/export_cases.py": "253e7c951bbd4794d5ebe59d7caea6d30ac96afe91d782e89ea957243418c330",
+    "experiments/compact_pino_v21/p0_diagnostics/exposure_audit.py": "743375e3cd5fe49d724977d5ad329225159827c329f8c7103c6b2a52ce7ca690",
+    "experiments/compact_pino_v21/p0_diagnostics/handoff_authority.py": "bafdab8eef8c1c20cb3d69b86e42a04210922b98ddc6a3dc21adc1b47f8292b8",
+    "experiments/compact_pino_v21/p0_diagnostics/promotion_gate.py": "2806582a63972b3d1ce5464582f5697b4205a6d16c56c069656763d4b4925758",
+    "experiments/compact_pino_v21/p0_diagnostics/screen_exports.py": "11f4b5e15ccca0f53dce17f9a15dad6b06faf09d0ff3147f7848cf07bef2b8ae",
+    "experiments/compact_pino_v21/training/admission.py": "256fe7bc172710a28fbde87ceda2737c10aa050f4caf813d0da409268d2661b8",
+    "experiments/compact_pino_v21/training/losses.py": "edee887425fcabd5d0c3498ae40819f09f37f7d4e2ac52aa40d0554a31cb4ea4",
+    "experiments/compact_pino_v21/training/manifest.py": "781198d2d2b5443c884eeb5b4a76d9ce746b2c93425571986fcd412a71c9ba9e",
+    "experiments/compact_pino_v21/training/runner.py": "3b29d08d4266963738a7e88713781cc21e45e3037c2575d1a42711d8ea18dba9",
+    "experiments/compact_pino_v21/training/state.py": "16f632fbb335de497af8b5cbf28a830b8dac5b4aac92f22847b28ac279abb4c7",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/compact_pino_v21.py": "787620c4487c714b0ab6eaff8f988d3767a89f9aa59d0c33c7b3852e2f1eb621",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/unified_factory.py": "8807131ebb792f86ffa76feb0bd7f6bec364733af3121b9de846a861298f0210",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_blocks.py": "d2d43952833968fbfeaf5057eb7490aa5df0b2eec83235d84dce6a41f5c687a2",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_material.py": "16cc8f9779270777f9f603991c5695c1954ffb59d6f0e822596e841577b507ad",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_native.py": "3406f6655ca052b387cfb9187237f07f58cb9b507cdff63ad60e926332898cf7",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_response.py": "811105aa6a312f72cafde6c2e3659f8ddda4fab83fcaf2ecd1e5f4da244b2c87",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_response_surface.py": "04786e33bdfe2e038dd22a1a97b2f0bee3cfbce4e99b19e5a27de034a71ca27d",
+    "research/NeuralMoments/models/pcraft_ufno/spin_pino/native_pcraft.py": "6a45b7059d6fbc93032f871d1f518fbd1d4515cd24d853a7c6a37f4b09036dcc",
+    "research/NeuralMoments/models/pcraft_ufno/spin_pino/pino_backbone.py": "84f65cdb05b555162ed7ed67f0de3725788ed29324ac751f3870d92270ebcef8"
+  },
+  "final_receipts_match_current_execution_source": true
+}

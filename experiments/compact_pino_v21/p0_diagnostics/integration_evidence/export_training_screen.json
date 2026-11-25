@@ -1,0 +1,23 @@
+{
+  "schema": "tvcg.v22.export-training-screen-smoke.v1",
+  "scope": "synthetic_software_only",
+  "status": "PASS",
+  "checks": {
+    "real_updates": true,
+    "distinct_geometry_hashes": true,
+    "candidate_is_post_update": true,
+    "original_teacher_retained": true,
+    "matched_evaluation_membership": true,
+    "missing_full_j_is_explicit": true,
+    "synthetic_never_authorizes_long": true,
+    "no_physics_or_speed_claim": true
+  },
+  "manifest": "/workspace/scratch/fcf5369c0b51/v22_integration_smoke_final/exported/training_manifest.json",
+  "manifest_sha256": "e5929112d029bdffad2e4a3309b46ae2b92ad56ccfab34d8bd2b262a228c5526",
+  "training_result": "/workspace/scratch/fcf5369c0b51/v22_integration_smoke_final/training/result.json",
+  "screen_report": "/workspace/scratch/fcf5369c0b51/v22_integration_smoke_final/training/screen_report.json",
+  "screen_decision": "NO_GO",
+  "geometry_evaluation": "two training queries and one scaled analytic development geometry; no generalization claim",
+  "real_training_dataset_used": false,
+  "native_mesh_acceptance_evaluated": false
+}

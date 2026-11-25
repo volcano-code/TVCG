@@ -1,0 +1,434 @@
+{
+  "schema": "compact_pino.actual-operator-smoke.v1",
+  "scope": "synthetic_software_only",
+  "status": "PASS",
+  "checks": {
+    "model": true,
+    "optimizer": true,
+    "scheduler": true,
+    "scaler": true,
+    "rng": true,
+    "sampler": true,
+    "global_step": true,
+    "attempts": true,
+    "same_second_batch": true,
+    "same_second_loss": true,
+    "parameters_updated": true,
+    "joint_loss_effective": true,
+    "encoder_and_response_finite_nonzero_gradients": true
+  },
+  "config": {
+    "token_grid": 16,
+    "seed": 830251,
+    "learning_rate": 3e-05,
+    "batch_size": 1,
+    "jacobian_loss_weight": 1.0,
+    "auxiliary_loss_weight": 0.0,
+    "chunk_size": 65536,
+    "amp": "off",
+    "deterministic": true,
+    "sampler": "shuffle_without_replacement"
+  },
+  "training_manifest_path": "/workspace/scratch/fcf5369c0b51/v22_training_smoke_final/assets/training_manifest.json",
+  "training_manifest_sha256": "4a2373ea8a69f3210470b2fd36af71a9086ab73bf19c63799f7013c8840b3540",
+  "initial_checkpoint": {
+    "path": "/workspace/scratch/fcf5369c0b51/v22_training_smoke_final/continuous/step-0-attempt-0-b62f452b44a3.pt",
+    "sha256": "8f0b909cfed80e57282401b44ad63ce2ad016c0a6ea6195a6632d1a016bd1730",
+    "receipt_path": "/workspace/scratch/fcf5369c0b51/v22_training_smoke_final/continuous/step-0-attempt-0-b62f452b44a3.resume.json",
+    "model_tensor_sha256": "177ce54237cba240572ed144651adbe07b4d9c23ecd585d4818149af50e8f0ae"
+  },
+  "interrupted_boundary_checkpoint": {
+    "path": "/workspace/scratch/fcf5369c0b51/v22_training_smoke_final/continuous/step-1-attempt-1-ceb62fb5824d.pt",
+    "sha256": "85a2b58b20fb5cbefd5e26b43cafb386075cdd38526b8cff5757e90a14101561",
+    "receipt_path": "/workspace/scratch/fcf5369c0b51/v22_training_smoke_final/continuous/step-1-attempt-1-ceb62fb5824d.resume.json",
+    "model_tensor_sha256": "3735efa4e8dcfb04099502c555527ed1a80b3698fae0f5e2e68dda52e57372fb"
+  },
+  "continuous_checkpoint": {
+    "path": "/workspace/scratch/fcf5369c0b51/v22_training_smoke_final/continuous/step-2-attempt-2-9f07922eec14.pt",
+    "sha256": "de2ce5122dfc3405841a69befb9a4aacc042b8ed5d0dff96c73dbbdad85cba07",
+    "receipt_path": "/workspace/scratch/fcf5369c0b51/v22_training_smoke_final/continuous/step-2-attempt-2-9f07922eec14.resume.json",
+    "model_tensor_sha256": "c52b2e3f300a99ae8d5bbd9bedaacb117148d171c5cec51a41d59aa7a8a81d7f"
+  },
+  "resumed_checkpoint": {
+    "path": "/workspace/scratch/fcf5369c0b51/v22_training_smoke_final/resumed/step-2-attempt-2-50ca5df94a20.pt",
+    "sha256": "31e1f494f71f0c7abeaed2e3ddf02eb55d5e3dc9c74df13124808be77ce03747",
+    "receipt_path": "/workspace/scratch/fcf5369c0b51/v22_training_smoke_final/resumed/step-2-attempt-2-50ca5df94a20.resume.json",
+    "model_tensor_sha256": "c52b2e3f300a99ae8d5bbd9bedaacb117148d171c5cec51a41d59aa7a8a81d7f"
+  },
+  "steps": [
+    {
+      "attempt": 1,
+      "global_step": 1,
+      "record_ids": [
+        "fixture-1"
+      ],
+      "committed": true,
+      "amp_skip": false,
+      "skip_reason": null,
+      "loss": 0.00013869868429385108,
+      "moment_mask": [
+        true
+      ],
+      "moment_weight": [
+        1.0
+      ],
+      "jacobian_mask": [
+        true
+      ],
+      "jacobian_weight": [
+        1.0
+      ],
+      "moment_denominator": 1.0,
+      "jacobian_denominator": 1.0,
+      "moment_loss": 3.277268241968083e-07,
+      "jacobian_loss": 0.00013837095746965428,
+      "jacobian_reasons": [
+        "QUALIFIED_AND_RESPONSE_VALID"
+      ],
+      "normalization": "M: mL^degree; J: chart parameter_scales / (mL^degree)",
+      "gradients": {
+        "shared_encoder.pino_encoder.": {
+          "parameters_with_grad": 84,
+          "finite": true,
+          "norm": 0.00013195679639466107
+        },
+        "geometry_attention.": {
+          "parameters_with_grad": 4,
+          "finite": true,
+          "norm": 2.8048149033566006e-05
+        },
+        "response.": {
+          "parameters_with_grad": 4,
+          "finite": true,
+          "norm": 0.000245591887505725
+        }
+      },
+      "seconds": 18.69646129799912,
+      "cumulative_runner_seconds": 19.583675518000746,
+      "sampler": {
+        "epoch": 0,
+        "cursor": 1,
+        "count": 2
+      }
+    },
+    {
+      "attempt": 2,
+      "global_step": 2,
+      "record_ids": [
+        "fixture-0"
+      ],
+      "committed": true,
+      "amp_skip": false,
+      "skip_reason": null,
+      "loss": 6.915839805576721e-05,
+      "moment_mask": [
+        true
+      ],
+      "moment_weight": [
+        1.0
+      ],
+      "jacobian_mask": [
+        true
+      ],
+      "jacobian_weight": [
+        1.0
+      ],
+      "moment_denominator": 1.0,
+      "jacobian_denominator": 1.0,
+      "moment_loss": 3.412843935752681e-07,
+      "jacobian_loss": 6.881711366219194e-05,
+      "jacobian_reasons": [
+        "QUALIFIED_AND_RESPONSE_VALID"
+      ],
+      "normalization": "M: mL^degree; J: chart parameter_scales / (mL^degree)",
+      "gradients": {
+        "shared_encoder.pino_encoder.": {
+          "parameters_with_grad": 84,
+          "finite": true,
+          "norm": 7.939751958474517e-05
+        },
+        "geometry_attention.": {
+          "parameters_with_grad": 4,
+          "finite": true,
+          "norm": 1.863499346654862e-05
+        },
+        "response.": {
+          "parameters_with_grad": 4,
+          "finite": true,
+          "norm": 0.00015913088282104582
+        }
+      },
+      "seconds": 16.86018010800035,
+      "cumulative_runner_seconds": 36.57311910200042,
+      "sampler": {
+        "epoch": 0,
+        "cursor": 2,
+        "count": 2
+      }
+    },
+    {
+      "attempt": 2,
+      "global_step": 2,
+      "record_ids": [
+        "fixture-0"
+      ],
+      "committed": true,
+      "amp_skip": false,
+      "skip_reason": null,
+      "loss": 6.915839805576721e-05,
+      "moment_mask": [
+        true
+      ],
+      "moment_weight": [
+        1.0
+      ],
+      "jacobian_mask": [
+        true
+      ],
+      "jacobian_weight": [
+        1.0
+      ],
+      "moment_denominator": 1.0,
+      "jacobian_denominator": 1.0,
+      "moment_loss": 3.412843935752681e-07,
+      "jacobian_loss": 6.881711366219194e-05,
+      "jacobian_reasons": [
+        "QUALIFIED_AND_RESPONSE_VALID"
+      ],
+      "normalization": "M: mL^degree; J: chart parameter_scales / (mL^degree)",
+      "gradients": {
+        "shared_encoder.pino_encoder.": {
+          "parameters_with_grad": 84,
+          "finite": true,
+          "norm": 7.939751958474517e-05
+        },
+        "geometry_attention.": {
+          "parameters_with_grad": 4,
+          "finite": true,
+          "norm": 1.863499346654862e-05
+        },
+        "response.": {
+          "parameters_with_grad": 4,
+          "finite": true,
+          "norm": 0.00015913088282104582
+        }
+      },
+      "seconds": 18.015854764000323,
+      "cumulative_runner_seconds": 37.82794215300055,
+      "sampler": {
+        "epoch": 0,
+        "cursor": 2,
+        "count": 2
+      }
+    }
+  ],
+  "exposure": {
+    "schema": "compact_pino.exposure.v1",
+    "status": "OBSERVED_COMPLETE",
+    "promotion_status": "NOT_EVALUATED",
+    "run_id": "synthetic-exact-resume",
+    "snapshot_id": "synthetic-real-operator-software-smoke-v1",
+    "manifest_sha256": "4a2373ea8a69f3210470b2fd36af71a9086ab73bf19c63799f7013c8840b3540",
+    "inventory_sha256": "22d6dd087b3b2fad6d97e1adeb16a1c60b01912558a8fee9b69cfe604e7aaef6",
+    "pool": {
+      "registered_candidates": 2,
+      "admitted_records": 2,
+      "loader_eligible_records": 2,
+      "moment_eligible_records": 2,
+      "jacobian_eligible_records": 2,
+      "jacobian_eligible_by_type": {
+        "R3": 2,
+        "R8": 0,
+        "Full-J": 0
+      },
+      "per_source_group": {
+        "analytic_fixture": {
+          "admitted_records": 2,
+          "loader_eligible_records": 2,
+          "moment_eligible_records": 2,
+          "jacobian_eligible_records": 2
+        }
+      }
+    },
+    "duplicate_events_ignored": 0,
+    "incomplete_segments": [],
+    "execution": {
+      "counts": {
+        "optimizer_attempts": 3,
+        "optimizer_commits": 3,
+        "forward_attempt_occurrences": 3,
+        "forward_occurrences": 3,
+        "moment_loss_occurrences": 3,
+        "moment_backward_occurrences": 3,
+        "committed_moment_occurrences": 3,
+        "jacobian_loss_occurrences": 3,
+        "jacobian_backward_occurrences": 3,
+        "committed_jacobian_occurrences": 3,
+        "prefetch_occurrences": 0,
+        "forward_failed_occurrences": 0,
+        "optimizer_skips": 0,
+        "commits_without_supervision": 0
+      },
+      "unique": {
+        "forward_queries": 2,
+        "moment_loss_queries": 2,
+        "jacobian_loss_records": 2,
+        "committed_moment_queries": 2,
+        "committed_jacobian_records": 2,
+        "forward_records": 2,
+        "committed_supervision_records": 2
+      },
+      "per_source_group": {
+        "analytic_fixture": {
+          "forward_occurrences": 3,
+          "moment_loss_occurrences": 3,
+          "committed_moment_occurrences": 3,
+          "jacobian_loss_occurrences": 3,
+          "committed_jacobian_occurrences": 3
+        }
+      },
+      "per_stratum": [
+        {
+          "source_group_id": "analytic_fixture",
+          "surface_family": "PLANE",
+          "retention_bin": "middle",
+          "trajectory_stage": "synthetic_fixture",
+          "counts": {
+            "forward_occurrences": 3,
+            "moment_loss_occurrences": 3,
+            "committed_moment_occurrences": 3,
+            "jacobian_loss_occurrences": 3,
+            "committed_jacobian_occurrences": 3
+          }
+        }
+      ],
+      "jacobian_by_type": {
+        "R3": {
+          "loss_occurrences": 3,
+          "backward_occurrences": 3,
+          "committed_occurrences": 3,
+          "committed_unique_records": 2
+        },
+        "R8": {
+          "loss_occurrences": 0,
+          "backward_occurrences": 0,
+          "committed_occurrences": 0,
+          "committed_unique_records": 0
+        },
+        "Full-J": {
+          "loss_occurrences": 0,
+          "backward_occurrences": 0,
+          "committed_occurrences": 0,
+          "committed_unique_records": 0
+        }
+      },
+      "skip_reasons": {},
+      "unresolved_windows": [],
+      "loader_records_not_forwarded": [],
+      "loader_records_without_committed_supervision": []
+    },
+    "selected_lineage": {
+      "selection": {
+        "segment_id": "8dccc72f01ff4479bd7778f215c566d4",
+        "checkpoint_id": "step-2-attempt-2-50ca5df94a20"
+      },
+      "initial_step_counter": 0,
+      "initial_checkpoint_sha256": null,
+      "prior_history_inferred": false,
+      "segments": [
+        {
+          "segment_id": "8addbd1457bb4040b28215fa129b1d05",
+          "through_seq": 7
+        },
+        {
+          "segment_id": "8dccc72f01ff4479bd7778f215c566d4",
+          "through_seq": 6
+        }
+      ],
+      "counts": {
+        "optimizer_attempts": 2,
+        "optimizer_commits": 2,
+        "forward_attempt_occurrences": 2,
+        "forward_occurrences": 2,
+        "moment_loss_occurrences": 2,
+        "moment_backward_occurrences": 2,
+        "committed_moment_occurrences": 2,
+        "jacobian_loss_occurrences": 2,
+        "jacobian_backward_occurrences": 2,
+        "committed_jacobian_occurrences": 2,
+        "prefetch_occurrences": 0,
+        "forward_failed_occurrences": 0,
+        "optimizer_skips": 0,
+        "commits_without_supervision": 0
+      },
+      "unique": {
+        "forward_queries": 2,
+        "moment_loss_queries": 2,
+        "jacobian_loss_records": 2,
+        "committed_moment_queries": 2,
+        "committed_jacobian_records": 2,
+        "forward_records": 2,
+        "committed_supervision_records": 2
+      },
+      "per_source_group": {
+        "analytic_fixture": {
+          "forward_occurrences": 2,
+          "moment_loss_occurrences": 2,
+          "committed_moment_occurrences": 2,
+          "jacobian_loss_occurrences": 2,
+          "committed_jacobian_occurrences": 2
+        }
+      },
+      "per_stratum": [
+        {
+          "source_group_id": "analytic_fixture",
+          "surface_family": "PLANE",
+          "retention_bin": "middle",
+          "trajectory_stage": "synthetic_fixture",
+          "counts": {
+            "forward_occurrences": 2,
+            "moment_loss_occurrences": 2,
+            "committed_moment_occurrences": 2,
+            "jacobian_loss_occurrences": 2,
+            "committed_jacobian_occurrences": 2
+          }
+        }
+      ],
+      "jacobian_by_type": {
+        "R3": {
+          "loss_occurrences": 2,
+          "backward_occurrences": 2,
+          "committed_occurrences": 2,
+          "committed_unique_records": 2
+        },
+        "R8": {
+          "loss_occurrences": 0,
+          "backward_occurrences": 0,
+          "committed_occurrences": 0,
+          "committed_unique_records": 0
+        },
+        "Full-J": {
+          "loss_occurrences": 0,
+          "backward_occurrences": 0,
+          "committed_occurrences": 0,
+          "committed_unique_records": 0
+        }
+      },
+      "skip_reasons": {},
+      "unresolved_windows": [],
+      "loader_records_not_forwarded": [],
+      "loader_records_without_committed_supervision": []
+    },
+    "limitations": [
+      "Counts cover recorded caller assertions only, not unlogged training.",
+      "Positive masked loss participation does not prove nonzero gradients.",
+      "Physical labels, checkpoint bytes, and model promotion are not verified.",
+      "Execution totals include discarded branches; selected lineage excludes them.",
+      "A missing optimizer outcome remains unresolved, never assumed committed."
+    ]
+  },
+  "real_optimizer_calls_executed": 3,
+  "native_solver_acceptance": "NOT_EVALUATED",
+  "scientific_promotion": "NOT_EVALUATED",
+  "exactness_scope": "same CPU runtime, deterministic algorithms; GPU exact continuation not validated here"
+}

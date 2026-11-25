@@ -1,0 +1,52 @@
+{
+  "schema": "compact_pino.training-result.v1",
+  "scope": "synthetic",
+  "status": "TRAINING_BUDGET_FINISHED_NOT_PROMOTION",
+  "stop_reason": "STEP_BUDGET",
+  "global_step": 2,
+  "attempts": 2,
+  "initial_checkpoint": {
+    "path": "/workspace/scratch/fcf5369c0b51/v22_integration_smoke_final/training/step-0-attempt-0-e256bdf17a54.pt",
+    "sha256": "461d7e981adbd682c9f15d8b4325d690b6b5110841a9bacc2f33b23599cd38af",
+    "receipt_path": "/workspace/scratch/fcf5369c0b51/v22_integration_smoke_final/training/step-0-attempt-0-e256bdf17a54.resume.json",
+    "model_tensor_sha256": "177ce54237cba240572ed144651adbe07b4d9c23ecd585d4818149af50e8f0ae"
+  },
+  "last_checkpoint": {
+    "path": "/workspace/scratch/fcf5369c0b51/v22_integration_smoke_final/training/step-2-attempt-2-dcb85ccde850.pt",
+    "sha256": "9d8a302645f52e292c2d4f375df0c48826f92b092b3245fe2494609595fb9675",
+    "receipt_path": "/workspace/scratch/fcf5369c0b51/v22_integration_smoke_final/training/step-2-attempt-2-dcb85ccde850.resume.json",
+    "model_tensor_sha256": "c52b2e3f300a99ae8d5bbd9bedaacb117148d171c5cec51a41d59aa7a8a81d7f"
+  },
+  "config_sha256": "dae2b048c0cc11cc5236f42d90a0a2d8f7d8d28925f32394efe825be2ff90280",
+  "training_manifest_sha256": "e5929112d029bdffad2e4a3309b46ae2b92ad56ccfab34d8bd2b262a228c5526",
+  "seconds": 48.76410747599948,
+  "update_records": 2,
+  "segment_committed_updates": 2,
+  "no_parameter_updates": false,
+  "cumulative_runner_seconds": 49.72058490999916,
+  "best_checkpoint": {
+    "path": "/workspace/scratch/fcf5369c0b51/v22_integration_smoke_final/training/step-1-attempt-1-892f896ea056.pt",
+    "sha256": "0df7040fa3fd9afe4389bb724833ff5939d7cb8ac8683e313cd484c31e803161",
+    "receipt_path": "/workspace/scratch/fcf5369c0b51/v22_integration_smoke_final/training/step-1-attempt-1-892f896ea056.resume.json",
+    "model_tensor_sha256": "3735efa4e8dcfb04099502c555527ed1a80b3698fae0f5e2e68dda52e57372fb"
+  },
+  "epoch0_checkpoint": {
+    "path": "/workspace/scratch/fcf5369c0b51/v22_integration_smoke_final/training/step-0-attempt-0-e256bdf17a54.pt",
+    "sha256": "461d7e981adbd682c9f15d8b4325d690b6b5110841a9bacc2f33b23599cd38af",
+    "receipt_path": "/workspace/scratch/fcf5369c0b51/v22_integration_smoke_final/training/step-0-attempt-0-e256bdf17a54.resume.json",
+    "model_tensor_sha256": "177ce54237cba240572ed144651adbe07b4d9c23ecd585d4818149af50e8f0ae"
+  },
+  "screen": {
+    "bundle_path": "/workspace/scratch/fcf5369c0b51/v22_integration_smoke_final/training/screen/bundle.json",
+    "report_path": "/workspace/scratch/fcf5369c0b51/v22_integration_smoke_final/training/screen_report.json",
+    "decision": "NO_GO"
+  },
+  "promotion_status": "NOT_AUTHORIZATION",
+  "candidate_evaluations_this_segment": 2,
+  "evaluation_steps": [
+    1,
+    2
+  ],
+  "candidate_status": "EVALUATED_REGISTERED_CANDIDATES",
+  "selection_status": "FROZEN_RAW_SOURCE_MACRO"
+}

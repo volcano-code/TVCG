@@ -1,0 +1,911 @@
+{
+  "schema": "tvcg.v22.research-screen.v1",
+  "mode": "research_screen",
+  "scope": "synthetic",
+  "decision": "NO_GO",
+  "training_authorized": false,
+  "eligible_for_long_training_review": false,
+  "physical_acceptance": "NOT_EVALUATED",
+  "speedup_claim": false,
+  "identity": {
+    "run_id": "synthetic-export-training-screen",
+    "training_manifest_sha256": "e5929112d029bdffad2e4a3309b46ae2b92ad56ccfab34d8bd2b262a228c5526",
+    "config_sha256": "dae2b048c0cc11cc5236f42d90a0a2d8f7d8d28925f32394efe825be2ff90280",
+    "evaluation_manifest_sha256": "9f4c9a50d504be3e3d4db35616bac0a5e146dc8defae0ae8ce80122054423c74",
+    "teacher_sha256": "45df1afca4d64804e6e2f7abbbb1181374a520e0c59be3dc40c0431d4ebf0704",
+    "protocol_sha256": "59260e5bca7c013cc1ce4fd8b9692a626bcd8ed198ef7544cf20c3bfe4d31c2b",
+    "candidate_checkpoint_sha256": "0df7040fa3fd9afe4389bb724833ff5939d7cb8ac8683e313cd484c31e803161",
+    "epoch0_checkpoint_sha256": "461d7e981adbd682c9f15d8b4325d690b6b5110841a9bacc2f33b23599cd38af"
+  },
+  "protocol_id": "synthetic-software-pipeline-only",
+  "primary": {
+    "status": "FAIL",
+    "current": {
+      "value": 1.9653641357217402e-05,
+      "queries": 1,
+      "scored_queries": 1,
+      "source_groups": 1,
+      "missing_record_ids": [],
+      "by_source": {
+        "analytic_scaled_fixture": {
+          "queries": 1,
+          "value": 1.9653641357217402e-05
+        }
+      },
+      "aggregation": "source_macro_group_rmse"
+    },
+    "epoch0": {
+      "value": 1.9616543845715352e-05,
+      "queries": 1,
+      "scored_queries": 1,
+      "source_groups": 1,
+      "missing_record_ids": [],
+      "by_source": {
+        "analytic_scaled_fixture": {
+          "queries": 1,
+          "value": 1.9616543845715352e-05
+        }
+      },
+      "aggregation": "source_macro_group_rmse"
+    },
+    "relative_change": 0.001891133922153898,
+    "limit": 1.8635716653429583e-05
+  },
+  "protections": {
+    "middle": {
+      "status": "PASS",
+      "current": {
+        "value": 0.0005841309554945099,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 0.0005841309554945099
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "epoch0": {
+        "value": 0.0005859731811941169,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 0.0005859731811941169
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "relative_change": -0.0031438737449602794,
+      "limit": 0.0006152718402538228,
+      "metric": "scaled10_moment_rmse"
+    },
+    "high": {
+      "status": "INSUFFICIENT_EVIDENCE",
+      "current": {
+        "value": null,
+        "queries": 0,
+        "scored_queries": 0,
+        "source_groups": 0,
+        "missing_record_ids": [],
+        "by_source": {},
+        "aggregation": "source_macro_group_rmse"
+      },
+      "epoch0": {
+        "value": null,
+        "queries": 0,
+        "scored_queries": 0,
+        "source_groups": 0,
+        "missing_record_ids": [],
+        "by_source": {},
+        "aggregation": "source_macro_group_rmse"
+      },
+      "relative_change": null,
+      "limit": null,
+      "metric": "scaled10_moment_rmse"
+    },
+    "R3": {
+      "status": "PASS",
+      "current": {
+        "value": 0.00829469309725573,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 0.00829469309725573
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "epoch0": {
+        "value": 0.008434932851972683,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 0.008434932851972683
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "relative_change": -0.01662606652335763,
+      "limit": 0.008856679494571317,
+      "metric": "scaled_jacobian_rmse"
+    },
+    "R8": {
+      "status": "INSUFFICIENT_EVIDENCE",
+      "current": {
+        "value": null,
+        "queries": 0,
+        "scored_queries": 0,
+        "source_groups": 0,
+        "missing_record_ids": [],
+        "by_source": {},
+        "aggregation": "source_macro_group_rmse"
+      },
+      "epoch0": {
+        "value": null,
+        "queries": 0,
+        "scored_queries": 0,
+        "source_groups": 0,
+        "missing_record_ids": [],
+        "by_source": {},
+        "aggregation": "source_macro_group_rmse"
+      },
+      "relative_change": null,
+      "limit": null,
+      "metric": "scaled_jacobian_rmse"
+    },
+    "Full-J": {
+      "status": "INSUFFICIENT_EVIDENCE",
+      "current": {
+        "value": null,
+        "queries": 0,
+        "scored_queries": 0,
+        "source_groups": 0,
+        "missing_record_ids": [],
+        "by_source": {},
+        "aggregation": "source_macro_group_rmse"
+      },
+      "epoch0": {
+        "value": null,
+        "queries": 0,
+        "scored_queries": 0,
+        "source_groups": 0,
+        "missing_record_ids": [],
+        "by_source": {},
+        "aggregation": "source_macro_group_rmse"
+      },
+      "relative_change": null,
+      "limit": null,
+      "metric": "scaled_jacobian_rmse"
+    }
+  },
+  "failed_checks": [
+    "primary"
+  ],
+  "insufficient_evidence": [
+    "high",
+    "R8",
+    "Full-J",
+    "low_retention_denominator"
+  ],
+  "source_macro_moment": {
+    "epoch0": {
+      "value": 1.9616543845715352e-05,
+      "queries": 1,
+      "scored_queries": 1,
+      "source_groups": 1,
+      "missing_record_ids": [],
+      "by_source": {
+        "analytic_scaled_fixture": {
+          "queries": 1,
+          "value": 1.9616543845715352e-05
+        }
+      },
+      "aggregation": "source_macro_group_rmse"
+    },
+    "candidate": {
+      "value": 1.9653641357217402e-05,
+      "queries": 1,
+      "scored_queries": 1,
+      "source_groups": 1,
+      "missing_record_ids": [],
+      "by_source": {
+        "analytic_scaled_fixture": {
+          "queries": 1,
+          "value": 1.9653641357217402e-05
+        }
+      },
+      "aggregation": "source_macro_group_rmse"
+    },
+    "no_learning": {
+      "value": 1.8072279200617364e-05,
+      "queries": 1,
+      "scored_queries": 1,
+      "source_groups": 1,
+      "missing_record_ids": [],
+      "by_source": {
+        "analytic_scaled_fixture": {
+          "queries": 1,
+          "value": 1.8072279200617364e-05
+        }
+      },
+      "aggregation": "source_macro_group_rmse"
+    }
+  },
+  "candidate_relative_to_no_learning": 0.0875020875366963,
+  "baseline_gap_is_registered_hard_gate": false,
+  "by_retention": {
+    "near_zero": {
+      "epoch0": {
+        "value": null,
+        "queries": 0,
+        "scored_queries": 0,
+        "source_groups": 0,
+        "missing_record_ids": [],
+        "by_source": {},
+        "aggregation": "source_macro_group_rmse"
+      },
+      "candidate": {
+        "value": null,
+        "queries": 0,
+        "scored_queries": 0,
+        "source_groups": 0,
+        "missing_record_ids": [],
+        "by_source": {},
+        "aggregation": "source_macro_group_rmse"
+      },
+      "no_learning": {
+        "value": null,
+        "queries": 0,
+        "scored_queries": 0,
+        "source_groups": 0,
+        "missing_record_ids": [],
+        "by_source": {},
+        "aggregation": "source_macro_group_rmse"
+      }
+    },
+    "low": {
+      "epoch0": {
+        "value": null,
+        "queries": 0,
+        "scored_queries": 0,
+        "source_groups": 0,
+        "missing_record_ids": [],
+        "by_source": {},
+        "aggregation": "source_macro_group_rmse"
+      },
+      "candidate": {
+        "value": null,
+        "queries": 0,
+        "scored_queries": 0,
+        "source_groups": 0,
+        "missing_record_ids": [],
+        "by_source": {},
+        "aggregation": "source_macro_group_rmse"
+      },
+      "no_learning": {
+        "value": null,
+        "queries": 0,
+        "scored_queries": 0,
+        "source_groups": 0,
+        "missing_record_ids": [],
+        "by_source": {},
+        "aggregation": "source_macro_group_rmse"
+      }
+    },
+    "middle": {
+      "epoch0": {
+        "value": 1.9616543845715352e-05,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 1.9616543845715352e-05
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "candidate": {
+        "value": 1.9653641357217402e-05,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 1.9653641357217402e-05
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "no_learning": {
+        "value": 1.8072279200617364e-05,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 1.8072279200617364e-05
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      }
+    },
+    "high": {
+      "epoch0": {
+        "value": null,
+        "queries": 0,
+        "scored_queries": 0,
+        "source_groups": 0,
+        "missing_record_ids": [],
+        "by_source": {},
+        "aggregation": "source_macro_group_rmse"
+      },
+      "candidate": {
+        "value": null,
+        "queries": 0,
+        "scored_queries": 0,
+        "source_groups": 0,
+        "missing_record_ids": [],
+        "by_source": {},
+        "aggregation": "source_macro_group_rmse"
+      },
+      "no_learning": {
+        "value": null,
+        "queries": 0,
+        "scored_queries": 0,
+        "source_groups": 0,
+        "missing_record_ids": [],
+        "by_source": {},
+        "aggregation": "source_macro_group_rmse"
+      }
+    }
+  },
+  "by_component": {
+    "epoch0": {
+      "1": {
+        "value": 4.3283364390661605e-05,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 4.3283364390661605e-05
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "x": {
+        "value": 4.427916188756145e-05,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 4.427916188756145e-05
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "y": {
+        "value": 1.1022948635036264e-06,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 1.1022948635036264e-06
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "z": {
+        "value": 9.84546393653727e-07,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 9.84546393653727e-07
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "xx": {
+        "value": 2.9756929560975642e-06,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 2.9756929560975642e-06
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "yy": {
+        "value": 4.962915597563761e-07,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 4.962915597563761e-07
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "zz": {
+        "value": 3.034029230067001e-07,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 3.034029230067001e-07
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "yz": {
+        "value": 4.46084977526347e-07,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 4.46084977526347e-07
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "xz": {
+        "value": 9.968464711498486e-07,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 9.968464711498486e-07
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "xy": {
+        "value": 1.1932839530202227e-06,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 1.1932839530202227e-06
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      }
+    },
+    "candidate": {
+      "1": {
+        "value": 4.370394107539033e-05,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 4.370394107539033e-05
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "x": {
+        "value": 4.4030522669269434e-05,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 4.4030522669269434e-05
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "y": {
+        "value": 1.1264142463496274e-06,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 1.1264142463496274e-06
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "z": {
+        "value": 9.866955634849767e-07,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 9.866955634849767e-07
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "xx": {
+        "value": 2.9592427772092214e-06,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 2.9592427772092214e-06
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "yy": {
+        "value": 5.015767184524816e-07,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 5.015767184524816e-07
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "zz": {
+        "value": 3.0612608111976747e-07,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 3.0612608111976747e-07
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "yz": {
+        "value": 4.4620132429754e-07,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 4.4620132429754e-07
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "xz": {
+        "value": 9.909509888918308e-07,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 9.909509888918308e-07
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "xy": {
+        "value": 1.1869823338839128e-06,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 1.1869823338839128e-06
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      }
+    },
+    "no_learning": {
+      "1": {
+        "value": 3.634016345360758e-05,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 3.634016345360758e-05
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "x": {
+        "value": 4.395740632973403e-05,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 4.395740632973403e-05
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "y": {
+        "value": 9.811844132578268e-07,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 9.811844132578268e-07
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "z": {
+        "value": 8.176536777067603e-07,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 8.176536777067603e-07
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "xx": {
+        "value": 2.958464918450046e-06,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 2.958464918450046e-06
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "yy": {
+        "value": 4.1896574446125684e-07,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 4.1896574446125684e-07
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "zz": {
+        "value": 2.5412676303137455e-07,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 2.5412676303137455e-07
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "yz": {
+        "value": 4.4830791274985573e-07,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 4.4830791274985573e-07
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "xz": {
+        "value": 9.890416424192494e-07,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 9.890416424192494e-07
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      },
+      "xy": {
+        "value": 1.1868499709022807e-06,
+        "queries": 1,
+        "scored_queries": 1,
+        "source_groups": 1,
+        "missing_record_ids": [],
+        "by_source": {
+          "analytic_scaled_fixture": {
+            "queries": 1,
+            "value": 1.1868499709022807e-06
+          }
+        },
+        "aggregation": "source_macro_group_rmse"
+      }
+    }
+  },
+  "coverage": {
+    "registered_queries": 1,
+    "qualified_moment_queries": 1,
+    "rejected_moment_queries": 0,
+    "qualified_jacobian_queries": 1,
+    "qualified_jacobian_by_type": {
+      "R3": 1,
+      "R8": 0,
+      "Full-J": 0
+    },
+    "declared_but_unreceipted_jacobians": 0,
+    "source_groups_without_qualified_moments": [],
+    "geometry_ids": [
+      "synthetic_scaled_development_box"
+    ],
+    "source_group_ids": [
+      "analytic_scaled_fixture"
+    ]
+  },
+  "availability": {
+    "epoch0": {
+      "unavailable_predictions": {},
+      "unavailable_qualified_jacobians": []
+    },
+    "candidate": {
+      "unavailable_predictions": {},
+      "unavailable_qualified_jacobians": []
+    },
+    "no_learning": {
+      "unavailable_predictions": {},
+      "unavailable_qualified_jacobians": []
+    }
+  },
+  "aggregation_definitions": {
+    "source_macro_group_rmse": "mean over sources of sqrt(mean over that source's queries and components of squared raw errors))",
+    "source_macro_mean_query_rmse": "mean over sources of mean over queries of sqrt(mean over components of squared raw errors))"
+  },
+  "evidence_boundary": "Hash checks and declared qualifications do not replace teacher audits; this research screen is not native physical acceptance or permission to train.",
+  "verified_artifacts": {
+    "protocol": {
+      "path": "/workspace/scratch/fcf5369c0b51/v22_integration_smoke_final/screen_protocol.json",
+      "sha256": "59260e5bca7c013cc1ce4fd8b9692a626bcd8ed198ef7544cf20c3bfe4d31c2b",
+      "bytes": 636
+    },
+    "registered_protocol": {
+      "path": "/workspace/scratch/fcf5369c0b51/TVCG/experiments/compact_pino_v21/protocol.json",
+      "sha256": "c79bba947dc5466852fc0a92ad3953508faf51519b6db00cf4e376d6164f5620",
+      "bytes": 3443
+    },
+    "training_manifest": {
+      "path": "/workspace/scratch/fcf5369c0b51/v22_integration_smoke_final/exported/training_manifest.json",
+      "sha256": "e5929112d029bdffad2e4a3309b46ae2b92ad56ccfab34d8bd2b262a228c5526",
+      "bytes": 1511
+    },
+    "epoch0_checkpoint": {
+      "path": "/workspace/scratch/fcf5369c0b51/v22_integration_smoke_final/training/step-0-attempt-0-e256bdf17a54.pt",
+      "sha256": "461d7e981adbd682c9f15d8b4325d690b6b5110841a9bacc2f33b23599cd38af",
+      "bytes": 15815389
+    },
+    "candidate_checkpoint": {
+      "path": "/workspace/scratch/fcf5369c0b51/v22_integration_smoke_final/training/step-1-attempt-1-892f896ea056.pt",
+      "sha256": "0df7040fa3fd9afe4389bb724833ff5939d7cb8ac8683e313cd484c31e803161",
+      "bytes": 47413891
+    },
+    "config": {
+      "path": "/workspace/scratch/fcf5369c0b51/v22_integration_smoke_final/training/screen/config.json",
+      "sha256": "2b552ec9c7fede7ea5f21e3cd52ffa726ba16d34a03a2192237e73845e541417",
+      "bytes": 216
+    },
+    "evaluation_manifest": {
+      "path": "/workspace/scratch/fcf5369c0b51/v22_integration_smoke_final/training/screen/evaluation_manifest.json",
+      "sha256": "9f4c9a50d504be3e3d4db35616bac0a5e146dc8defae0ae8ce80122054423c74",
+      "bytes": 472
+    },
+    "labels": {
+      "path": "/workspace/scratch/fcf5369c0b51/v22_integration_smoke_final/training/screen/labels.json",
+      "sha256": "d39831c94748f407b3b4c30845ed98c12bf071f8a0637222bf5b845621402946",
+      "bytes": 2905
+    },
+    "epoch0": {
+      "path": "/workspace/scratch/fcf5369c0b51/v22_integration_smoke_final/training/screen/epoch0.json",
+      "sha256": "e347538352822bfe1084b32ffcb520224befbba621296d8c471057f509b4d402",
+      "bytes": 2304
+    },
+    "candidate": {
+      "path": "/workspace/scratch/fcf5369c0b51/v22_integration_smoke_final/training/screen/candidate.json",
+      "sha256": "763b870961640257d7de4d927e3702a810c2a2140eb3d95da560d6048ae5be59",
+      "bytes": 2308
+    },
+    "no_learning": {
+      "path": "/workspace/scratch/fcf5369c0b51/v22_integration_smoke_final/training/screen/no_learning.json",
+      "sha256": "9c6be39da0ee26309978628f6e4b51b5c0bdb4e163cbce509d97076d1884c4a4",
+      "bytes": 2075
+    }
+  },
+  "bundle_receipt": {
+    "path": "/workspace/scratch/fcf5369c0b51/v22_integration_smoke_final/training/screen/bundle.json",
+    "sha256": "026d722ea59cd92d017634dba22e2d07feacca28195b3822a8a9b583b76486df"
+  }
+}

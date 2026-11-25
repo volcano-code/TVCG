@@ -200,23 +200,52 @@ def validate_case(case):
     return scale
 
 
-def _checked_assets(spec, parent):
+def verify_file_receipt(path, expected, *, cache=None, name="asset"):
+    """Hash a frozen asset once per unchanged filesystem identity in this load.
+
+    The optional caller-owned cache lives only for a snapshot loading session.
+    A different inode, size, mtime or ctime forces another SHA256 check. No
+    learned feature or parameter-dependent value belongs in this cache.
+    """
+    expected = _digest(expected, name + " sha256")
+    path = Path(path).resolve(strict=True)
+    def stamp():
+        state = path.stat()
+        return (state.st_dev, state.st_ino, state.st_size, state.st_mtime_ns, state.st_ctime_ns)
+    before = stamp()
+    key = (str(path), expected)
+    if cache is None or cache.get(key) != before:
+        if sha256(path) != expected:
+            raise ValueError(f"{name} asset SHA256 mismatch")
+        if stamp() != before:
+            raise ValueError(f"{name} changed during SHA256 verification")
+        if cache is not None:
+            cache[key] = before
+    return dict(path=str(path), sha256=expected, size_bytes=before[2])
+
+
+def _checked_assets(spec, parent, verification_cache=None):
     paths, receipts = {}, {}
     for name in ("geometry", "material", "operand", "targets"):
         entry = spec["assets"][name]
-        expected = _digest(entry.get("sha256"), name + " sha256")
         path = Path(entry["path"])
         path = path if path.is_absolute() else parent / path
-        path = path.resolve(strict=True)
-        actual = sha256(path)
-        if actual != expected:
-            raise ValueError(f"{name} asset SHA256 mismatch")
-        paths[name] = path
-        receipts[name] = dict(path=str(path), sha256=actual, size_bytes=path.stat().st_size)
+        receipt = verify_file_receipt(path, entry.get("sha256"), cache=verification_cache, name=name)
+        paths[name] = Path(receipt["path"])
+        receipts[name] = receipt
+    # Newly exported Work A handoffs retain their original qualification and
+    # teacher evidence. Verify those optional, content-addressed artifacts too;
+    # otherwise a valid case manifest could silently outlive a changed receipt.
+    supporting = [(key, spec[key]) for key in ("source_qualification", "source_teacher_targets") if key in spec]
+    supporting += [(f"source_evidence_{i}", entry) for i, entry in enumerate(spec.get("source_evidence", []))]
+    for name, entry in supporting:
+        path = Path(entry["path"])
+        path = path if path.is_absolute() else parent / path
+        receipts[name] = verify_file_receipt(path, entry.get("sha256"), cache=verification_cache, name=name)
     return paths, receipts
 
 
-def load_baseline_case(path, *, cache_directory=None):
+def load_baseline_case(path, *, cache_directory=None, static_cache=None, asset_verification_cache=None):
     """Load existing physical assets; no Boolean or new derivative label is computed."""
     from importlib import import_module
     started = time.perf_counter()
@@ -226,12 +255,9 @@ def load_baseline_case(path, *, cache_directory=None):
         raise ValueError("unsupported baseline case schema")
     meta = spec["meta"]
     validate_meta(meta)  # Refuse locked inputs before opening target files.
-    paths, receipts = _checked_assets(spec, path.parent)
+    paths, receipts = _checked_assets(spec, path.parent, asset_verification_cache)
     if receipts["geometry"]["sha256"] != meta["geometry_sha256"]:
         raise ValueError("geometry content identity mismatch")
-    material = import_module(PREFIX + ".v21_material").load_material(paths["material"], meta["material_identity"])
-    if material.density != meta["density"]:
-        raise ValueError("material density mismatch")
     operand = import_module(PREFIX + ".v21_native").FiniteOperand.load(paths["operand"])
     case = dict(meta=meta, operand=operand, asset_receipts=receipts,
                 manifest_receipt=dict(path=str(path), sha256=sha256(path)))
@@ -245,12 +271,26 @@ def load_baseline_case(path, *, cache_directory=None):
             if "direction" in data:
                 case["direction"] = data["direction"].copy()
     width = spec.get("block_voxels", 8)
-    if type(width) is not int or width <= 0 or material.side % width:
+    if type(width) is not int or width <= 0 or 256 % width:
         raise ValueError("block_voxels must be a positive divisor of the grid side")
     directory = Path(cache_directory) if cache_directory is not None else path.parent / "p0-block-cache"
-    case["blocks"] = import_module(PREFIX + ".v21_blocks").BlockMeasure.build(
-        material, directory / f"{material.identity}-b{width}", block_voxels=width)
-    case["material_cache_moments"] = material.moments()
+    cache_key = (receipts["material"]["sha256"], meta["material_identity"], width, str(directory.resolve()))
+    prepared = static_cache.get(cache_key) if static_cache is not None else None
+    if prepared is None:
+        material = import_module(PREFIX + ".v21_material").load_material(paths["material"], meta["material_identity"])
+        if material.side != 256:
+            raise ValueError("real V2.1 code path requires native256")
+        blocks = import_module(PREFIX + ".v21_blocks").BlockMeasure.build(
+            material, directory / f"{material.identity}-b{width}", block_voxels=width)
+        # Only memory-mapped packed blocks and small invariant totals survive;
+        # do not retain every geometry's decompressed boundary nodes in RAM.
+        prepared = dict(blocks=blocks, moments=material.moments(), density=material.density)
+        if static_cache is not None:
+            static_cache[cache_key] = prepared
+    if prepared["density"] != meta["density"]:
+        raise ValueError("material density mismatch")
+    case["blocks"] = prepared["blocks"]
+    case["material_cache_moments"] = prepared["moments"].copy()
     validate_case(case)
     case["load_and_pack_seconds"] = time.perf_counter() - started
     return case

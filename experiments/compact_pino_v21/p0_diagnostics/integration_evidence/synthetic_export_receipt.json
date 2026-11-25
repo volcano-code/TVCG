@@ -1,0 +1,93 @@
+{
+  "schema": "tvcg.v22.case-export-receipt.v1",
+  "status": "EXPORTED",
+  "scope": "synthetic_software_only",
+  "input_request_sha256": "e43a93aa7ceb890d88d24d575aaf3bc3333cdd862957fbddeff2b9d879958150",
+  "snapshot_id": "synthetic-export-training-screen-v1",
+  "registered_train_count": 2,
+  "exported_count": 3,
+  "static_material_count": 2,
+  "seconds": 0.015711129000919755,
+  "coverage": [
+    {
+      "role": "development",
+      "source_group": "analytic_scaled_fixture",
+      "surface_family": "plane",
+      "retention_bin": "middle",
+      "trajectory_stage": "synthetic_query",
+      "derivative": "R3",
+      "count": 1
+    },
+    {
+      "role": "train",
+      "source_group": "analytic_fixture",
+      "surface_family": "plane",
+      "retention_bin": "middle",
+      "trajectory_stage": "synthetic_query",
+      "derivative": "R3",
+      "count": 2
+    }
+  ],
+  "records": [
+    {
+      "record_id": "fixture-0",
+      "geometry_id": "synthetic_partial_cell_box",
+      "query_id": "finite_plane_0037",
+      "source_group": "analytic_fixture",
+      "role": "train",
+      "surface_family": "plane",
+      "trajectory_stage": "synthetic_query",
+      "retention_bin": "middle",
+      "retained_fraction": 0.494,
+      "derivative_valid": true,
+      "derivative_dimension": 3,
+      "chart_id": "raw-plane-offset-tilts",
+      "mesh_teacher_full_scaled_max": 2.1522623771424404e-17,
+      "cache_teacher_full_scaled_max": 2.4105338623995333e-15,
+      "teacher_qualification_sha256": "968a4a54fbc5218685aed739860034863b7591d04500c47dfa738e239bd7470e",
+      "qualification_is_external_assertion": true
+    },
+    {
+      "record_id": "fixture-1",
+      "geometry_id": "synthetic_partial_cell_box",
+      "query_id": "finite_plane_0049",
+      "source_group": "analytic_fixture",
+      "role": "train",
+      "surface_family": "plane",
+      "trajectory_stage": "synthetic_query",
+      "retention_bin": "middle",
+      "retained_fraction": 0.518,
+      "derivative_valid": true,
+      "derivative_dimension": 3,
+      "chart_id": "raw-plane-offset-tilts",
+      "mesh_teacher_full_scaled_max": 2.1522623771424404e-17,
+      "cache_teacher_full_scaled_max": 2.4105338623995333e-15,
+      "teacher_qualification_sha256": "e003460b26dce984a621e7dfe47a42fc190a92fbde3f4fd0e7e962e603bc34ae",
+      "qualification_is_external_assertion": true
+    },
+    {
+      "record_id": "fixture-development",
+      "geometry_id": "synthetic_scaled_development_box",
+      "query_id": "scaled_finite_plane",
+      "source_group": "analytic_scaled_fixture",
+      "role": "development",
+      "surface_family": "plane",
+      "trajectory_stage": "synthetic_query",
+      "retention_bin": "middle",
+      "retained_fraction": 0.49400000000000027,
+      "derivative_valid": true,
+      "derivative_dimension": 3,
+      "chart_id": "raw-plane-offset-tilts",
+      "mesh_teacher_full_scaled_max": 4.723758303741981e-16,
+      "cache_teacher_full_scaled_max": 3.542818727806486e-15,
+      "teacher_qualification_sha256": "4acb2b11c689b2edaa8d2cc9a7d73baa67cb8f9fd903f56a69a87a8a97bd17b3",
+      "qualification_is_external_assertion": true
+    }
+  ],
+  "source_admission": {
+    "status": "NOT_APPLICABLE_SYNTHETIC",
+    "scope": "synthetic_software_only",
+    "snapshot_id": "synthetic-export-training-screen-v1",
+    "independent_teacher_or_split_certification": false
+  }
+}

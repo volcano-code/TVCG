@@ -1,0 +1,662 @@
+{
+  "schema": "cpino_native_kernel_execution_receipt_v1",
+  "profile": "TVCG_REPO_DUAL_MONOMIAL_RAW_V1_CABI_V1",
+  "kernel_path": "/workspace/scratch/fcf5369c0b51/native-build/libcpino_native.so",
+  "kernel_sha256": "a3eaddfb1412a34d7e00a70d8e85f7f8b99c749058b68201e0e295c6963e77b2",
+  "build_receipt_path": "/workspace/scratch/fcf5369c0b51/native-build/libcpino_native.so.build.json",
+  "build_receipt_sha256": "644ef206d2f19932c140f87f0dd4d37aafecc17942f63deb7baec56c27bc75c2",
+  "fixture_source_sha256": "08d69e6e10c3560403f47069ba2ff4062b8a21b0ebf2c246c2f2c0f8736a5538",
+  "adapter_source_sha256": "094fbd088997094ce815c54179d07802f464a8cc82ef4ada5398b0bbc0265460",
+  "manufactured_fixture": {
+    "coefficients": [
+      0.938646508927864,
+      0.1525300577007779,
+      -0.1055977322543847,
+      0.234661627231966,
+      0.117330813615983,
+      -0.08213156953118811,
+      0.0703984881695898,
+      0.0351992440847949,
+      -0.023466162723196602,
+      0.046932325446393204
+    ],
+    "moments": [
+      1.0938646508927865,
+      0.03525300577007779,
+      -0.02055977322543847,
+      0.1234661627231966,
+      0.3117330813615983,
+      0.3917868430468812,
+      0.507039848816959,
+      0.00351992440847949,
+      -0.0023466162723196605,
+      0.004693232544639321
+    ],
+    "jacobian": [
+      [
+        0.1,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.1,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.1,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.1,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.1,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.1,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.1,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.1,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.1,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.1
+      ]
+    ],
+    "claim_scope": "actual_repository_cpp_numeric_kernel_on_manufactured_map"
+  },
+  "manufactured_runs": {
+    "STATIC_MAXIMUM_MASS": {
+      "objective": {
+        "mode": "STATIC_MAXIMUM_MASS",
+        "weight": 0.0
+      },
+      "accept": {
+        "stationarity_residual": 0.31683429272157065,
+        "balance_residual": 0.031106215924272568,
+        "accepted": false,
+        "objective": -1.0938646508927865,
+        "normalized_equation_residual": 0.2240356768958662,
+        "multiplier_mu": 0.9659256208138407,
+        "multipliers": [
+          0.14645824531756088,
+          -0.10139416983523443
+        ],
+        "constraints": [
+          0.03525300577007779,
+          -0.02055977322543847
+        ],
+        "optimality_vector": [
+          -0.09871849035347136,
+          0,
+          -1.3877787807814457e-17,
+          0.22532037741163216,
+          0.11266018870581608,
+          -0.07886213209407125,
+          0.06759611322348964,
+          0.06759611322348964,
+          -0.04506407548232643,
+          0.09012815096465286
+        ],
+        "acceptance_reads_jacobian": false,
+        "multiplier_policy": "native_recompute"
+      },
+      "same_M_any_J_identical": true,
+      "changed_z_accept": {
+        "stationarity_residual": 0.31683429272157065,
+        "balance_residual": 0.03105808825696311,
+        "accepted": false,
+        "objective": -1.0938646508927865,
+        "normalized_equation_residual": 0.2240356768958662,
+        "multiplier_mu": 0.9659256208138407,
+        "multipliers": [
+          0.14645824531756088,
+          -0.10139416983523443
+        ],
+        "constraints": [
+          0.03525300577007779,
+          -0.02055977322543847
+        ],
+        "optimality_vector": [
+          -0.09871849035347136,
+          0,
+          -1.3877787807814457e-17,
+          0.22532037741163216,
+          0.11266018870581608,
+          -0.07886213209407125,
+          0.06759611322348964,
+          0.06759611322348964,
+          -0.04506407548232643,
+          0.09012815096465286
+        ],
+        "acceptance_reads_jacobian": false,
+        "multiplier_policy": "native_recompute"
+      },
+      "step": {
+        "direction": [
+          0.16454471267868717,
+          -0.3525300577007779,
+          0.2055977322543847,
+          -0.21922823042004555,
+          -0.10961411521002279,
+          0.07672988064701593,
+          -0.06576846912601365,
+          -0.03288423456300682,
+          0.021922823042004554,
+          -0.04384564608400911
+        ],
+        "native_dual_direction": [
+          0.17388488706194727,
+          -0.34876125385983864,
+          0.20321683634103768,
+          -0.21534787839396696,
+          -0.10767393919698348,
+          0.07537175743788842,
+          -0.06460436351819009,
+          -0.06460436351819007,
+          0.04306957567879338,
+          -0.08613915135758678
+        ],
+        "direction_origin": "native_event_bordered_system_replay",
+        "direction_coordinates": "raw_unit_geometry_tangent",
+        "line_search_accepted": true,
+        "reason": "residual_decreased",
+        "trial_coefficients": [
+          0.9779898709259094,
+          -0.1861111032587933,
+          0.09385628376983803,
+          0.007634466976504481,
+          0.0038172334882522405,
+          -0.0026720634417765794,
+          0.002290340092951343,
+          0.001145170046475675,
+          -0.0007634466976504557,
+          0.0015268933953009045
+        ],
+        "trial_native_stationarity_residual": 0.010444569833832754,
+        "trial_native_balance_residual": 0.0011594988250439168,
+        "function_evaluations": 2,
+        "trial_evaluations": 1,
+        "solver_status": "RESOURCE_LIMIT_REACHED",
+        "solver_diagnostic": "maximum Newton iterations reached",
+        "scientific_event_sha256": "83110d5c8a1dcaaa429df4f19a8937bd63792b24c6eb73e35a90ff9e87d280d9",
+        "trace_sha256": "14763b9f32bad7a4fd06abce50dca50ad3e4f5157e09f64eb0737d4535c91397",
+        "events": [
+          {
+            "type": "attempt_start",
+            "iteration": 0,
+            "evaluation_index": 0,
+            "outcome": "started",
+            "reason": "restart_started",
+            "detail": "",
+            "step": null,
+            "stationarity_residual": null,
+            "balance_residual": null,
+            "multiplier_mu": null,
+            "coefficients": [
+              0.938646508927864,
+              0.1525300577007779,
+              -0.1055977322543847,
+              0.234661627231966,
+              0.117330813615983,
+              -0.08213156953118811,
+              0.0703984881695898,
+              0.0351992440847949,
+              -0.023466162723196602,
+              0.046932325446393204
+            ]
+          },
+          {
+            "type": "evaluation",
+            "iteration": 0,
+            "evaluation_index": 1,
+            "outcome": "accepted",
+            "reason": "initial_evaluation_succeeded",
+            "detail": "evaluation_succeeded;evaluation_map=ATTRIBUTION_FIXED_CENTER_MJ_V1:fcfe34a5a2de752bf538be5169085203d833736f5b1f9b3a077c9d83451b8fc3;backend=CENTER_SUBSTITUTION_NO_NEW_BOOLEAN;derivative=ATTRIBUTION_CENTER_FULL_J_V1",
+            "step": 0,
+            "stationarity_residual": 0.31683429272157065,
+            "balance_residual": 0.031106215924272568,
+            "multiplier_mu": 0.9659256208138407,
+            "coefficients": [
+              0.938646508927864,
+              0.1525300577007779,
+              -0.1055977322543847,
+              0.234661627231966,
+              0.117330813615983,
+              -0.08213156953118811,
+              0.0703984881695898,
+              0.0351992440847949,
+              -0.023466162723196602,
+              0.046932325446393204
+            ],
+            "evaluation_map_identity": "ATTRIBUTION_FIXED_CENTER_MJ_V1:fcfe34a5a2de752bf538be5169085203d833736f5b1f9b3a077c9d83451b8fc3",
+            "boolean_backend_identity": "CENTER_SUBSTITUTION_NO_NEW_BOOLEAN",
+            "derivative_identity": "ATTRIBUTION_CENTER_FULL_J_V1",
+            "geometry_hash": "05d59583a50a4abc793f13abc625f7b42b6c4946ca331d42ced51cd4b6f1a37b",
+            "topology_hash": "abf260c6687485ec698085954ec399c15388ce846ab1668462522243e3a2ff73"
+          },
+          {
+            "type": "newton_linear_solve",
+            "iteration": 1,
+            "evaluation_index": 1,
+            "outcome": "accepted",
+            "reason": "regular_system_payload_captured",
+            "detail": "original_rank=13;equilibrated_rank=13;residual_inf=0x1.6p-55;backward_error=0x1.c5c7ee944bacbp-56",
+            "step": null,
+            "stationarity_residual": 0.31683429272157065,
+            "balance_residual": 0.031106215924272568,
+            "multiplier_mu": 0.9659256208138407,
+            "coefficients": [
+              0.938646508927864,
+              0.1525300577007779,
+              -0.1055977322543847,
+              0.234661627231966,
+              0.117330813615983,
+              -0.08213156953118811,
+              0.0703984881695898,
+              0.0351992440847949,
+              -0.023466162723196602,
+              0.046932325446393204
+            ]
+          },
+          {
+            "type": "evaluation",
+            "iteration": 1,
+            "evaluation_index": 2,
+            "outcome": "accepted",
+            "reason": "residual_decreased",
+            "detail": "evaluation_succeeded;evaluation_map=9bc2c0351d8e9b77573903a2445be3ecde43e7c94d03386d846a884b44d5c21e;backend=manufactured_python_affine_v1;derivative=manufactured_affine_derivative_v1",
+            "step": 0.5,
+            "stationarity_residual": 0.010444569833832754,
+            "balance_residual": 0.0011594988250439168,
+            "multiplier_mu": 1.022402772216371,
+            "coefficients": [
+              0.9779898709259094,
+              -0.1861111032587933,
+              0.09385628376983803,
+              0.007634466976504481,
+              0.0038172334882522405,
+              -0.0026720634417765794,
+              0.002290340092951343,
+              0.001145170046475675,
+              -0.0007634466976504557,
+              0.0015268933953009045
+            ],
+            "evaluation_map_identity": "9bc2c0351d8e9b77573903a2445be3ecde43e7c94d03386d846a884b44d5c21e",
+            "boolean_backend_identity": "manufactured_python_affine_v1",
+            "derivative_identity": "manufactured_affine_derivative_v1",
+            "geometry_hash": "9bc2c0351d8e9b77573903a2445be3ecde43e7c94d03386d846a884b44d5c21e",
+            "topology_hash": "abf260c6687485ec698085954ec399c15388ce846ab1668462522243e3a2ff73"
+          },
+          {
+            "type": "attempt_terminal",
+            "iteration": 1,
+            "evaluation_index": 2,
+            "outcome": "terminated",
+            "reason": "maximum_iterations_reached",
+            "detail": "",
+            "step": null,
+            "stationarity_residual": null,
+            "balance_residual": null,
+            "multiplier_mu": null,
+            "coefficients": null
+          }
+        ],
+        "trial_receipts": [
+          {
+            "coefficients": [
+              0.9779898709259094,
+              -0.1861111032587933,
+              0.09385628376983803,
+              0.007634466976504481,
+              0.0038172334882522405,
+              -0.0026720634417765794,
+              0.002290340092951343,
+              0.001145170046475675,
+              -0.0007634466976504557,
+              0.0015268933953009045
+            ],
+            "derivative_defined": true,
+            "geometry_hash": "9bc2c0351d8e9b77573903a2445be3ecde43e7c94d03386d846a884b44d5c21e",
+            "topology_hash": "abf260c6687485ec698085954ec399c15388ce846ab1668462522243e3a2ff73",
+            "error": null,
+            "evaluation_map_identity": "9bc2c0351d8e9b77573903a2445be3ecde43e7c94d03386d846a884b44d5c21e",
+            "boolean_backend_identity": "manufactured_python_affine_v1",
+            "derivative_identity": "manufactured_affine_derivative_v1",
+            "geometry_map_profile": "MANUFACTURED_NUMERICAL_MAP_V1"
+          }
+        ],
+        "profile": "TVCG_REPO_DUAL_MONOMIAL_RAW_V1_CABI_V1",
+        "claim_scope": "native_numerical_step_only_no_final_geometry_acceptance"
+      }
+    },
+    "SPINNING_TOP": {
+      "objective": {
+        "mode": "SPINNING_TOP",
+        "weight": 0.37
+      },
+      "accept": {
+        "stationarity_residual": 9.754617950692497,
+        "balance_residual": 0.031790908159345474,
+        "accepted": false,
+        "objective": 2.9401794801485024,
+        "normalized_equation_residual": 0.9992769550851618,
+        "multiplier_mu": -0.04498855757851083,
+        "multipliers": [
+          0.3206724014271564,
+          -0.17508815521741888,
+          -0.041323636969746315,
+          0.02602444883369713
+        ],
+        "constraints": [
+          0.03525300577007779,
+          -0.02055977322543847,
+          0.006325676518336168,
+          -0.005840537205073835
+        ],
+        "optimality_vector": [
+          6.13525827710779e-05,
+          -6.661338147750939e-16,
+          -1.1102230246251565e-16,
+          -1.2170969105205298,
+          -5.001105074987197,
+          -4.6642488791191115,
+          6.848330663431614,
+          0.022876119846133615,
+          -0.03922475097803731,
+          0.039274862031059656
+        ],
+        "acceptance_reads_jacobian": false,
+        "multiplier_policy": "native_recompute"
+      },
+      "same_M_any_J_identical": true,
+      "changed_z_accept": {
+        "stationarity_residual": 9.685611324154634,
+        "balance_residual": 0.03186103297529654,
+        "accepted": false,
+        "objective": 2.9136022615849257,
+        "normalized_equation_residual": 0.9992934446120808,
+        "multiplier_mu": -0.010285749003984808,
+        "multipliers": [
+          0.3226422890320906,
+          -0.1766515845953848,
+          -0.04741298612874785,
+          0.028091490654379343
+        ],
+        "constraints": [
+          0.03525300577007779,
+          -0.02055977322543847,
+          0.006970235344536561,
+          -0.0062164479397092045
+        ],
+        "optimality_vector": [
+          0.05618577401168494,
+          -3.3306690738754696e-16,
+          8.326672684688674e-17,
+          -1.448917476466417,
+          -4.921872445917357,
+          -4.591897072229832,
+          6.811144467105765,
+          0.027371687142307734,
+          -0.04693311712070011,
+          0.0425128959983822
+        ],
+        "acceptance_reads_jacobian": false,
+        "multiplier_policy": "native_recompute"
+      }
+    },
+    "SPINNING_TOP_LOWER_CENTER": {
+      "objective": {
+        "mode": "SPINNING_TOP_LOWER_CENTER",
+        "weight": 0.0
+      },
+      "accept": {
+        "stationarity_residual": 0.9128678097823127,
+        "balance_residual": 0.031790908159345474,
+        "accepted": false,
+        "objective": 0.11287151716844167,
+        "normalized_equation_residual": 0.4549074308961551,
+        "multiplier_mu": -0.11918497736619126,
+        "multipliers": [
+          -0.02075271902077933,
+          0.013499337958228745,
+          0.02375554875738205,
+          -0.00875661791049969
+        ],
+        "constraints": [
+          0.03525300577007779,
+          -0.02055977322543847,
+          0.006325676518336168,
+          -0.005840537205073835
+        ],
+        "optimality_vector": [
+          -0.21428958842499068,
+          2.7755575615628914e-17,
+          3.2959746043559335e-17,
+          0.8854575628692072,
+          -0.013901072454895922,
+          0.009730750718427146,
+          -0.008340643472937552,
+          -0.017097261383437243,
+          0.02931597773934042,
+          -0.011120857963916738
+        ],
+        "acceptance_reads_jacobian": false,
+        "multiplier_policy": "native_recompute"
+      },
+      "same_M_any_J_identical": true,
+      "changed_z_accept": {
+        "stationarity_residual": 0.9167998447388286,
+        "balance_residual": 0.03186103297529654,
+        "accepted": false,
+        "objective": 0.1311553148793161,
+        "normalized_equation_residual": 0.4563611598560111,
+        "multiplier_mu": -0.1029074466398375,
+        "multipliers": [
+          -0.018851787525057267,
+          0.01211953860876909,
+          0.024768116402743384,
+          -0.010043374415208074
+        ],
+        "constraints": [
+          0.03525300577007779,
+          -0.02055977322543847,
+          0.006970235344536561,
+          -0.0062164479397092045
+        ],
+        "optimality_vector": [
+          -0.21579182741282973,
+          -4.5102810375396984e-17,
+          4.85722573273506e-17,
+          0.8891977858072212,
+          -0.012002551860990732,
+          0.008401786302693512,
+          -0.007201531116594438,
+          -0.01724490553180251,
+          0.029569137147139678,
+          -0.009602041488792585
+        ],
+        "acceptance_reads_jacobian": false,
+        "multiplier_policy": "native_recompute"
+      }
+    }
+  },
+  "archive_sha256": "78840c6fcb70f18ca700ced80fcb746fe327762dc0070584b780b220f0fc46c6",
+  "archived_formula_inputs": [
+    {
+      "member": "centers/R02_R8_032.json",
+      "member_sha256": "38cc3cbefbc91cea11290f15e57aab40b6473140bd04d78954970759c3906fc7",
+      "row_id": "R02_R8_032",
+      "input_kind": "archived_M_and_unit_query_only_no_live_mesh",
+      "selected_diagnostic_objective": "STATIC_MAXIMUM_MASS",
+      "native_formula_output": {
+        "stationarity_residual": 0.9997408460712379,
+        "balance_residual": 0.0007521776973855679,
+        "accepted": false,
+        "objective": -0.012203383081689799,
+        "normalized_equation_residual": 0.7069235316861486,
+        "multiplier_mu": 0.023168723129131357,
+        "multipliers": [
+          0.0031125497376481574,
+          -0.002880155813700363
+        ],
+        "constraints": [
+          0.00031459220738043995,
+          -0.0006832298526116649
+        ],
+        "optimality_vector": [
+          -0.9994811935319462,
+          0,
+          -4.336808689942018e-19,
+          0.006286349142381832,
+          0.01011300405895607,
+          0.006806805738600468,
+          0.006071454202972785,
+          0.009425674439815228,
+          -0.013498284612364055,
+          -0.004743847029840765
+        ],
+        "acceptance_reads_jacobian": false,
+        "multiplier_policy": "native_recompute"
+      },
+      "historical_acceptance_reproduced": false,
+      "derivative_qualification_upgraded": false
+    },
+    {
+      "member": "centers/maskB_R8_035.json",
+      "member_sha256": "326a7749bce7f3e8489c5fcc999c0c13499c8e7e2ee226c686217e58e3c6cf22",
+      "row_id": "maskB_R8_035",
+      "input_kind": "archived_M_and_unit_query_only_no_live_mesh",
+      "selected_diagnostic_objective": "STATIC_MAXIMUM_MASS",
+      "native_formula_output": {
+        "stationarity_residual": 0.9999984529373894,
+        "balance_residual": 0.002175444074646924,
+        "accepted": false,
+        "objective": -0.026536762331376605,
+        "normalized_equation_residual": 0.7071056872480846,
+        "multiplier_mu": -0.002935262686250773,
+        "multipliers": [
+          0.00044401592308441725,
+          0.0007693745171248002
+        ],
+        "constraints": [
+          -0.001633088747194194,
+          -0.001437211907028365
+        ],
+        "optimality_vector": [
+          -0.9999921733202503,
+          0,
+          2.168404344971009e-19,
+          -0.0009782595837972009,
+          -0.0010517401685743606,
+          -0.0010842414089675212,
+          -0.0009424333777462919,
+          -0.001780473258318004,
+          -0.0006294542214849625,
+          0.0003652554618371107
+        ],
+        "acceptance_reads_jacobian": false,
+        "multiplier_policy": "native_recompute"
+      },
+      "historical_acceptance_reproduced": false,
+      "derivative_qualification_upgraded": false
+    }
+  ],
+  "private_1756_solver_reproduced": false,
+  "live_native_mesh_reproduced": false,
+  "deployed_Cherchi_teacher_connected": false,
+  "full_or_reduced_teacher_admission_granted": false,
+  "long_training_authorized": false,
+  "promotion_status": "NOT_EVALUATED_CURRENT_PILOT_REMAINS_NO_GO"
+}
