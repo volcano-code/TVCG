@@ -17,8 +17,6 @@ from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import (
     PcraftNativeMomentOperator,
     make_config as make_pcraft_config,
 )
-from .spin_quadrann_v12 import SpinQuadrANNV12
-from .unified_m80_sqno import UnifiedM80SQNO
 
 
 @dataclass(frozen=True)
@@ -272,7 +270,7 @@ def build_model(
     *,
     device: str | torch.device | None = None,
     config_overrides: Mapping[str, Any] | None = None,
-) -> UnifiedM80SQNO:
+) -> torch.nn.Module:
     """Construct a complete unified model from a named V1 configuration."""
     cfg = get_config(name, **dict(config_overrides or {}))
     pcraft_cfg = _make_native_config(cfg)
@@ -283,6 +281,12 @@ def build_model(
             width=cfg.v2_width,heads=cfg.v2_heads,query_chunk=cfg.query_chunk,
             architecture_metadata={"named_config":cfg.name,"config_fingerprint":cfg.fingerprint(),"config":cfg.config_payload()})
         return model.to(device) if device is not None else model
+    # SQNO's optional graph extensions are needed only by the unified V1 arm.
+    # Reading configurations or constructing a compact operator must not load
+    # those unrelated native extensions.
+    from .spin_quadrann_v12 import SpinQuadrANNV12
+    from .unified_m80_sqno import UnifiedM80SQNO
+
     encoder = PcraftNativeMomentOperator(pcraft_cfg)
     sqno = SpinQuadrANNV12(
         preset=cfg.pcraft_preset,

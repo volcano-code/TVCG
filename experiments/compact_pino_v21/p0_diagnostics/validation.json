@@ -1,0 +1,73 @@
+{
+  "schema": "tvcg.compact-pino.p0-software-validation.v1",
+  "date_beijing": "2026-11-25T21:23:08.528920+08:00",
+  "base_commit": "54a6e717a9bf49f423e8882dd476d1256197629a",
+  "plan_id": "CPINO-20261125-1756-R1",
+  "model_promotion": "NO_GO_UNCHANGED",
+  "software_tests": {
+    "tests": 117,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "test_command": "OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 python -m pytest -q experiments/compact_pino_v21/p0_diagnostics research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/tests/test_v21_response.py research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/tests/test_masked_derivative_supervision.py",
+  "test_environment": {
+    "python": "3.12",
+    "torch": "2.8.0+cpu",
+    "pytest": "9.2.0",
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1"
+  },
+  "warnings": [
+    "Existing anyio plugin CallSpec2 deprecation",
+    "Existing pytest asyncio_default_fixture_loop_scope is unknown without pytest-asyncio"
+  ],
+  "scope": {
+    "real_local_1756_training_driver_available": false,
+    "real_local_checkpoint_312_available": false,
+    "real_noodles_endpoint_replayed": false,
+    "pilot_or_long_training_started": false,
+    "native_physical_acceptance_passed": false,
+    "production_token16_J_only_software_update_test": true
+  },
+  "synthetic_finite_baseline": {
+    "scope": "synthetic_geometry_actual_v21_code_path",
+    "status": "COMPARISON_COMPLETE_NOT_PHYSICS_ACCEPTANCE",
+    "native_solver_acceptance": "NOT_EVALUATED",
+    "positive_nodes": 1512,
+    "fixed_mass": 0.19786000000000004,
+    "full_moment_scaled_max": 1.3774479213711618e-15,
+    "same_operand_complement_scaled_max": 2.7548958427423237e-15,
+    "bandwidth_voxels_moment_scaled_max": [
+      {
+        "bandwidth_voxels": 1,
+        "max_scaled_error": 0.0016624820903785216
+      },
+      {
+        "bandwidth_voxels": 2,
+        "max_scaled_error": 0.006274995522594684
+      },
+      {
+        "bandwidth_voxels": 4,
+        "max_scaled_error": 0.024997622511389338
+      }
+    ],
+    "interpretation": "Synthetic padded-grid fixture; no claim about deployed geometry accuracy, optimum, throughput, or best bandwidth.",
+    "length_scale": 0.5,
+    "length_scale_definition": "editable_bbox_max_extent",
+    "reference_identity_scales_bound": true
+  },
+  "tested_source_sha256": {
+    "experiments/compact_pino_v21/p0_diagnostics/__init__.py": "92a821746e421e70c0fbaacbceb0b99d0e447fd180c25a56c23e7282f89bb164",
+    "experiments/compact_pino_v21/p0_diagnostics/baseline_cases.py": "5b14d164f4d46a1219e4d1a795de71e8352d8319515ec9fb9ce46f9dedefc126",
+    "experiments/compact_pino_v21/p0_diagnostics/deterministic_quadrature.py": "951e51d3f4b564e22190812856d31a21ec4632656a1f4558be19b55fd4320650",
+    "experiments/compact_pino_v21/p0_diagnostics/endpoint_attribution.py": "d445705f5bcaac75fce44338f4d3d12215a2d39ba9a131ab08a4fd686ad16670",
+    "experiments/compact_pino_v21/p0_diagnostics/exposure_audit.py": "743375e3cd5fe49d724977d5ad329225159827c329f8c7103c6b2a52ce7ca690",
+    "experiments/compact_pino_v21/p0_diagnostics/test_deterministic_baseline.py": "24a177cdc15d05dd9029029bd48926424e15b18be19abf0893326714b1309a30",
+    "experiments/compact_pino_v21/p0_diagnostics/test_endpoint_attribution.py": "d03ee6d9dfda87fb179f23f9536dcc79c20267a5991c1c07b65defd635caa776",
+    "experiments/compact_pino_v21/p0_diagnostics/test_exposure_audit.py": "a05126f25ebb51331d9a487c4e8925b9f2d4cb670cf92ac034058d609025c07c",
+    "experiments/compact_pino_v21/p0_diagnostics/test_operator_training_contract.py": "86e30dd209aacbd4db03284720bb2b6ae8ab38aa5a6b102ea1e02353d48714a6",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/unified_factory.py": "8807131ebb792f86ffa76feb0bd7f6bec364733af3121b9de846a861298f0210"
+  },
+  "test_wall_seconds_reported": 31.98
+}
