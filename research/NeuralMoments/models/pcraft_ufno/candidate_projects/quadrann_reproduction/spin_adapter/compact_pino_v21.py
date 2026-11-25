@@ -17,7 +17,9 @@ from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import (
     PcraftNativeMomentOperator, parameter_versions,
 )
 from .unified_factory import _make_native_config, get_config
-from .v21_response import LocalRetention, prepare_measure, evaluate_response, prepare_surface
+from .v21_response import LocalRetention, prepare_measure, evaluate_response, evaluate_stencil, prepare_surface
+from .v22_geometry_inputs import GeometryInputCache, material_signature
+from .v22_query_cache import QueryPreparationCache
 
 
 @dataclass(frozen=True)
@@ -84,73 +86,120 @@ class GeometryFeatures:
     owner: int
     versions: tuple
     inference_only: bool
+    projected_context: object | None = None
+    material_key: object | None = None
+
+
+def _evaluate_prepared_packed(prepared, operation, fixed_moments, vertex_velocity=None,
+                              *, model, context, chunk_size):
+    """Reduce the same streamed stencils after parameter-independent preparation.
+
+    QueryPreparationCache has checked the actual material and operand bytes.
+    Neither a learned value nor a vertex-motion contraction is cached here.
+    """
+    device = next(model.parameters()).device
+    fixed = np.asarray(fixed_moments, dtype=float)
+    if fixed.shape != (10,) or not np.isfinite(fixed).all():
+        raise ValueError('fixed material requires ten finite moments')
+    value = torch.as_tensor(fixed + prepared.saturated_moments, dtype=torch.float64, device=device)
+    jac = None
+    if vertex_velocity is not None:
+        motion = np.asarray(vertex_velocity, dtype=float)
+        if (motion.ndim != 3 or motion.shape[1] != 3 or motion.shape[2] not in (3, 8, 10)
+                or not np.isfinite(motion).all() or len(motion) != len(prepared.surface.vertices)):
+            raise ValueError('invalid raw or stratum motion for prepared operand')
+        jac = value.new_zeros((10, motion.shape[2]))
+    diag = dict(total_blocks=len(prepared.full), saturated_retained_blocks=int(prepared.full.sum()),
+                band_blocks=int(prepared.band.sum()), band_nodes=0, active_nodes=0,
+                ambiguous_nodes=0, chunks=0)
+    for stencil in prepared.stencils:
+        result = evaluate_stencil(stencil, operation=operation, vertex_velocity=vertex_velocity,
+                                  model=model, context=context, chunk_size=chunk_size)
+        value = value + result.moments
+        if jac is not None:
+            jac = None if result.jacobian is None else jac + result.jacobian
+        diag['chunks'] += 1
+        diag['band_nodes'] += stencil.total_nodes
+        for key in ('active_nodes', 'ambiguous_nodes'):
+            diag[key] += result.diagnostics[key]
+    if not prepared.band.any() and torch.is_grad_enabled():
+        zero = next(model.parameters()).reshape(-1)[0] * 0.
+        value = value + zero
+        jac = jac + zero if jac is not None else None
+    result = PackedPrediction(value, jac, diag)
+    diag['solver_status'] = native_proposal_status(result, fixed)
+    return result
 
 
 class CompactPINOv21(nn.Module):
     """A Token16/Token8 candidate with one bounded local retention field."""
-    def __init__(self, token_grid=16):
+    def __init__(self, token_grid=16, *, efficiency=True,
+                 static_cache_bytes=128*1024**2, query_cache_bytes=128*1024**2):
         super().__init__()
         if token_grid not in (8, 16):
             raise ValueError("expected Token8 or Token16")
+        if type(efficiency) is not bool:
+            raise ValueError('efficiency must be a Boolean')
+        for budget in (static_cache_bytes, query_cache_bytes):
+            if type(budget) is not int or budget < 0:
+                raise ValueError('cache byte limits must be nonnegative integers')
         self.token_grid = token_grid
+        self.efficiency = efficiency
+        self.geometry_input_cache = GeometryInputCache(max_bytes=static_cache_bytes if efficiency else 0)
+        self.query_preparation_cache = QueryPreparationCache(max_bytes=query_cache_bytes if efficiency else 0)
         cfg = _make_native_config(get_config('compact_pino_v2_256'))
         self.shared_encoder = PcraftNativeMomentOperator(cfg, encoder_only=True)
         width = cfg.interval_width
         self.geometry_attention = nn.MultiheadAttention(width, 4, batch_first=True)
         self.response = LocalRetention(context_dim=width, hidden_dim=64)
+        self.response.use_analytic_slope = efficiency
+
+    def clear_efficiency_caches(self):
+        """Release parameter-independent caches; checkpoints contain only weights."""
+        self.geometry_input_cache.clear()
+        self.query_preparation_cache.clear()
+
+    def efficiency_statistics(self):
+        return dict(enabled=self.efficiency, static_inputs=self.geometry_input_cache.snapshot(),
+                    prepared_queries=self.query_preparation_cache.info())
 
     def encode_geometry(self, blocks, fixed_moments, density=1., *, inference=False):
         if blocks.side != 256 or blocks.side % (blocks.block_voxels * self.token_grid):
             raise ValueError("native256 blocks must nest exactly within the token grid")
         if inference and self.training:
             raise ValueError("inference cache requires eval()")
-        fixed = np.array(fixed_moments, dtype=float, copy=True)
-        if fixed.shape != (10,) or not np.isfinite(fixed).all():
-            raise ValueError("expected ten fixed moments")
-        token_count = self.token_grid**3
-        span = blocks.side * blocks.pitch
-        ijk = np.floor((blocks.centers - blocks.origin)/span * self.token_grid).astype(int)
-        ids = np.ravel_multi_index(ijk.T, (self.token_grid,)*3)
-        mass_table = np.zeros((token_count, 10))
-        np.add.at(mass_table, ids, blocks.moments)
-        active = np.flatnonzero(mass_table[:,0] > 0)
-        m = mass_table[active]
-        editable = m.sum(0)
-        means = m / m[:, :1]
-        width = span / self.token_grid
-        coord = np.power(span, [0,1,1,1,2,2,2,2,2,2])
-        scale = (editable[0] + fixed[0]) * coord
-        centers = blocks.origin + (np.array(np.unravel_index(active, (self.token_grid,)*3)).T + .5)*width
-        lo, hi = centers.min(0)-width/2, centers.max(0)+width/2
-        features = np.column_stack((means/coord, np.full((len(m), 3), width/span)))
-        stats = np.r_[(editable+fixed)/scale, fixed/scale, editable/scale, (lo+hi)/(2*span), (hi-lo)/span]
         encoder = self.shared_encoder
+        material_key = material_signature(blocks)
+        inputs = self.geometry_input_cache.get(blocks, fixed_moments, density,
+            token_grid=self.token_grid, grids=tuple(encoder.config.multiscale_grids))
         p = next(encoder.parameters())
         def tensor(a):
-            return torch.as_tensor(a, device=p.device, dtype=p.dtype)
+            # Prepared arrays are immutable and can outlive any one forward.
+            return torch.tensor(a, device=p.device, dtype=p.dtype)
         with torch.no_grad() if inference else nullcontext():
             maps, globals_ = [], []
-            for grid in encoder.config.multiscale_grids:
-                pooled, fmap = encoder.pino_encoder.forward_with_map(tensor(blocks.encoder_grid(grid, density))[None],
+            for grid_input in inputs.encoder_inputs:
+                pooled, fmap = encoder.pino_encoder.forward_with_map(tensor(grid_input)[None],
                                                                      preserve_resolution=True)
                 maps.append(fmap)
                 globals_.append(encoder.pino_global(pooled))
             glob = torch.stack(globals_, dim=1)
-            s = tensor(stats)[None]
+            s = tensor(inputs.stats)[None]
             score = encoder.pino_scale_score(torch.cat((glob, s[:, None].expand(-1, len(maps), -1)), -1))
             shared = encoder.statistics_context(s) + (glob * score.softmax(1)).sum(1)
-            coords = tensor((2*(means[:,1:4]-blocks.origin)/span - 1)[:, [2,1,0]].copy())
-            local = encoder._interval_features(tensor(features), coords, maps, shared)
+            local = encoder._interval_features(tensor(inputs.features), tensor(inputs.coords), maps, shared)
             # This attention is query independent; cut dependence enters once through
             # the actual operand and its motion in LocalRetention.
-            log_mass = tensor(np.log(m[:,0]/editable[0]))[None]
+            log_mass = tensor(inputs.log_mass)[None]
             summary, _ = self.geometry_attention(shared[:,None], local[None], local[None],
                                                  attn_mask=log_mass, need_weights=False)
-            table = torch.index_copy(local.new_zeros((token_count, local.shape[1])), 0,
-                                     torch.as_tensor(active, device=p.device), local + summary[0])
-        fixed.flags.writeable = False
-        return GeometryFeatures(blocks, fixed, table, id(self), parameter_versions(self),
-                                inference or not torch.is_grad_enabled())
+            table = torch.index_copy(local.new_zeros((inputs.token_count, local.shape[1])), 0,
+                                     torch.tensor(inputs.active, device=p.device), local + summary[0])
+            projected = self.response.project_context(table) if self.efficiency else None
+        if material_signature(blocks) != material_key:
+            raise ValueError('material changed while encoding geometry')
+        return GeometryFeatures(blocks, inputs.fixed_moments, table, id(self), parameter_versions(self),
+                                inference or not torch.is_grad_enabled(), projected, material_key)
 
     def evaluate_operand(self, cache, operand, *, with_jacobian=True, bandwidth=None, chunk_size=65536):
         if cache.owner != id(self) or cache.versions != parameter_versions(self):
@@ -158,16 +207,24 @@ class CompactPINOv21(nn.Module):
         if cache.inference_only and self.training:
             raise ValueError("inference-only geometry features cannot train the model")
         blocks = cache.blocks
+        if cache.material_key != material_signature(blocks):
+            raise ValueError('stale learned geometry cache: material changed')
         if with_jacobian and operand.vertex_velocity is None:
             raise ValueError("this operand has no native derivative")
-        surface = prepare_surface(operand.vertices, operand.faces)
+        width = blocks.pitch if bandwidth is None else bandwidth
+        prepared = self.query_preparation_cache.get_or_prepare(blocks, operand, width, chunk_size=chunk_size)
+        surface = prepared.surface if prepared is not None else prepare_surface(operand.vertices, operand.faces)
         def context(points):
             origin = torch.as_tensor(blocks.origin, device=points.device, dtype=points.dtype)
             idx = ((points-origin) * self.token_grid/(blocks.side*blocks.pitch)).floor().long().clamp(0, self.token_grid-1)
             keys = (idx[:,0]*self.token_grid+idx[:,1])*self.token_grid+idx[:,2]
-            return cache.table[keys]
+            return cache.projected_context.gather(keys) if cache.projected_context is not None else cache.table[keys]
         with torch.no_grad() if cache.inference_only else nullcontext():
-            return evaluate_packed(blocks, surface, blocks.pitch if bandwidth is None else bandwidth,
+            if prepared is not None:
+                return _evaluate_prepared_packed(prepared, operand.operation, cache.fixed_moments,
+                    operand.vertex_velocity if with_jacobian else None,
+                    model=self.response, context=context, chunk_size=chunk_size)
+            return evaluate_packed(blocks, surface, width,
                                    operand.operation, cache.fixed_moments,
                                    operand.vertex_velocity if with_jacobian else None,
                                    model=self.response, context=context, chunk_size=chunk_size)

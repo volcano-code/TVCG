@@ -24,6 +24,9 @@ import numpy as np
 import torch
 
 from research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.compact_pino_v21 import CompactPINOv21
+from research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.v22_inference_cache import (
+    InferenceGeometryCache, geometry_feature_key,
+)
 from ..p0_diagnostics.baseline_cases import jsonable, moment_scale, sha256
 from ..p0_diagnostics.exposure_audit import ExposureRecorder, inventory_digest, read_events, summarize_events
 from ..p0_diagnostics import promotion_gate as screen_gate
@@ -49,6 +52,10 @@ class TrainConfig:
     amp: str = 'off'
     deterministic: bool = True
     sampler: str = 'shuffle_without_replacement'
+    efficiency: bool = True
+    static_cache_bytes: int = 128*1024**2
+    query_cache_bytes: int = 128*1024**2
+    evaluation_cache_bytes: int = 64*1024**2
 
     def validate(self):
         if self.token_grid not in (8,16) or type(self.seed) is not int:
@@ -63,6 +70,9 @@ class TrainConfig:
             raise ValueError('AMP must be off/fp16 and deterministic must be Boolean')
         if self.sampler != 'shuffle_without_replacement':
             raise ValueError('only the explicit complete-pass shuffle sampler is implemented')
+        if type(self.efficiency) is not bool or any(type(value) is not int or value < 0 for value in
+                (self.static_cache_bytes,self.query_cache_bytes,self.evaluation_cache_bytes)):
+            raise ValueError('Boolean efficiency and nonnegative integer cache byte budgets required')
         return self
 
 
@@ -124,7 +134,8 @@ def _execution_sources(model):
     paths={Path(__file__).with_name(name) for name in ('runner.py','state.py','losses.py','manifest.py','admission.py')}
     adapter=root/'research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter'
     paths.update(adapter/name for name in ('compact_pino_v21.py','v21_response.py','v21_response_surface.py',
-                                          'v21_blocks.py','unified_factory.py','v21_material.py','v21_native.py'))
+                                          'v21_blocks.py','unified_factory.py','v21_material.py','v21_native.py',
+                                          'v22_geometry_inputs.py','v22_query_cache.py','v22_inference_cache.py'))
     paths.update(Path(__file__).parent.parent/'p0_diagnostics'/name
                  for name in ('baseline_cases.py','exposure_audit.py','export_cases.py','handoff_authority.py',
                               'promotion_gate.py','screen_exports.py'))
@@ -205,7 +216,8 @@ class Trainer:
         self.output = Path(output).resolve()
         self.output.mkdir(parents=True,exist_ok=False)
         seed_everything(self.config.seed,self.config.deterministic)
-        self.model = CompactPINOv21(token_grid=self.config.token_grid)
+        self.model = CompactPINOv21(token_grid=self.config.token_grid,efficiency=self.config.efficiency,
+            static_cache_bytes=self.config.static_cache_bytes,query_cache_bytes=self.config.query_cache_bytes)
         if self.config.amp == 'fp16' and any(parameter.is_complex() for parameter in self.model.parameters()):
             raise ValueError('fp16 AMP is not qualified for the complex Fourier parameters; use amp=off')
         self.model.to(self.device)
@@ -313,20 +325,25 @@ class Trainer:
             raise ValueError('checkpoint run/inventory contradicts exposure lineage')
         restore_rng(state['rng'])
 
-    def _predictions(self,records,*,evaluation=False):
-        caches = {}; predictions = []
+    def _predictions(self,records,*,evaluation=False,geometry_cache=None):
+        if geometry_cache is not None and not evaluation:
+            raise ValueError('persistent feature cache is restricted to one fixed-weight evaluation')
+        caches = {} if geometry_cache is None else geometry_cache
+        predictions = []
         for record in records:
             case = record['case']; meta=case['meta']
-            key = (case['blocks'].identity,case['blocks'].block_voxels,
-                   np.asarray(case['fixed_moments']).tobytes(),meta['density'])
-            if key not in caches:
-                caches[key] = self.model.encode_geometry(case['blocks'],case['fixed_moments'],
-                                                         density=meta['density'],inference=evaluation)
+            key = geometry_feature_key(case['blocks'],case['fixed_moments'],meta['density'])
+            encoded = caches.get(key)
+            if encoded is None:
+                encoded = self.model.encode_geometry(case['blocks'],case['fixed_moments'],
+                                                     density=meta['density'],inference=evaluation)
+                caches[key] = encoded
             with_j = meta['derivative_valid'] and (evaluation or
                      self.config.jacobian_loss_weight>0 and record['jacobian_weight']>0)
-            predictions.append(self.model.evaluate_operand(caches[key],case['operand'],
+            predictions.append(self.model.evaluate_operand(encoded,case['operand'],
                 with_jacobian=with_j,chunk_size=self.config.chunk_size))
-        # Learned caches are local to this forward, never retained across updates.
+        # Training caches are local to this forward. Evaluation callers may
+        # retain a bounded graph-free cache until this fixed-weight pass ends.
         return predictions
 
     def step(self):
@@ -454,12 +471,13 @@ class Trainer:
         """
         saved_rng = capture_rng(); was_training=self.model.training
         rows=[]; grouped={}
+        feature_cache = InferenceGeometryCache(self.config.evaluation_cache_bytes if self.config.efficiency else 0)
         self.model.eval()
         try:
             for record in self.data.development:
                 case=record['case']; meta=case['meta']
                 with torch.no_grad():
-                    prediction=self._predictions([record],evaluation=True)[0]
+                    prediction=self._predictions([record],evaluation=True,geometry_cache=feature_cache)[0]
                 values=prediction.moments.detach().cpu().numpy()
                 if not np.isfinite(values).all():
                     raise FloatingPointError('nonfinite development prediction; do not omit failed rows')
@@ -475,10 +493,13 @@ class Trainer:
                                  'label_unqualified' if not meta['derivative_valid'] else 'response_nonregular',
                                  diagnostics=prediction.diagnostics))
         finally:
+            feature_cache_stats = feature_cache.snapshot()
+            feature_cache.clear()
             self.model.train(was_training); restore_rng(saved_rng)
         return jsonable(dict(rows=rows,source_groups={key:float(np.mean(value)) for key,value in grouped.items()},
             normalized_source_macro_mean_query_rmse=float(np.mean([np.mean(v) for v in grouped.values()])) if grouped else None,
-            promotion_status='NOT_EVALUATED',scope='synthetic' if self.mode=='smoke' else 'development'))
+            promotion_status='NOT_EVALUATED',scope='synthetic' if self.mode=='smoke' else 'development',
+            efficiency=dict(evaluation_features=feature_cache_stats,operator=self.model.efficiency_statistics())))
 
     def _raw_selection_score(self,evaluation):
         if self.protocol is None:

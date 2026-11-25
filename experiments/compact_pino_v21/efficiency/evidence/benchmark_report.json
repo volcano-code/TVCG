@@ -1,0 +1,2268 @@
+{
+  "schema": "tvcg.v22.operator-efficiency-benchmark.v1",
+  "created_at": "2026-11-25T23:43:12.234787+08:00",
+  "scope": "synthetic_software_only",
+  "status": "PASS",
+  "tolerances": {
+    "moment_max_scaled_absolute": 1e-07,
+    "jacobian_max_scaled_absolute": 1e-06,
+    "parameter_gradient_rtol": 0.0002,
+    "parameter_gradient_atol": 1e-09
+  },
+  "initial_weights": {
+    "kind": "seeded_initialization",
+    "seed": 830251
+  },
+  "initial_tensor_sha256": "06478f795bdaf03690ec23bbdf6c37b9a7ebe06117f72bf6046ca6ac3bb730d3",
+  "source_sha256": {
+    "experiments/compact_pino_v21/efficiency/__init__.py": "57fcaaf933cd308d9f7ed3557e5e1dbeb9d73cd2f674bcd23711b7f0fdafb965",
+    "experiments/compact_pino_v21/efficiency/benchmark.py": "51b7154113b97ac539223fe3087d5efbbd3abe3a3fa74c812cb81c2f46211634",
+    "experiments/compact_pino_v21/p0_diagnostics/baseline_cases.py": "9fe7d0b95e85fbb78a45539a9f02be3b1d84680f4ec027407845d7ac6d672ab3",
+    "experiments/compact_pino_v21/p0_diagnostics/export_cases.py": "253e7c951bbd4794d5ebe59d7caea6d30ac96afe91d782e89ea957243418c330",
+    "experiments/compact_pino_v21/p0_diagnostics/exposure_audit.py": "743375e3cd5fe49d724977d5ad329225159827c329f8c7103c6b2a52ce7ca690",
+    "experiments/compact_pino_v21/p0_diagnostics/handoff_authority.py": "bafdab8eef8c1c20cb3d69b86e42a04210922b98ddc6a3dc21adc1b47f8292b8",
+    "experiments/compact_pino_v21/p0_diagnostics/promotion_gate.py": "2806582a63972b3d1ce5464582f5697b4205a6d16c56c069656763d4b4925758",
+    "experiments/compact_pino_v21/p0_diagnostics/screen_exports.py": "11f4b5e15ccca0f53dce17f9a15dad6b06faf09d0ff3147f7848cf07bef2b8ae",
+    "experiments/compact_pino_v21/training/admission.py": "256fe7bc172710a28fbde87ceda2737c10aa050f4caf813d0da409268d2661b8",
+    "experiments/compact_pino_v21/training/losses.py": "edee887425fcabd5d0c3498ae40819f09f37f7d4e2ac52aa40d0554a31cb4ea4",
+    "experiments/compact_pino_v21/training/manifest.py": "781198d2d2b5443c884eeb5b4a76d9ce746b2c93425571986fcd412a71c9ba9e",
+    "experiments/compact_pino_v21/training/runner.py": "77dcbb1361d547e37f1d221a2fd4d00f26a8135c526802d1edbc02fdbaa85677",
+    "experiments/compact_pino_v21/training/state.py": "16f632fbb335de497af8b5cbf28a830b8dac5b4aac92f22847b28ac279abb4c7",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/compact_pino_v21.py": "62fe5894b39b38645297f5d6f1adda78c26b8e7fe267bdddef67ed8fa176599d",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/unified_factory.py": "8807131ebb792f86ffa76feb0bd7f6bec364733af3121b9de846a861298f0210",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_blocks.py": "d2d43952833968fbfeaf5057eb7490aa5df0b2eec83235d84dce6a41f5c687a2",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_material.py": "16cc8f9779270777f9f603991c5695c1954ffb59d6f0e822596e841577b507ad",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_native.py": "3406f6655ca052b387cfb9187237f07f58cb9b507cdff63ad60e926332898cf7",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_response.py": "a8af91086b83b05b1115ee6f96cb719a0a28b1d074182873c6cfd91a60ae05a6",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_response_surface.py": "04786e33bdfe2e038dd22a1a97b2f0bee3cfbce4e99b19e5a27de034a71ca27d",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v22_geometry_inputs.py": "88503e47df3af9011e959fae9fea3c6b9ff80c8fb1ef13442bc53ef100d1a7ee",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v22_inference_cache.py": "ff01238f9bd1ab5480ae2aea4fad79a787837b5d1f687a6c3292e210e68a78e9",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v22_query_cache.py": "a0bbdfe00f9c2ef7ed042f9cb0d2554fdb1ba461a437274cfa3a60aff2ff998d",
+    "research/NeuralMoments/models/pcraft_ufno/spin_pino/native_pcraft.py": "6a45b7059d6fbc93032f871d1f518fbd1d4515cd24d853a7c6a37f4b09036dcc",
+    "research/NeuralMoments/models/pcraft_ufno/spin_pino/pino_backbone.py": "84f65cdb05b555162ed7ed67f0de3725788ed29324ac751f3870d92270ebcef8"
+  },
+  "configuration": {
+    "token_grid": 16,
+    "seed": 830251,
+    "chunk_size": 65536,
+    "repeats": 3,
+    "warmup": 1,
+    "query_repetitions": 4,
+    "static_cache_bytes": 134217728,
+    "query_cache_bytes": 134217728,
+    "feature_cache_bytes": 67108864,
+    "parameter_count": 2976772,
+    "encoder": "unchanged default shared P-CRAFT/U-FNO 32+64",
+    "measured_arm_order": [
+      "reference",
+      "optimized"
+    ],
+    "optimizer_updates": 0
+  },
+  "data": {
+    "manifest_path": "/workspace/scratch/fcf5369c0b51/v22_training_smoke_final/assets/training_manifest.json",
+    "manifest_sha256": "4a2373ea8a69f3210470b2fd36af71a9086ab73bf19c63799f7013c8840b3540",
+    "snapshot_id": "synthetic-real-operator-software-smoke-v1",
+    "loader_scope": "synthetic",
+    "source_admission": null,
+    "selected_training_queries": [
+      {
+        "record_id": "fixture-0",
+        "case_sha256": "6f80f9ae31bb6a70057557b67496ba1a1de7410ece4ae665f9a28688ee52a385",
+        "geometry_id": "synthetic_partial_cell_box",
+        "query_id": "finite_plane_0037",
+        "derivative_dimension": 3
+      },
+      {
+        "record_id": "fixture-1",
+        "case_sha256": "8f91c8d5ddb9b1ca4c0e546d0a82e309b2df4d24b6295c3b416bfcdbe3ae6626",
+        "geometry_id": "synthetic_partial_cell_box",
+        "query_id": "finite_plane_0049",
+        "derivative_dimension": 3
+      }
+    ]
+  },
+  "runtime": {
+    "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+    "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+    "numpy": "2.3.5",
+    "torch": "2.8.0+cpu",
+    "cuda_runtime": null,
+    "device": "cpu",
+    "cuda_name": null,
+    "torch_threads": 1,
+    "torch_interop_threads": 9,
+    "deterministic_algorithms": true,
+    "cublas_workspace_config": null,
+    "cuda_matmul_tf32": false,
+    "cudnn_tf32": false,
+    "thread_environment": {
+      "OMP_NUM_THREADS": "1",
+      "OPENBLAS_NUM_THREADS": "1",
+      "MKL_NUM_THREADS": null
+    }
+  },
+  "interpretation": {
+    "native_physical_acceptance": "NOT_EVALUATED",
+    "trained_model_quality": "NOT_EVALUATED",
+    "qualified_solution_speedup_claim": false,
+    "long_training_authorized": false,
+    "cpu_memory_scope": "retained cache payload only; no process-RSS or CPU activation-peak claim",
+    "timing_statistics": "small-sample descriptive medians/P95; no speed threshold, confidence interval or population generalization"
+  },
+  "validation": {
+    "reference": {
+      "rows": [
+        {
+          "record_id": "fixture-0",
+          "moments": [
+            0.23773580755127416,
+            0.004537771363575132,
+            0.007131969709573895,
+            0.005943415969649114,
+            0.010513244936822052,
+            0.00802476818708484,
+            0.005858073921819125,
+            0.00017750194175340252,
+            0.00011344536084155096,
+            0.00013612918519187328
+          ],
+          "jacobian": [
+            [
+              0.16854266734467604,
+              0.005055451681607387,
+              0.004213110559842808
+            ],
+            [
+              0.006096248398525153,
+              0.00018277225048382833,
+              0.00015243274706923862
+            ],
+            [
+              0.005055451681607399,
+              0.0023988915877393656,
+              0.0001236369671937782
+            ],
+            [
+              0.004213110559842823,
+              0.000123636967193778,
+              0.0014550662994738748
+            ],
+            [
+              0.0003684716199368858,
+              1.1045694981283977e-05,
+              9.21370612312971e-06
+            ],
+            [
+              0.002398891587739368,
+              0.0002067843288329618,
+              5.980306198418056e-05
+            ],
+            [
+              0.0014550662994738763,
+              4.3509312964185884e-05,
+              0.00010385786124913267
+            ],
+            [
+              0.00012363696719377838,
+              5.980306198418068e-05,
+              4.3509312964185966e-05
+            ],
+            [
+              0.0001524327470692391,
+              4.2937941411573085e-06,
+              5.263273056951307e-05
+            ],
+            [
+              0.0001827722504838287,
+              8.67646192120043e-05,
+              4.2937941411573255e-06
+            ]
+          ],
+          "diagnostics": {
+            "total_blocks": 8,
+            "saturated_retained_blocks": 0,
+            "band_blocks": 8,
+            "band_nodes": 1512,
+            "active_nodes": 336,
+            "ambiguous_nodes": 0,
+            "chunks": 1,
+            "solver_status": "PROPOSAL_REQUIRES_NATIVE_ACCEPTANCE"
+          }
+        },
+        {
+          "record_id": "fixture-1",
+          "moments": [
+            0.23967097314484534,
+            0.004618424587983627,
+            0.007190019019316175,
+            0.005991790890366295,
+            0.010518120068054628,
+            0.008052311832427581,
+            0.005874780699254783,
+            0.00017888532714116257,
+            0.00011546183665073632,
+            0.0001385475097481574
+          ],
+          "jacobian": [
+            [
+              0.1510063736388496,
+              0.004530125303515362,
+              0.0037749568123242156
+            ],
+            [
+              0.007252515964345341,
+              0.0002174834559075962,
+              0.00018130842600841402
+            ],
+            [
+              0.004530125303515373,
+              0.0021493230581572194,
+              0.0001046946230993289
+            ],
+            [
+              0.003774956812324228,
+              0.00010469462309932861,
+              0.0013036842026632669
+            ],
+            [
+              0.00043767046131015455,
+              1.312230243399669e-05,
+              1.094194168651095e-05
+            ],
+            [
+              0.0021493230581572207,
+              0.0001852841891182077,
+              5.322547846721135e-05
+            ],
+            [
+              0.001303684202663268,
+              3.868980983232568e-05,
+              9.305560415677833e-05
+            ],
+            [
+              0.00010469462309932905,
+              5.322547846721146e-05,
+              3.868980983232575e-05
+            ],
+            [
+              0.00018130842600841464,
+              5.049846451400171e-06,
+              6.261408224542908e-05
+            ],
+            [
+              0.0002174834559075967,
+              0.00010322342359493763,
+              5.049846451400187e-06
+            ]
+          ],
+          "diagnostics": {
+            "total_blocks": 8,
+            "saturated_retained_blocks": 0,
+            "band_blocks": 8,
+            "band_nodes": 1512,
+            "active_nodes": 336,
+            "ambiguous_nodes": 0,
+            "chunks": 1,
+            "solver_status": "PROPOSAL_REQUIRES_NATIVE_ACCEPTANCE"
+          }
+        }
+      ],
+      "training_record_id": "fixture-0",
+      "joint_loss": 7.15068254298198e-05,
+      "loss_membership": {
+        "moment_mask": [
+          true
+        ],
+        "moment_weight": [
+          1.0
+        ],
+        "jacobian_mask": [
+          true
+        ],
+        "jacobian_weight": [
+          1.0
+        ],
+        "moment_denominator": 1.0,
+        "jacobian_denominator": 1.0,
+        "moment_loss": 3.434403041447329e-07,
+        "jacobian_loss": 7.116338512567507e-05,
+        "jacobian_reasons": [
+          "QUALIFIED_AND_RESPONSE_VALID"
+        ],
+        "normalization": "M: mL^degree; J: chart parameter_scales / (mL^degree)"
+      },
+      "gradient_groups": {
+        "encoder": {
+          "tensors": 84,
+          "finite": true,
+          "norm": 0.00010382734380068579,
+          "finite_nonzero": true
+        },
+        "geometry_attention": {
+          "tensors": 4,
+          "finite": true,
+          "norm": 1.966191426599895e-05,
+          "finite_nonzero": true
+        },
+        "response": {
+          "tensors": 4,
+          "finite": true,
+          "norm": 0.0001624636212753743,
+          "finite_nonzero": true
+        }
+      },
+      "gradient_sha256": "2049209c4b2a7335258801bef1d72fc07931274c6223ae03e4b215de916d9bd1"
+    },
+    "optimized": {
+      "rows": [
+        {
+          "record_id": "fixture-0",
+          "moments": [
+            0.23773580755125917,
+            0.004537771363603756,
+            0.007131969709444951,
+            0.005943415970005837,
+            0.010513244936824333,
+            0.00802476818707432,
+            0.0058580739218322105,
+            0.00017750194175245807,
+            0.00011344536085506264,
+            0.00013612918518760006
+          ],
+          "jacobian": [
+            [
+              0.16854266734238768,
+              0.005055451678132777,
+              0.0042131105627071985
+            ],
+            [
+              0.006096248398529575,
+              0.00018277225030651956,
+              0.00015243274748568113
+            ],
+            [
+              0.005055451678132794,
+              0.002398891587640866,
+              0.00012363696694325904
+            ],
+            [
+              0.0042131105627072115,
+              0.00012363696694325875,
+              0.0014550662996233932
+            ],
+            [
+              0.0003684716199736836,
+              1.1045694969311818e-05,
+              9.213706153864334e-06
+            ],
+            [
+              0.002398891587640867,
+              0.00020678432876632005,
+              5.98030620128229e-05
+            ],
+            [
+              0.0014550662996233948,
+              4.3509312926332226e-05,
+              0.00010385786129003988
+            ],
+            [
+              0.00012363696694325937,
+              5.9803062012823014e-05,
+              4.3509312926332314e-05
+            ],
+            [
+              0.00015243274748568165,
+              4.293794135672058e-06,
+              5.26327305886531e-05
+            ],
+            [
+              0.00018277225030651997,
+              8.676461920208607e-05,
+              4.293794135672069e-06
+            ]
+          ],
+          "diagnostics": {
+            "total_blocks": 8,
+            "saturated_retained_blocks": 0,
+            "band_blocks": 8,
+            "band_nodes": 1512,
+            "active_nodes": 336,
+            "ambiguous_nodes": 0,
+            "chunks": 1,
+            "solver_status": "PROPOSAL_REQUIRES_NATIVE_ACCEPTANCE"
+          }
+        },
+        {
+          "record_id": "fixture-1",
+          "moments": [
+            0.2396709731447473,
+            0.004618424588005536,
+            0.007190019019156429,
+            0.005991790890743827,
+            0.01051812006805679,
+            0.008052311832415705,
+            0.005874780699268732,
+            0.00017888532713825626,
+            0.00011546183666891462,
+            0.00013854750974153152
+          ],
+          "jacobian": [
+            [
+              0.15100637362724492,
+              0.004530125302072682,
+              0.003774956812860351
+            ],
+            [
+              0.0072525159631986,
+              0.0002174834556998909,
+              0.00018130842635019992
+            ],
+            [
+              0.004530125302072696,
+              0.002149323058029845,
+              0.00010469462304883251
+            ],
+            [
+              0.0037749568128603635,
+              0.00010469462304883237,
+              0.0013036842026495112
+            ],
+            [
+              0.0004376704612497702,
+              1.3122302419017579e-05,
+              1.0941941715307396e-05
+            ],
+            [
+              0.002149323058029846,
+              0.00018528418909144852,
+              5.322547846916135e-05
+            ],
+            [
+              0.0013036842026495125,
+              3.8689809826447365e-05,
+              9.305560416570017e-05
+            ],
+            [
+              0.00010469462304883275,
+              5.3225478469161446e-05,
+              3.868980982644743e-05
+            ],
+            [
+              0.00018130842635020054,
+              5.0498464520602036e-06,
+              6.261408225223707e-05
+            ],
+            [
+              0.00021748345569989143,
+              0.00010322342357153293,
+              5.049846452060213e-06
+            ]
+          ],
+          "diagnostics": {
+            "total_blocks": 8,
+            "saturated_retained_blocks": 0,
+            "band_blocks": 8,
+            "band_nodes": 1512,
+            "active_nodes": 336,
+            "ambiguous_nodes": 0,
+            "chunks": 1,
+            "solver_status": "PROPOSAL_REQUIRES_NATIVE_ACCEPTANCE"
+          }
+        }
+      ],
+      "training_record_id": "fixture-0",
+      "joint_loss": 7.150682538216823e-05,
+      "loss_membership": {
+        "moment_mask": [
+          true
+        ],
+        "moment_weight": [
+          1.0
+        ],
+        "jacobian_mask": [
+          true
+        ],
+        "jacobian_weight": [
+          1.0
+        ],
+        "moment_denominator": 1.0,
+        "jacobian_denominator": 1.0,
+        "moment_loss": 3.4344030440668715e-07,
+        "jacobian_loss": 7.116338507776154e-05,
+        "jacobian_reasons": [
+          "QUALIFIED_AND_RESPONSE_VALID"
+        ],
+        "normalization": "M: mL^degree; J: chart parameter_scales / (mL^degree)"
+      },
+      "gradient_groups": {
+        "encoder": {
+          "tensors": 84,
+          "finite": true,
+          "norm": 0.00010382736306032365,
+          "finite_nonzero": true
+        },
+        "geometry_attention": {
+          "tensors": 4,
+          "finite": true,
+          "norm": 1.966191605252105e-05,
+          "finite_nonzero": true
+        },
+        "response": {
+          "tensors": 4,
+          "finite": true,
+          "norm": 0.00016246362202491007,
+          "finite_nonzero": true
+        }
+      },
+      "gradient_sha256": "8df07a109d940fcdaf952f1b371797d5a99ff3ceaf3d005089979c5337dfb9ec"
+    }
+  },
+  "equivalence": {
+    "status": "PASS",
+    "tolerances": {
+      "moment_max_scaled_absolute": 1e-07,
+      "jacobian_max_scaled_absolute": 1e-06,
+      "parameter_gradient_rtol": 0.0002,
+      "parameter_gradient_atol": 1e-09
+    },
+    "queries": [
+      {
+        "record_id": "fixture-0",
+        "moment_max_scaled_absolute": 8.851674046345029e-12,
+        "jacobian_max_scaled_absolute": 4.310929887119257e-11,
+        "moment_pass": true,
+        "jacobian_pass": true
+      },
+      {
+        "record_id": "fixture-1",
+        "moment_max_scaled_absolute": 9.368044835869044e-12,
+        "jacobian_max_scaled_absolute": 7.198938853363086e-11,
+        "moment_pass": true,
+        "jacobian_pass": true
+      }
+    ],
+    "parameter_gradients": {
+      "passed": true,
+      "compared_tensors": 143,
+      "none_membership_mismatches": [],
+      "max_absolute_difference": 2.751221472863108e-11,
+      "max_tolerance_fraction": 0.02169926432841456,
+      "relative_l2_difference": 6.854174449547901e-07,
+      "per_parameter": [
+        {
+          "name": "shared_encoder.pino_encoder.lifting.weight",
+          "max_absolute_difference": 6.366462912410498e-12,
+          "max_tolerance_fraction": 0.00525350182171397,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.lifting.bias",
+          "max_absolute_difference": 2.7853275241795927e-12,
+          "max_tolerance_fraction": 0.002785325034481265,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc1.0.spectral_conv.weights_x",
+          "max_absolute_difference": 7.048583938740194e-12,
+          "max_tolerance_fraction": 0.005902489714808595,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc1.0.spectral_conv.weights_y",
+          "max_absolute_difference": 1.0345502232667059e-11,
+          "max_tolerance_fraction": 0.0076224539124004256,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc1.0.spectral_conv.weights_z",
+          "max_absolute_difference": 9.549694368615746e-12,
+          "max_tolerance_fraction": 0.005616958337833603,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc1.0.conv_skip.weight",
+          "max_absolute_difference": 7.048583938740194e-12,
+          "max_tolerance_fraction": 0.00670876457992969,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc1.0.conv_skip.bias",
+          "max_absolute_difference": 7.048583938740194e-12,
+          "max_tolerance_fraction": 0.007048562943924806,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc1.1.spectral_conv.weights_x",
+          "max_absolute_difference": 2.1032064978498966e-12,
+          "max_tolerance_fraction": 0.0019079102026930935,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc1.1.spectral_conv.weights_y",
+          "max_absolute_difference": 1.873301210333911e-12,
+          "max_tolerance_fraction": 0.001840721285147691,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc1.1.spectral_conv.weights_z",
+          "max_absolute_difference": 2.7284841053187847e-12,
+          "max_tolerance_fraction": 0.002468648314979474,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc1.1.conv_skip.weight",
+          "max_absolute_difference": 3.637978807091713e-12,
+          "max_tolerance_fraction": 0.0031225824550050137,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc1.1.conv_skip.bias",
+          "max_absolute_difference": 3.0730973321624333e-13,
+          "max_tolerance_fraction": 0.00030730970286466525,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc1.2.spectral_conv.weights_x",
+          "max_absolute_difference": 2.5011104298755527e-12,
+          "max_tolerance_fraction": 0.002242942977537061,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc1.2.spectral_conv.weights_y",
+          "max_absolute_difference": 1.1708226619125406e-12,
+          "max_tolerance_fraction": 0.0010821122841792956,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc1.2.spectral_conv.weights_z",
+          "max_absolute_difference": 2.7284841053187847e-12,
+          "max_tolerance_fraction": 0.002633272666555076,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc1.2.conv_skip.weight",
+          "max_absolute_difference": 3.410605131648481e-12,
+          "max_tolerance_fraction": 0.0031046352671429225,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc1.2.conv_skip.bias",
+          "max_absolute_difference": 2.19824158875781e-13,
+          "max_tolerance_fraction": 0.00021982412986266403,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.down1.weight",
+          "max_absolute_difference": 2.8421709430404007e-12,
+          "max_tolerance_fraction": 0.0021643109514320464,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.down1.bias",
+          "max_absolute_difference": 1.2220671523344162e-13,
+          "max_tolerance_fraction": 0.00012220670660323757,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc2.0.spectral_conv.weights_x",
+          "max_absolute_difference": 5.258016244624741e-13,
+          "max_tolerance_fraction": 0.0005154242017310216,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc2.0.spectral_conv.weights_y",
+          "max_absolute_difference": 4.2491701888851263e-13,
+          "max_tolerance_fraction": 0.00041353505809964074,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc2.0.spectral_conv.weights_z",
+          "max_absolute_difference": 5.684341886080801e-13,
+          "max_tolerance_fraction": 0.000544514604015929,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc2.0.conv_skip.weight",
+          "max_absolute_difference": 1.3642420526593924e-12,
+          "max_tolerance_fraction": 0.0012103165052426816,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc2.0.conv_skip.bias",
+          "max_absolute_difference": 1.3855583347321954e-13,
+          "max_tolerance_fraction": 0.00013855583337476967,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc2.1.spectral_conv.weights_x",
+          "max_absolute_difference": 3.5861407159804015e-13,
+          "max_tolerance_fraction": 0.00034576103250337893,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc2.1.spectral_conv.weights_y",
+          "max_absolute_difference": 3.694822225952521e-13,
+          "max_tolerance_fraction": 0.00035239427947131806,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc2.1.spectral_conv.weights_z",
+          "max_absolute_difference": 5.218620674485308e-13,
+          "max_tolerance_fraction": 0.0004961029955347037,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc2.1.conv_skip.weight",
+          "max_absolute_difference": 3.183231456205249e-12,
+          "max_tolerance_fraction": 0.002276406288559828,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc2.1.conv_skip.bias",
+          "max_absolute_difference": 4.6407322429331543e-14,
+          "max_tolerance_fraction": 4.640732197181194e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc2.2.spectral_conv.weights_x",
+          "max_absolute_difference": 4.01189308553776e-13,
+          "max_tolerance_fraction": 0.0003768045181097201,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc2.2.spectral_conv.weights_y",
+          "max_absolute_difference": 1.9328852754463277e-13,
+          "max_tolerance_fraction": 0.00018734384446342854,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc2.2.spectral_conv.weights_z",
+          "max_absolute_difference": 2.8984570277744426e-13,
+          "max_tolerance_fraction": 0.0002793351684651464,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc2.2.conv_skip.weight",
+          "max_absolute_difference": 2.5011104298755527e-12,
+          "max_tolerance_fraction": 0.001755415329513539,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.enc2.2.conv_skip.bias",
+          "max_absolute_difference": 2.4313884239290928e-14,
+          "max_tolerance_fraction": 2.4313883850039844e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.down2.weight",
+          "max_absolute_difference": 3.126388037344441e-13,
+          "max_tolerance_fraction": 0.0002987590446472453,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.down2.bias",
+          "max_absolute_difference": 8.287641406479196e-15,
+          "max_tolerance_fraction": 8.287641402301308e-06,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.bottleneck.0.spectral_conv.weights_x",
+          "max_absolute_difference": 4.973799150320701e-14,
+          "max_tolerance_fraction": 4.95475168735547e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.bottleneck.0.spectral_conv.weights_y",
+          "max_absolute_difference": 4.7349677076338054e-14,
+          "max_tolerance_fraction": 4.7006957905979476e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.bottleneck.0.spectral_conv.weights_z",
+          "max_absolute_difference": 5.3290705182007514e-14,
+          "max_tolerance_fraction": 5.2947967182429835e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.bottleneck.0.conv_skip.weight",
+          "max_absolute_difference": 1.4210854715202004e-13,
+          "max_tolerance_fraction": 0.0001405341169600805,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.bottleneck.0.conv_skip.bias",
+          "max_absolute_difference": 7.549516567451064e-15,
+          "max_tolerance_fraction": 7.54951655068777e-06,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.bottleneck.1.spectral_conv.weights_x",
+          "max_absolute_difference": 4.007643555122703e-14,
+          "max_tolerance_fraction": 3.988116429121928e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.bottleneck.1.spectral_conv.weights_y",
+          "max_absolute_difference": 4.1718395366952335e-14,
+          "max_tolerance_fraction": 4.152621232073904e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.bottleneck.1.spectral_conv.weights_z",
+          "max_absolute_difference": 4.271574955728996e-14,
+          "max_tolerance_fraction": 4.252756719854218e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.bottleneck.1.conv_skip.weight",
+          "max_absolute_difference": 1.9895196601282805e-13,
+          "max_tolerance_fraction": 0.00019418360521937796,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.bottleneck.1.conv_skip.bias",
+          "max_absolute_difference": 3.788636071533347e-15,
+          "max_tolerance_fraction": 3.7886360701768366e-06,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.up2.weight",
+          "max_absolute_difference": 2.7000623958883807e-13,
+          "max_tolerance_fraction": 0.0002636633067018478,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.up2.bias",
+          "max_absolute_difference": 2.4234086959395995e-14,
+          "max_tolerance_fraction": 2.4234086652848605e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec2_proj.weight",
+          "max_absolute_difference": 1.2505552149377763e-12,
+          "max_tolerance_fraction": 0.0010632190612278312,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec2_proj.bias",
+          "max_absolute_difference": 3.730349362740526e-14,
+          "max_tolerance_fraction": 3.7303493448491606e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec2.0.spectral_conv.weights_x",
+          "max_absolute_difference": 1.7171041064717452e-13,
+          "max_tolerance_fraction": 0.00016642806232826358,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec2.0.spectral_conv.weights_y",
+          "max_absolute_difference": 1.7053025658242404e-13,
+          "max_tolerance_fraction": 0.00016659733122294568,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec2.0.spectral_conv.weights_z",
+          "max_absolute_difference": 1.8474111129762605e-13,
+          "max_tolerance_fraction": 0.00017923072392043925,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec2.0.conv_skip.weight",
+          "max_absolute_difference": 6.412648190234904e-13,
+          "max_tolerance_fraction": 0.0006375095435777571,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec2.0.conv_skip.bias",
+          "max_absolute_difference": 5.684341886080802e-14,
+          "max_tolerance_fraction": 5.6843418416521555e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec2.1.spectral_conv.weights_x",
+          "max_absolute_difference": 2.0734733645767084e-13,
+          "max_tolerance_fraction": 0.00020581616497001074,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec2.1.spectral_conv.weights_y",
+          "max_absolute_difference": 1.238905489699474e-13,
+          "max_tolerance_fraction": 0.00012312508744459843,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec2.1.spectral_conv.weights_z",
+          "max_absolute_difference": 1.3787164769227256e-13,
+          "max_tolerance_fraction": 0.00013616640978079356,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec2.1.conv_skip.weight",
+          "max_absolute_difference": 1.1368683772161603e-12,
+          "max_tolerance_fraction": 0.001074244666737041,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec2.1.conv_skip.bias",
+          "max_absolute_difference": 2.042810365310288e-14,
+          "max_tolerance_fraction": 2.0428103471664872e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec2.2.spectral_conv.weights_x",
+          "max_absolute_difference": 1.1493247759758463e-13,
+          "max_tolerance_fraction": 0.00011465390481805008,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec2.2.spectral_conv.weights_y",
+          "max_absolute_difference": 1.1942945005345706e-13,
+          "max_tolerance_fraction": 0.00011902298446645706,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec2.2.spectral_conv.weights_z",
+          "max_absolute_difference": 1.3145040611561853e-13,
+          "max_tolerance_fraction": 0.0001304173046160783,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec2.2.conv_skip.weight",
+          "max_absolute_difference": 6.110667527536862e-13,
+          "max_tolerance_fraction": 0.0006107007657589768,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec2.2.conv_skip.bias",
+          "max_absolute_difference": 1.021405182655144e-14,
+          "max_tolerance_fraction": 1.0214051777563178e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.up1.weight",
+          "max_absolute_difference": 1.1368683772161603e-12,
+          "max_tolerance_fraction": 0.001005996121565225,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.up1.bias",
+          "max_absolute_difference": 1.6538138046529038e-13,
+          "max_tolerance_fraction": 0.0001653813476080622,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec1_proj.weight",
+          "max_absolute_difference": 4.092726157978177e-12,
+          "max_tolerance_fraction": 0.00354000965547113,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec1_proj.bias",
+          "max_absolute_difference": 1.1191048088221578e-13,
+          "max_tolerance_fraction": 0.00011191047682683978,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec1.0.spectral_conv.weights_x",
+          "max_absolute_difference": 1.1368683772161603e-12,
+          "max_tolerance_fraction": 0.0010784367050560022,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec1.0.spectral_conv.weights_y",
+          "max_absolute_difference": 1.2762106909453008e-12,
+          "max_tolerance_fraction": 0.0012274189623577066,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec1.0.spectral_conv.weights_z",
+          "max_absolute_difference": 1.4352963262354024e-12,
+          "max_tolerance_fraction": 0.001402625690730021,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec1.0.conv_skip.weight",
+          "max_absolute_difference": 2.1032064978498966e-12,
+          "max_tolerance_fraction": 0.0019502588438033417,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec1.0.conv_skip.bias",
+          "max_absolute_difference": 3.2152058793144533e-13,
+          "max_tolerance_fraction": 0.0003215205809635949,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec1.1.spectral_conv.weights_x",
+          "max_absolute_difference": 1.1368683772161603e-12,
+          "max_tolerance_fraction": 0.0009852321365659395,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec1.1.spectral_conv.weights_y",
+          "max_absolute_difference": 9.341407855578687e-13,
+          "max_tolerance_fraction": 0.0008140477138638643,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec1.1.spectral_conv.weights_z",
+          "max_absolute_difference": 1.0231815394945443e-12,
+          "max_tolerance_fraction": 0.0008964250817486894,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec1.1.conv_skip.weight",
+          "max_absolute_difference": 3.069544618483633e-12,
+          "max_tolerance_fraction": 0.0022709141308799087,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec1.1.conv_skip.bias",
+          "max_absolute_difference": 8.859579736508749e-14,
+          "max_tolerance_fraction": 8.859579584639222e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec1.2.spectral_conv.weights_x",
+          "max_absolute_difference": 1.3082458293761645e-12,
+          "max_tolerance_fraction": 0.0012225904187032,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec1.2.spectral_conv.weights_y",
+          "max_absolute_difference": 1.7337242752546445e-12,
+          "max_tolerance_fraction": 0.00158502209666836,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec1.2.spectral_conv.weights_z",
+          "max_absolute_difference": 1.5961927959939892e-12,
+          "max_tolerance_fraction": 0.0014748186585396524,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec1.2.conv_skip.weight",
+          "max_absolute_difference": 7.275957614183426e-12,
+          "max_tolerance_fraction": 0.0046090083390483445,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_encoder.dec1.2.conv_skip.bias",
+          "max_absolute_difference": 4.796163466380676e-14,
+          "max_tolerance_fraction": 4.796162534325921e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_global.0.weight",
+          "max_absolute_difference": 1.0231815394945443e-12,
+          "max_tolerance_fraction": 0.0008924990079555558,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_global.0.bias",
+          "max_absolute_difference": 2.4868995751603507e-14,
+          "max_tolerance_fraction": 2.4782448891175717e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_global.2.weight",
+          "max_absolute_difference": 6.252776074688882e-13,
+          "max_tolerance_fraction": 0.0006061965295367179,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_global.2.bias",
+          "max_absolute_difference": 6.039613253960852e-14,
+          "max_tolerance_fraction": 6.021843601246979e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_local.weight",
+          "max_absolute_difference": 1.8474111129762605e-12,
+          "max_tolerance_fraction": 0.0017085478763011722,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_scale_score.0.weight",
+          "max_absolute_difference": 3.1086244689504383e-15,
+          "max_tolerance_fraction": 3.107860371299685e-06,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_scale_score.0.bias",
+          "max_absolute_difference": 5.551115123125783e-16,
+          "max_tolerance_fraction": 5.55108685382291e-07,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_scale_score.2.weight",
+          "max_absolute_difference": 1.5987211554602254e-14,
+          "max_tolerance_fraction": 1.5965588431420164e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.pino_scale_score.2.bias",
+          "max_absolute_difference": 7.105427357601002e-15,
+          "max_tolerance_fraction": 7.105427352552292e-06,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.local_scale_gate.0.weight",
+          "max_absolute_difference": 9.237055564881302e-14,
+          "max_tolerance_fraction": 9.213600941169549e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.local_scale_gate.0.bias",
+          "max_absolute_difference": 4.3298697960381105e-15,
+          "max_tolerance_fraction": 4.328915570070305e-06,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.local_scale_gate.2.weight",
+          "max_absolute_difference": 1.7763568394002505e-13,
+          "max_tolerance_fraction": 0.0001774035962136175,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.local_scale_gate.2.bias",
+          "max_absolute_difference": 3.552713678800501e-15,
+          "max_tolerance_fraction": 3.552713651032597e-06,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.statistics_context.0.weight",
+          "max_absolute_difference": 1.3322676295501878e-14,
+          "max_tolerance_fraction": 1.3316517759169239e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.statistics_context.0.bias",
+          "max_absolute_difference": 1.3322676295501878e-14,
+          "max_tolerance_fraction": 1.3316517759169239e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.statistics_context.2.weight",
+          "max_absolute_difference": 1.2434497875801753e-14,
+          "max_tolerance_fraction": 1.242679817737312e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.statistics_context.2.bias",
+          "max_absolute_difference": 5.950795411990839e-14,
+          "max_tolerance_fraction": 5.9332853238101463e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_embedding.0.weight",
+          "max_absolute_difference": 2.353672812205332e-14,
+          "max_tolerance_fraction": 2.352670500099918e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_embedding.0.bias",
+          "max_absolute_difference": 2.353672812205332e-14,
+          "max_tolerance_fraction": 2.352670500099918e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_embedding.2.weight",
+          "max_absolute_difference": 2.1316282072803006e-14,
+          "max_tolerance_fraction": 2.1294925855361602e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_embedding.2.bias",
+          "max_absolute_difference": 6.039613253960852e-14,
+          "max_tolerance_fraction": 6.0223311828521286e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_fusion.0.weight",
+          "max_absolute_difference": 5.542233338928781e-13,
+          "max_tolerance_fraction": 0.0005378864308798866,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_fusion.0.bias",
+          "max_absolute_difference": 3.907985046680551e-13,
+          "max_tolerance_fraction": 0.00038242494876370445,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_fusion.1.weight",
+          "max_absolute_difference": 2.7284841053187847e-12,
+          "max_tolerance_fraction": 0.0023627542456506325,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_fusion.1.bias",
+          "max_absolute_difference": 9.094947017729282e-13,
+          "max_tolerance_fraction": 0.0008649039704732824,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_fusion.3.weight",
+          "max_absolute_difference": 2.8705926524708048e-12,
+          "max_tolerance_fraction": 0.002712926968075824,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_fusion.3.bias",
+          "max_absolute_difference": 1.6200374375330284e-12,
+          "max_tolerance_fraction": 0.0015681638014744918,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_blocks.0.norm.weight",
+          "max_absolute_difference": 3.410605131648481e-13,
+          "max_tolerance_fraction": 0.00033466375759835305,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_blocks.0.norm.bias",
+          "max_absolute_difference": 2.5579538487363607e-13,
+          "max_tolerance_fraction": 0.00024973145759783083,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_blocks.0.ffn.0.weight",
+          "max_absolute_difference": 9.094947017729282e-13,
+          "max_tolerance_fraction": 0.0008931367741917253,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_blocks.0.ffn.0.bias",
+          "max_absolute_difference": 3.410605131648481e-13,
+          "max_tolerance_fraction": 0.0003381094858804368,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_blocks.0.ffn.2.weight",
+          "max_absolute_difference": 1.4779288903810084e-12,
+          "max_tolerance_fraction": 0.001468651684978659,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_blocks.0.ffn.2.bias",
+          "max_absolute_difference": 9.094947017729282e-13,
+          "max_tolerance_fraction": 0.0007906674029929033,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_blocks.1.norm.weight",
+          "max_absolute_difference": 4.263256414560601e-13,
+          "max_tolerance_fraction": 0.0004098994242784351,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_blocks.1.norm.bias",
+          "max_absolute_difference": 1.4921397450962104e-13,
+          "max_tolerance_fraction": 0.00014712627004911697,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_blocks.1.ffn.0.weight",
+          "max_absolute_difference": 6.963318810448982e-13,
+          "max_tolerance_fraction": 0.0006725264326841097,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_blocks.1.ffn.0.bias",
+          "max_absolute_difference": 1.9895196601282805e-13,
+          "max_tolerance_fraction": 0.0001973958468930279,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_blocks.1.ffn.2.weight",
+          "max_absolute_difference": 9.237055564881302e-13,
+          "max_tolerance_fraction": 0.0009002422856702311,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_blocks.1.ffn.2.bias",
+          "max_absolute_difference": 6.252776074688882e-13,
+          "max_tolerance_fraction": 0.0005571092475868578,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_blocks.2.norm.weight",
+          "max_absolute_difference": 4.689582056016661e-13,
+          "max_tolerance_fraction": 0.0004480869381700078,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_blocks.2.norm.bias",
+          "max_absolute_difference": 1.6342482922482304e-13,
+          "max_tolerance_fraction": 0.0001616978777097551,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_blocks.2.ffn.0.weight",
+          "max_absolute_difference": 5.968558980384842e-13,
+          "max_tolerance_fraction": 0.0005722489975939076,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_blocks.2.ffn.0.bias",
+          "max_absolute_difference": 1.7763568394002505e-13,
+          "max_tolerance_fraction": 0.00017679571694567423,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_blocks.2.ffn.2.weight",
+          "max_absolute_difference": 6.536993168992922e-13,
+          "max_tolerance_fraction": 0.0006202434693176836,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_blocks.2.ffn.2.bias",
+          "max_absolute_difference": 4.547473508864641e-13,
+          "max_tolerance_fraction": 0.00041275065091640794,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_blocks.3.norm.weight",
+          "max_absolute_difference": 1.7053025658242404e-13,
+          "max_tolerance_fraction": 0.00016227740241199756,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_blocks.3.norm.bias",
+          "max_absolute_difference": 9.947598300641403e-14,
+          "max_tolerance_fraction": 9.651911774648524e-05,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_blocks.3.ffn.0.weight",
+          "max_absolute_difference": 3.552713678800501e-13,
+          "max_tolerance_fraction": 0.000351625068769655,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_blocks.3.ffn.0.bias",
+          "max_absolute_difference": 1.4210854715202004e-13,
+          "max_tolerance_fraction": 0.00013691434710817879,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_blocks.3.ffn.2.weight",
+          "max_absolute_difference": 6.536993168992922e-13,
+          "max_tolerance_fraction": 0.0005988635742636595,
+          "passed": true
+        },
+        {
+          "name": "shared_encoder.interval_blocks.3.ffn.2.bias",
+          "max_absolute_difference": 3.410605131648481e-13,
+          "max_tolerance_fraction": 0.0003091477874544701,
+          "passed": true
+        },
+        {
+          "name": "geometry_attention.in_proj_weight",
+          "max_absolute_difference": 2.4868995751603507e-13,
+          "max_tolerance_fraction": 0.0002440923759681282,
+          "passed": true
+        },
+        {
+          "name": "geometry_attention.in_proj_bias",
+          "max_absolute_difference": 1.7763568394002505e-13,
+          "max_tolerance_fraction": 0.00017750547148694966,
+          "passed": true
+        },
+        {
+          "name": "geometry_attention.out_proj.weight",
+          "max_absolute_difference": 3.979039320256561e-13,
+          "max_tolerance_fraction": 0.0003653527520638447,
+          "passed": true
+        },
+        {
+          "name": "geometry_attention.out_proj.bias",
+          "max_absolute_difference": 3.694822225952521e-13,
+          "max_tolerance_fraction": 0.00034178640083119165,
+          "passed": true
+        },
+        {
+          "name": "response.local.0.weight",
+          "max_absolute_difference": 3.410605131648481e-12,
+          "max_tolerance_fraction": 0.0026317624722568015,
+          "passed": true
+        },
+        {
+          "name": "response.local.0.bias",
+          "max_absolute_difference": 9.094947017729282e-13,
+          "max_tolerance_fraction": 0.0006052423998507878,
+          "passed": true
+        },
+        {
+          "name": "response.local.2.weight",
+          "max_absolute_difference": 2.751221472863108e-11,
+          "max_tolerance_fraction": 0.02169926432841456,
+          "passed": true
+        },
+        {
+          "name": "response.local.2.bias",
+          "max_absolute_difference": 0.0,
+          "max_tolerance_fraction": 0.0,
+          "passed": true
+        }
+      ]
+    },
+    "nonzero_encoder_attention_response_gradients": true
+  },
+  "measurements": {
+    "reference": {
+      "cache_cold_single_query": {
+        "samples": [
+          {
+            "seconds": 3.57809867800097,
+            "cuda_memory": null,
+            "cache_after": {
+              "enabled": false,
+              "static_inputs": {
+                "requests": 1,
+                "hits": 0,
+                "misses": 0,
+                "builds": 1,
+                "bypasses": 1,
+                "evictions": 0,
+                "source_changes": 0,
+                "entries": 0,
+                "bytes": 0,
+                "max_bytes": 0,
+                "max_entries": 128,
+                "scope": "parameter_independent_cpu_inputs"
+              },
+              "prepared_queries": {
+                "hits": 0,
+                "misses": 0,
+                "builds": 0,
+                "evictions": 0,
+                "disabled_bypasses": 1,
+                "live_vertex_bypasses": 0,
+                "oversize_bypasses": 0,
+                "negative_hits": 0,
+                "entries": 0,
+                "bytes": 0,
+                "max_bytes": 0,
+                "negative_entries": 0,
+                "negative_capacity": 256,
+                "scope": "static_query_preparation_no_motion_or_learning_graph"
+              }
+            }
+          },
+          {
+            "seconds": 3.5432789889964624,
+            "cuda_memory": null,
+            "cache_after": {
+              "enabled": false,
+              "static_inputs": {
+                "requests": 1,
+                "hits": 0,
+                "misses": 0,
+                "builds": 1,
+                "bypasses": 1,
+                "evictions": 0,
+                "source_changes": 0,
+                "entries": 0,
+                "bytes": 0,
+                "max_bytes": 0,
+                "max_entries": 128,
+                "scope": "parameter_independent_cpu_inputs"
+              },
+              "prepared_queries": {
+                "hits": 0,
+                "misses": 0,
+                "builds": 0,
+                "evictions": 0,
+                "disabled_bypasses": 1,
+                "live_vertex_bypasses": 0,
+                "oversize_bypasses": 0,
+                "negative_hits": 0,
+                "entries": 0,
+                "bytes": 0,
+                "max_bytes": 0,
+                "negative_entries": 0,
+                "negative_capacity": 256,
+                "scope": "static_query_preparation_no_motion_or_learning_graph"
+              }
+            }
+          },
+          {
+            "seconds": 3.2477300710015697,
+            "cuda_memory": null,
+            "cache_after": {
+              "enabled": false,
+              "static_inputs": {
+                "requests": 1,
+                "hits": 0,
+                "misses": 0,
+                "builds": 1,
+                "bypasses": 1,
+                "evictions": 0,
+                "source_changes": 0,
+                "entries": 0,
+                "bytes": 0,
+                "max_bytes": 0,
+                "max_entries": 128,
+                "scope": "parameter_independent_cpu_inputs"
+              },
+              "prepared_queries": {
+                "hits": 0,
+                "misses": 0,
+                "builds": 0,
+                "evictions": 0,
+                "disabled_bypasses": 1,
+                "live_vertex_bypasses": 0,
+                "oversize_bypasses": 0,
+                "negative_hits": 0,
+                "entries": 0,
+                "bytes": 0,
+                "max_bytes": 0,
+                "negative_entries": 0,
+                "negative_capacity": 256,
+                "scope": "static_query_preparation_no_motion_or_learning_graph"
+              }
+            }
+          }
+        ],
+        "repeats": 3,
+        "median_seconds": 3.5432789889964624,
+        "p95_seconds": 3.574616709100519,
+        "p95_scope": "descriptive interpolation of a small repeated microbenchmark, not a population tail guarantee",
+        "boundary": "model loaded and runtime/Numba warm; static/query caches empty each repeat; includes encoder inputs, neural encoding, finite-surface preparation and M+J; excludes mesh preprocessing/admission/model loading"
+      },
+      "frozen_query_evaluation": {
+        "samples": [
+          {
+            "seconds": 27.121970703999978,
+            "cuda_memory": null,
+            "learned_feature_cache": {
+              "entries": 0,
+              "bytes": 0,
+              "peak_bytes": 0,
+              "max_bytes": 67108864,
+              "hits": 0,
+              "misses": 0,
+              "evictions": 0,
+              "bypasses": 0,
+              "scope": "one_evaluation_session_feature_tensor_storage"
+            },
+            "cache_after": {
+              "enabled": false,
+              "static_inputs": {
+                "requests": 16,
+                "hits": 0,
+                "misses": 0,
+                "builds": 16,
+                "bypasses": 16,
+                "evictions": 0,
+                "source_changes": 0,
+                "entries": 0,
+                "bytes": 0,
+                "max_bytes": 0,
+                "max_entries": 128,
+                "scope": "parameter_independent_cpu_inputs"
+              },
+              "prepared_queries": {
+                "hits": 0,
+                "misses": 0,
+                "builds": 0,
+                "evictions": 0,
+                "disabled_bypasses": 16,
+                "live_vertex_bypasses": 0,
+                "oversize_bypasses": 0,
+                "negative_hits": 0,
+                "entries": 0,
+                "bytes": 0,
+                "max_bytes": 0,
+                "negative_entries": 0,
+                "negative_capacity": 256,
+                "scope": "static_query_preparation_no_motion_or_learning_graph"
+              }
+            },
+            "queries": 8,
+            "seconds_per_query": 3.390246337999997
+          },
+          {
+            "seconds": 26.981032578998565,
+            "cuda_memory": null,
+            "learned_feature_cache": {
+              "entries": 0,
+              "bytes": 0,
+              "peak_bytes": 0,
+              "max_bytes": 67108864,
+              "hits": 0,
+              "misses": 0,
+              "evictions": 0,
+              "bypasses": 0,
+              "scope": "one_evaluation_session_feature_tensor_storage"
+            },
+            "cache_after": {
+              "enabled": false,
+              "static_inputs": {
+                "requests": 24,
+                "hits": 0,
+                "misses": 0,
+                "builds": 24,
+                "bypasses": 24,
+                "evictions": 0,
+                "source_changes": 0,
+                "entries": 0,
+                "bytes": 0,
+                "max_bytes": 0,
+                "max_entries": 128,
+                "scope": "parameter_independent_cpu_inputs"
+              },
+              "prepared_queries": {
+                "hits": 0,
+                "misses": 0,
+                "builds": 0,
+                "evictions": 0,
+                "disabled_bypasses": 24,
+                "live_vertex_bypasses": 0,
+                "oversize_bypasses": 0,
+                "negative_hits": 0,
+                "entries": 0,
+                "bytes": 0,
+                "max_bytes": 0,
+                "negative_entries": 0,
+                "negative_capacity": 256,
+                "scope": "static_query_preparation_no_motion_or_learning_graph"
+              }
+            },
+            "queries": 8,
+            "seconds_per_query": 3.3726290723748207
+          },
+          {
+            "seconds": 29.848583497998334,
+            "cuda_memory": null,
+            "learned_feature_cache": {
+              "entries": 0,
+              "bytes": 0,
+              "peak_bytes": 0,
+              "max_bytes": 67108864,
+              "hits": 0,
+              "misses": 0,
+              "evictions": 0,
+              "bypasses": 0,
+              "scope": "one_evaluation_session_feature_tensor_storage"
+            },
+            "cache_after": {
+              "enabled": false,
+              "static_inputs": {
+                "requests": 32,
+                "hits": 0,
+                "misses": 0,
+                "builds": 32,
+                "bypasses": 32,
+                "evictions": 0,
+                "source_changes": 0,
+                "entries": 0,
+                "bytes": 0,
+                "max_bytes": 0,
+                "max_entries": 128,
+                "scope": "parameter_independent_cpu_inputs"
+              },
+              "prepared_queries": {
+                "hits": 0,
+                "misses": 0,
+                "builds": 0,
+                "evictions": 0,
+                "disabled_bypasses": 32,
+                "live_vertex_bypasses": 0,
+                "oversize_bypasses": 0,
+                "negative_hits": 0,
+                "entries": 0,
+                "bytes": 0,
+                "max_bytes": 0,
+                "negative_entries": 0,
+                "negative_capacity": 256,
+                "scope": "static_query_preparation_no_motion_or_learning_graph"
+              }
+            },
+            "queries": 8,
+            "seconds_per_query": 3.7310729372497917
+          }
+        ],
+        "repeats": 3,
+        "median_seconds": 27.121970703999978,
+        "p95_seconds": 29.5759222185985,
+        "p95_scope": "descriptive interpolation of a small repeated microbenchmark, not a population tail guarantee",
+        "boundary": "static/query caches warm; fresh learned-feature cache per sequence; reference encodes every query; same two frozen queries repeated, not a Newton trajectory",
+        "query_ids": [
+          "fixture-0",
+          "fixture-1",
+          "fixture-0",
+          "fixture-1",
+          "fixture-0",
+          "fixture-1",
+          "fixture-0",
+          "fixture-1"
+        ]
+      },
+      "joint_forward_backward": {
+        "samples": [
+          {
+            "seconds": 17.481450096998742,
+            "cuda_memory": null,
+            "joint_loss": 7.15068254298198e-05,
+            "cache_after": {
+              "enabled": false,
+              "static_inputs": {
+                "requests": 2,
+                "hits": 0,
+                "misses": 0,
+                "builds": 2,
+                "bypasses": 2,
+                "evictions": 0,
+                "source_changes": 0,
+                "entries": 0,
+                "bytes": 0,
+                "max_bytes": 0,
+                "max_entries": 128,
+                "scope": "parameter_independent_cpu_inputs"
+              },
+              "prepared_queries": {
+                "hits": 0,
+                "misses": 0,
+                "builds": 0,
+                "evictions": 0,
+                "disabled_bypasses": 2,
+                "live_vertex_bypasses": 0,
+                "oversize_bypasses": 0,
+                "negative_hits": 0,
+                "entries": 0,
+                "bytes": 0,
+                "max_bytes": 0,
+                "negative_entries": 0,
+                "negative_capacity": 256,
+                "scope": "static_query_preparation_no_motion_or_learning_graph"
+              }
+            }
+          },
+          {
+            "seconds": 15.770193749998725,
+            "cuda_memory": null,
+            "joint_loss": 7.15068254298198e-05,
+            "cache_after": {
+              "enabled": false,
+              "static_inputs": {
+                "requests": 3,
+                "hits": 0,
+                "misses": 0,
+                "builds": 3,
+                "bypasses": 3,
+                "evictions": 0,
+                "source_changes": 0,
+                "entries": 0,
+                "bytes": 0,
+                "max_bytes": 0,
+                "max_entries": 128,
+                "scope": "parameter_independent_cpu_inputs"
+              },
+              "prepared_queries": {
+                "hits": 0,
+                "misses": 0,
+                "builds": 0,
+                "evictions": 0,
+                "disabled_bypasses": 3,
+                "live_vertex_bypasses": 0,
+                "oversize_bypasses": 0,
+                "negative_hits": 0,
+                "entries": 0,
+                "bytes": 0,
+                "max_bytes": 0,
+                "negative_entries": 0,
+                "negative_capacity": 256,
+                "scope": "static_query_preparation_no_motion_or_learning_graph"
+              }
+            }
+          },
+          {
+            "seconds": 16.55713400699824,
+            "cuda_memory": null,
+            "joint_loss": 7.15068254298198e-05,
+            "cache_after": {
+              "enabled": false,
+              "static_inputs": {
+                "requests": 4,
+                "hits": 0,
+                "misses": 0,
+                "builds": 4,
+                "bypasses": 4,
+                "evictions": 0,
+                "source_changes": 0,
+                "entries": 0,
+                "bytes": 0,
+                "max_bytes": 0,
+                "max_entries": 128,
+                "scope": "parameter_independent_cpu_inputs"
+              },
+              "prepared_queries": {
+                "hits": 0,
+                "misses": 0,
+                "builds": 0,
+                "evictions": 0,
+                "disabled_bypasses": 4,
+                "live_vertex_bypasses": 0,
+                "oversize_bypasses": 0,
+                "negative_hits": 0,
+                "entries": 0,
+                "bytes": 0,
+                "max_bytes": 0,
+                "negative_entries": 0,
+                "negative_capacity": 256,
+                "scope": "static_query_preparation_no_motion_or_learning_graph"
+              }
+            }
+          }
+        ],
+        "repeats": 3,
+        "median_seconds": 16.55713400699824,
+        "p95_seconds": 17.38901848799869,
+        "p95_scope": "descriptive interpolation of a small repeated microbenchmark, not a population tail guarantee",
+        "boundary": "batch=1; static/query caches warm; learned geometry recomputed every pass; forward, normalized joint loss and backward; no optimizer step or checkpoint I/O",
+        "record_id": "fixture-0"
+      }
+    },
+    "optimized": {
+      "cache_cold_single_query": {
+        "samples": [
+          {
+            "seconds": 3.4145723770016048,
+            "cuda_memory": null,
+            "cache_after": {
+              "enabled": true,
+              "static_inputs": {
+                "requests": 1,
+                "hits": 0,
+                "misses": 1,
+                "builds": 1,
+                "bypasses": 0,
+                "evictions": 0,
+                "source_changes": 0,
+                "entries": 1,
+                "bytes": 4720112,
+                "max_bytes": 134217728,
+                "max_entries": 128,
+                "scope": "parameter_independent_cpu_inputs"
+              },
+              "prepared_queries": {
+                "hits": 0,
+                "misses": 1,
+                "builds": 1,
+                "evictions": 0,
+                "disabled_bypasses": 0,
+                "live_vertex_bypasses": 0,
+                "oversize_bypasses": 0,
+                "negative_hits": 0,
+                "entries": 1,
+                "bytes": 43612,
+                "max_bytes": 134217728,
+                "negative_entries": 0,
+                "negative_capacity": 256,
+                "scope": "static_query_preparation_no_motion_or_learning_graph"
+              }
+            }
+          },
+          {
+            "seconds": 3.2447773740022967,
+            "cuda_memory": null,
+            "cache_after": {
+              "enabled": true,
+              "static_inputs": {
+                "requests": 1,
+                "hits": 0,
+                "misses": 1,
+                "builds": 1,
+                "bypasses": 0,
+                "evictions": 0,
+                "source_changes": 0,
+                "entries": 1,
+                "bytes": 4720112,
+                "max_bytes": 134217728,
+                "max_entries": 128,
+                "scope": "parameter_independent_cpu_inputs"
+              },
+              "prepared_queries": {
+                "hits": 0,
+                "misses": 1,
+                "builds": 1,
+                "evictions": 0,
+                "disabled_bypasses": 0,
+                "live_vertex_bypasses": 0,
+                "oversize_bypasses": 0,
+                "negative_hits": 0,
+                "entries": 1,
+                "bytes": 43612,
+                "max_bytes": 134217728,
+                "negative_entries": 0,
+                "negative_capacity": 256,
+                "scope": "static_query_preparation_no_motion_or_learning_graph"
+              }
+            }
+          },
+          {
+            "seconds": 3.453431752001052,
+            "cuda_memory": null,
+            "cache_after": {
+              "enabled": true,
+              "static_inputs": {
+                "requests": 1,
+                "hits": 0,
+                "misses": 1,
+                "builds": 1,
+                "bypasses": 0,
+                "evictions": 0,
+                "source_changes": 0,
+                "entries": 1,
+                "bytes": 4720112,
+                "max_bytes": 134217728,
+                "max_entries": 128,
+                "scope": "parameter_independent_cpu_inputs"
+              },
+              "prepared_queries": {
+                "hits": 0,
+                "misses": 1,
+                "builds": 1,
+                "evictions": 0,
+                "disabled_bypasses": 0,
+                "live_vertex_bypasses": 0,
+                "oversize_bypasses": 0,
+                "negative_hits": 0,
+                "entries": 1,
+                "bytes": 43612,
+                "max_bytes": 134217728,
+                "negative_entries": 0,
+                "negative_capacity": 256,
+                "scope": "static_query_preparation_no_motion_or_learning_graph"
+              }
+            }
+          }
+        ],
+        "repeats": 3,
+        "median_seconds": 3.4145723770016048,
+        "p95_seconds": 3.449545814501107,
+        "p95_scope": "descriptive interpolation of a small repeated microbenchmark, not a population tail guarantee",
+        "boundary": "model loaded and runtime/Numba warm; static/query caches empty each repeat; includes encoder inputs, neural encoding, finite-surface preparation and M+J; excludes mesh preprocessing/admission/model loading"
+      },
+      "frozen_query_evaluation": {
+        "samples": [
+          {
+            "seconds": 3.272031529002561,
+            "cuda_memory": null,
+            "learned_feature_cache": {
+              "entries": 1,
+              "bytes": 4194304,
+              "peak_bytes": 4194304,
+              "max_bytes": 67108864,
+              "hits": 7,
+              "misses": 1,
+              "evictions": 0,
+              "bypasses": 0,
+              "scope": "one_evaluation_session_feature_tensor_storage"
+            },
+            "cache_after": {
+              "enabled": true,
+              "static_inputs": {
+                "requests": 2,
+                "hits": 1,
+                "misses": 1,
+                "builds": 1,
+                "bypasses": 0,
+                "evictions": 0,
+                "source_changes": 0,
+                "entries": 1,
+                "bytes": 4720112,
+                "max_bytes": 134217728,
+                "max_entries": 128,
+                "scope": "parameter_independent_cpu_inputs"
+              },
+              "prepared_queries": {
+                "hits": 14,
+                "misses": 2,
+                "builds": 2,
+                "evictions": 0,
+                "disabled_bypasses": 0,
+                "live_vertex_bypasses": 0,
+                "oversize_bypasses": 0,
+                "negative_hits": 0,
+                "entries": 2,
+                "bytes": 87224,
+                "max_bytes": 134217728,
+                "negative_entries": 0,
+                "negative_capacity": 256,
+                "scope": "static_query_preparation_no_motion_or_learning_graph"
+              }
+            },
+            "queries": 8,
+            "seconds_per_query": 0.4090039411253201
+          },
+          {
+            "seconds": 3.4557540280002286,
+            "cuda_memory": null,
+            "learned_feature_cache": {
+              "entries": 1,
+              "bytes": 4194304,
+              "peak_bytes": 4194304,
+              "max_bytes": 67108864,
+              "hits": 7,
+              "misses": 1,
+              "evictions": 0,
+              "bypasses": 0,
+              "scope": "one_evaluation_session_feature_tensor_storage"
+            },
+            "cache_after": {
+              "enabled": true,
+              "static_inputs": {
+                "requests": 3,
+                "hits": 2,
+                "misses": 1,
+                "builds": 1,
+                "bypasses": 0,
+                "evictions": 0,
+                "source_changes": 0,
+                "entries": 1,
+                "bytes": 4720112,
+                "max_bytes": 134217728,
+                "max_entries": 128,
+                "scope": "parameter_independent_cpu_inputs"
+              },
+              "prepared_queries": {
+                "hits": 22,
+                "misses": 2,
+                "builds": 2,
+                "evictions": 0,
+                "disabled_bypasses": 0,
+                "live_vertex_bypasses": 0,
+                "oversize_bypasses": 0,
+                "negative_hits": 0,
+                "entries": 2,
+                "bytes": 87224,
+                "max_bytes": 134217728,
+                "negative_entries": 0,
+                "negative_capacity": 256,
+                "scope": "static_query_preparation_no_motion_or_learning_graph"
+              }
+            },
+            "queries": 8,
+            "seconds_per_query": 0.43196925350002857
+          },
+          {
+            "seconds": 3.3313528500002576,
+            "cuda_memory": null,
+            "learned_feature_cache": {
+              "entries": 1,
+              "bytes": 4194304,
+              "peak_bytes": 4194304,
+              "max_bytes": 67108864,
+              "hits": 7,
+              "misses": 1,
+              "evictions": 0,
+              "bypasses": 0,
+              "scope": "one_evaluation_session_feature_tensor_storage"
+            },
+            "cache_after": {
+              "enabled": true,
+              "static_inputs": {
+                "requests": 4,
+                "hits": 3,
+                "misses": 1,
+                "builds": 1,
+                "bypasses": 0,
+                "evictions": 0,
+                "source_changes": 0,
+                "entries": 1,
+                "bytes": 4720112,
+                "max_bytes": 134217728,
+                "max_entries": 128,
+                "scope": "parameter_independent_cpu_inputs"
+              },
+              "prepared_queries": {
+                "hits": 30,
+                "misses": 2,
+                "builds": 2,
+                "evictions": 0,
+                "disabled_bypasses": 0,
+                "live_vertex_bypasses": 0,
+                "oversize_bypasses": 0,
+                "negative_hits": 0,
+                "entries": 2,
+                "bytes": 87224,
+                "max_bytes": 134217728,
+                "negative_entries": 0,
+                "negative_capacity": 256,
+                "scope": "static_query_preparation_no_motion_or_learning_graph"
+              }
+            },
+            "queries": 8,
+            "seconds_per_query": 0.4164191062500322
+          }
+        ],
+        "repeats": 3,
+        "median_seconds": 3.3313528500002576,
+        "p95_seconds": 3.4433139102002315,
+        "p95_scope": "descriptive interpolation of a small repeated microbenchmark, not a population tail guarantee",
+        "boundary": "static/query caches warm; fresh learned-feature cache per sequence; reference encodes every query; same two frozen queries repeated, not a Newton trajectory",
+        "query_ids": [
+          "fixture-0",
+          "fixture-1",
+          "fixture-0",
+          "fixture-1",
+          "fixture-0",
+          "fixture-1",
+          "fixture-0",
+          "fixture-1"
+        ]
+      },
+      "joint_forward_backward": {
+        "samples": [
+          {
+            "seconds": 16.39655810399927,
+            "cuda_memory": null,
+            "joint_loss": 7.150682538216823e-05,
+            "cache_after": {
+              "enabled": true,
+              "static_inputs": {
+                "requests": 2,
+                "hits": 1,
+                "misses": 1,
+                "builds": 1,
+                "bypasses": 0,
+                "evictions": 0,
+                "source_changes": 0,
+                "entries": 1,
+                "bytes": 4720112,
+                "max_bytes": 134217728,
+                "max_entries": 128,
+                "scope": "parameter_independent_cpu_inputs"
+              },
+              "prepared_queries": {
+                "hits": 1,
+                "misses": 1,
+                "builds": 1,
+                "evictions": 0,
+                "disabled_bypasses": 0,
+                "live_vertex_bypasses": 0,
+                "oversize_bypasses": 0,
+                "negative_hits": 0,
+                "entries": 1,
+                "bytes": 43612,
+                "max_bytes": 134217728,
+                "negative_entries": 0,
+                "negative_capacity": 256,
+                "scope": "static_query_preparation_no_motion_or_learning_graph"
+              }
+            }
+          },
+          {
+            "seconds": 15.275363651999214,
+            "cuda_memory": null,
+            "joint_loss": 7.150682538216823e-05,
+            "cache_after": {
+              "enabled": true,
+              "static_inputs": {
+                "requests": 3,
+                "hits": 2,
+                "misses": 1,
+                "builds": 1,
+                "bypasses": 0,
+                "evictions": 0,
+                "source_changes": 0,
+                "entries": 1,
+                "bytes": 4720112,
+                "max_bytes": 134217728,
+                "max_entries": 128,
+                "scope": "parameter_independent_cpu_inputs"
+              },
+              "prepared_queries": {
+                "hits": 2,
+                "misses": 1,
+                "builds": 1,
+                "evictions": 0,
+                "disabled_bypasses": 0,
+                "live_vertex_bypasses": 0,
+                "oversize_bypasses": 0,
+                "negative_hits": 0,
+                "entries": 1,
+                "bytes": 43612,
+                "max_bytes": 134217728,
+                "negative_entries": 0,
+                "negative_capacity": 256,
+                "scope": "static_query_preparation_no_motion_or_learning_graph"
+              }
+            }
+          },
+          {
+            "seconds": 15.229117992999818,
+            "cuda_memory": null,
+            "joint_loss": 7.150682538216823e-05,
+            "cache_after": {
+              "enabled": true,
+              "static_inputs": {
+                "requests": 4,
+                "hits": 3,
+                "misses": 1,
+                "builds": 1,
+                "bypasses": 0,
+                "evictions": 0,
+                "source_changes": 0,
+                "entries": 1,
+                "bytes": 4720112,
+                "max_bytes": 134217728,
+                "max_entries": 128,
+                "scope": "parameter_independent_cpu_inputs"
+              },
+              "prepared_queries": {
+                "hits": 3,
+                "misses": 1,
+                "builds": 1,
+                "evictions": 0,
+                "disabled_bypasses": 0,
+                "live_vertex_bypasses": 0,
+                "oversize_bypasses": 0,
+                "negative_hits": 0,
+                "entries": 1,
+                "bytes": 43612,
+                "max_bytes": 134217728,
+                "negative_entries": 0,
+                "negative_capacity": 256,
+                "scope": "static_query_preparation_no_motion_or_learning_graph"
+              }
+            }
+          }
+        ],
+        "repeats": 3,
+        "median_seconds": 15.275363651999214,
+        "p95_seconds": 16.284438658799264,
+        "p95_scope": "descriptive interpolation of a small repeated microbenchmark, not a population tail guarantee",
+        "boundary": "batch=1; static/query caches warm; learned geometry recomputed every pass; forward, normalized joint loss and backward; no optimizer step or checkpoint I/O",
+        "record_id": "fixture-0"
+      }
+    }
+  },
+  "comparison": {
+    "cache_cold_single_query": {
+      "optimized_over_reference_median_ratio": 0.9636758459058539,
+      "reference_over_optimized_median_speed_ratio": 1.0376933325126578,
+      "median_time_change_percent": -3.6324154094146133,
+      "scope": "measured invocation only; no native-solver speedup inference"
+    },
+    "frozen_query_evaluation": {
+      "optimized_over_reference_median_ratio": 0.1228285689988208,
+      "reference_over_optimized_median_speed_ratio": 8.141428400176187,
+      "median_time_change_percent": -87.71714310011792,
+      "scope": "measured invocation only; no native-solver speedup inference"
+    },
+    "joint_forward_backward": {
+      "optimized_over_reference_median_ratio": 0.9225850105182903,
+      "reference_over_optimized_median_speed_ratio": 1.0839109551955752,
+      "median_time_change_percent": -7.741498948170966,
+      "scope": "measured invocation only; no native-solver speedup inference"
+    }
+  },
+  "execution_sources_unchanged": true
+}

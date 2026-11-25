@@ -1,0 +1,438 @@
+{
+  "schema": "compact_pino.actual-operator-smoke.v1",
+  "scope": "synthetic_software_only",
+  "status": "PASS",
+  "checks": {
+    "model": true,
+    "optimizer": true,
+    "scheduler": true,
+    "scaler": true,
+    "rng": true,
+    "sampler": true,
+    "global_step": true,
+    "attempts": true,
+    "same_second_batch": true,
+    "same_second_loss": true,
+    "parameters_updated": true,
+    "joint_loss_effective": true,
+    "encoder_and_response_finite_nonzero_gradients": true
+  },
+  "config": {
+    "token_grid": 16,
+    "seed": 830251,
+    "learning_rate": 3e-05,
+    "batch_size": 1,
+    "jacobian_loss_weight": 1.0,
+    "auxiliary_loss_weight": 0.0,
+    "chunk_size": 65536,
+    "amp": "off",
+    "deterministic": true,
+    "sampler": "shuffle_without_replacement",
+    "efficiency": true,
+    "static_cache_bytes": 134217728,
+    "query_cache_bytes": 134217728,
+    "evaluation_cache_bytes": 67108864
+  },
+  "training_manifest_path": "/workspace/scratch/fcf5369c0b51/v22_efficiency_resume_final/assets/training_manifest.json",
+  "training_manifest_sha256": "1c4d782ab2cea8c0e1c70895542714b50f914c4db7e9132afd3726b837a5b3af",
+  "initial_checkpoint": {
+    "path": "/workspace/scratch/fcf5369c0b51/v22_efficiency_resume_final/continuous/step-0-attempt-0-587c2a2de0f0.pt",
+    "sha256": "7c2a74b97c4655c6e28d0b3b1827717767d6f9b22b2372cfde15accf543136cd",
+    "receipt_path": "/workspace/scratch/fcf5369c0b51/v22_efficiency_resume_final/continuous/step-0-attempt-0-587c2a2de0f0.resume.json",
+    "model_tensor_sha256": "177ce54237cba240572ed144651adbe07b4d9c23ecd585d4818149af50e8f0ae"
+  },
+  "interrupted_boundary_checkpoint": {
+    "path": "/workspace/scratch/fcf5369c0b51/v22_efficiency_resume_final/continuous/step-1-attempt-1-e7aa8720ec3b.pt",
+    "sha256": "408ff0fcbe4397e9c8481d87822b0159f3c99a170f0c2edae96c2aa745f442b6",
+    "receipt_path": "/workspace/scratch/fcf5369c0b51/v22_efficiency_resume_final/continuous/step-1-attempt-1-e7aa8720ec3b.resume.json",
+    "model_tensor_sha256": "0a15667fdde0cb245bf65d77f9c65c6a1d1ce673c0c18026da7ad71f4ebed802"
+  },
+  "continuous_checkpoint": {
+    "path": "/workspace/scratch/fcf5369c0b51/v22_efficiency_resume_final/continuous/step-2-attempt-2-36737d007ae2.pt",
+    "sha256": "6a13ddf686345c8849bb79855d2b50ceb9251647efb162818e63f4a6beee2a01",
+    "receipt_path": "/workspace/scratch/fcf5369c0b51/v22_efficiency_resume_final/continuous/step-2-attempt-2-36737d007ae2.resume.json",
+    "model_tensor_sha256": "3d3779d75ff767dc172a6044338cd6278791f12ccc607f282fe9c849cba1092b"
+  },
+  "resumed_checkpoint": {
+    "path": "/workspace/scratch/fcf5369c0b51/v22_efficiency_resume_final/resumed/step-2-attempt-2-dd1a04e3222d.pt",
+    "sha256": "7475b132f1a51311073a5d91f3dd28810bfdd4d6a43c21b36a99bf50f3377454",
+    "receipt_path": "/workspace/scratch/fcf5369c0b51/v22_efficiency_resume_final/resumed/step-2-attempt-2-dd1a04e3222d.resume.json",
+    "model_tensor_sha256": "3d3779d75ff767dc172a6044338cd6278791f12ccc607f282fe9c849cba1092b"
+  },
+  "steps": [
+    {
+      "attempt": 1,
+      "global_step": 1,
+      "record_ids": [
+        "fixture-1"
+      ],
+      "committed": true,
+      "amp_skip": false,
+      "skip_reason": null,
+      "loss": 0.0001386986846127913,
+      "moment_mask": [
+        true
+      ],
+      "moment_weight": [
+        1.0
+      ],
+      "jacobian_mask": [
+        true
+      ],
+      "jacobian_weight": [
+        1.0
+      ],
+      "moment_denominator": 1.0,
+      "jacobian_denominator": 1.0,
+      "moment_loss": 3.277268242425439e-07,
+      "jacobian_loss": 0.00013837095778854874,
+      "jacobian_reasons": [
+        "QUALIFIED_AND_RESPONSE_VALID"
+      ],
+      "normalization": "M: mL^degree; J: chart parameter_scales / (mL^degree)",
+      "gradients": {
+        "shared_encoder.pino_encoder.": {
+          "parameters_with_grad": 84,
+          "finite": true,
+          "norm": 0.0001319568109465763
+        },
+        "geometry_attention.": {
+          "parameters_with_grad": 4,
+          "finite": true,
+          "norm": 2.804815085255541e-05
+        },
+        "response.": {
+          "parameters_with_grad": 4,
+          "finite": true,
+          "norm": 0.000245591887505725
+        }
+      },
+      "seconds": 20.211128492999705,
+      "cumulative_runner_seconds": 21.070722906999436,
+      "sampler": {
+        "epoch": 0,
+        "cursor": 1,
+        "count": 2
+      }
+    },
+    {
+      "attempt": 2,
+      "global_step": 2,
+      "record_ids": [
+        "fixture-0"
+      ],
+      "committed": true,
+      "amp_skip": false,
+      "skip_reason": null,
+      "loss": 6.915839658373061e-05,
+      "moment_mask": [
+        true
+      ],
+      "moment_weight": [
+        1.0
+      ],
+      "jacobian_mask": [
+        true
+      ],
+      "jacobian_weight": [
+        1.0
+      ],
+      "moment_denominator": 1.0,
+      "jacobian_denominator": 1.0,
+      "moment_loss": 3.4128438569053103e-07,
+      "jacobian_loss": 6.881711219804007e-05,
+      "jacobian_reasons": [
+        "QUALIFIED_AND_RESPONSE_VALID"
+      ],
+      "normalization": "M: mL^degree; J: chart parameter_scales / (mL^degree)",
+      "gradients": {
+        "shared_encoder.pino_encoder.": {
+          "parameters_with_grad": 84,
+          "finite": true,
+          "norm": 7.939743954921141e-05
+        },
+        "geometry_attention.": {
+          "parameters_with_grad": 4,
+          "finite": true,
+          "norm": 1.8634991647559218e-05
+        },
+        "response.": {
+          "parameters_with_grad": 4,
+          "finite": true,
+          "norm": 0.00015913089737296104
+        }
+      },
+      "seconds": 16.944198995999614,
+      "cumulative_runner_seconds": 38.130492371998116,
+      "sampler": {
+        "epoch": 0,
+        "cursor": 2,
+        "count": 2
+      }
+    },
+    {
+      "attempt": 2,
+      "global_step": 2,
+      "record_ids": [
+        "fixture-0"
+      ],
+      "committed": true,
+      "amp_skip": false,
+      "skip_reason": null,
+      "loss": 6.915839658373061e-05,
+      "moment_mask": [
+        true
+      ],
+      "moment_weight": [
+        1.0
+      ],
+      "jacobian_mask": [
+        true
+      ],
+      "jacobian_weight": [
+        1.0
+      ],
+      "moment_denominator": 1.0,
+      "jacobian_denominator": 1.0,
+      "moment_loss": 3.4128438569053103e-07,
+      "jacobian_loss": 6.881711219804007e-05,
+      "jacobian_reasons": [
+        "QUALIFIED_AND_RESPONSE_VALID"
+      ],
+      "normalization": "M: mL^degree; J: chart parameter_scales / (mL^degree)",
+      "gradients": {
+        "shared_encoder.pino_encoder.": {
+          "parameters_with_grad": 84,
+          "finite": true,
+          "norm": 7.939743954921141e-05
+        },
+        "geometry_attention.": {
+          "parameters_with_grad": 4,
+          "finite": true,
+          "norm": 1.8634991647559218e-05
+        },
+        "response.": {
+          "parameters_with_grad": 4,
+          "finite": true,
+          "norm": 0.00015913089737296104
+        }
+      },
+      "seconds": 20.06954538699938,
+      "cumulative_runner_seconds": 41.42525783200108,
+      "sampler": {
+        "epoch": 0,
+        "cursor": 2,
+        "count": 2
+      }
+    }
+  ],
+  "exposure": {
+    "schema": "compact_pino.exposure.v1",
+    "status": "OBSERVED_COMPLETE",
+    "promotion_status": "NOT_EVALUATED",
+    "run_id": "synthetic-exact-resume",
+    "snapshot_id": "synthetic-real-operator-software-smoke-v1",
+    "manifest_sha256": "1c4d782ab2cea8c0e1c70895542714b50f914c4db7e9132afd3726b837a5b3af",
+    "inventory_sha256": "9a43ac3db786769eb4493844dff598a99c8f7a171148916fcd9b182f7b333a10",
+    "pool": {
+      "registered_candidates": 2,
+      "admitted_records": 2,
+      "loader_eligible_records": 2,
+      "moment_eligible_records": 2,
+      "jacobian_eligible_records": 2,
+      "jacobian_eligible_by_type": {
+        "R3": 2,
+        "R8": 0,
+        "Full-J": 0
+      },
+      "per_source_group": {
+        "analytic_fixture": {
+          "admitted_records": 2,
+          "loader_eligible_records": 2,
+          "moment_eligible_records": 2,
+          "jacobian_eligible_records": 2
+        }
+      }
+    },
+    "duplicate_events_ignored": 0,
+    "incomplete_segments": [],
+    "execution": {
+      "counts": {
+        "optimizer_attempts": 3,
+        "optimizer_commits": 3,
+        "forward_attempt_occurrences": 3,
+        "forward_occurrences": 3,
+        "moment_loss_occurrences": 3,
+        "moment_backward_occurrences": 3,
+        "committed_moment_occurrences": 3,
+        "jacobian_loss_occurrences": 3,
+        "jacobian_backward_occurrences": 3,
+        "committed_jacobian_occurrences": 3,
+        "prefetch_occurrences": 0,
+        "forward_failed_occurrences": 0,
+        "optimizer_skips": 0,
+        "commits_without_supervision": 0
+      },
+      "unique": {
+        "forward_queries": 2,
+        "moment_loss_queries": 2,
+        "jacobian_loss_records": 2,
+        "committed_moment_queries": 2,
+        "committed_jacobian_records": 2,
+        "forward_records": 2,
+        "committed_supervision_records": 2
+      },
+      "per_source_group": {
+        "analytic_fixture": {
+          "forward_occurrences": 3,
+          "moment_loss_occurrences": 3,
+          "committed_moment_occurrences": 3,
+          "jacobian_loss_occurrences": 3,
+          "committed_jacobian_occurrences": 3
+        }
+      },
+      "per_stratum": [
+        {
+          "source_group_id": "analytic_fixture",
+          "surface_family": "PLANE",
+          "retention_bin": "middle",
+          "trajectory_stage": "synthetic_fixture",
+          "counts": {
+            "forward_occurrences": 3,
+            "moment_loss_occurrences": 3,
+            "committed_moment_occurrences": 3,
+            "jacobian_loss_occurrences": 3,
+            "committed_jacobian_occurrences": 3
+          }
+        }
+      ],
+      "jacobian_by_type": {
+        "R3": {
+          "loss_occurrences": 3,
+          "backward_occurrences": 3,
+          "committed_occurrences": 3,
+          "committed_unique_records": 2
+        },
+        "R8": {
+          "loss_occurrences": 0,
+          "backward_occurrences": 0,
+          "committed_occurrences": 0,
+          "committed_unique_records": 0
+        },
+        "Full-J": {
+          "loss_occurrences": 0,
+          "backward_occurrences": 0,
+          "committed_occurrences": 0,
+          "committed_unique_records": 0
+        }
+      },
+      "skip_reasons": {},
+      "unresolved_windows": [],
+      "loader_records_not_forwarded": [],
+      "loader_records_without_committed_supervision": []
+    },
+    "selected_lineage": {
+      "selection": {
+        "segment_id": "b0501f18220b49c8933d05cb69d6cab5",
+        "checkpoint_id": "step-2-attempt-2-dd1a04e3222d"
+      },
+      "initial_step_counter": 0,
+      "initial_checkpoint_sha256": null,
+      "prior_history_inferred": false,
+      "segments": [
+        {
+          "segment_id": "c2ce6dc809b74b9fa37d19544613d4a0",
+          "through_seq": 7
+        },
+        {
+          "segment_id": "b0501f18220b49c8933d05cb69d6cab5",
+          "through_seq": 6
+        }
+      ],
+      "counts": {
+        "optimizer_attempts": 2,
+        "optimizer_commits": 2,
+        "forward_attempt_occurrences": 2,
+        "forward_occurrences": 2,
+        "moment_loss_occurrences": 2,
+        "moment_backward_occurrences": 2,
+        "committed_moment_occurrences": 2,
+        "jacobian_loss_occurrences": 2,
+        "jacobian_backward_occurrences": 2,
+        "committed_jacobian_occurrences": 2,
+        "prefetch_occurrences": 0,
+        "forward_failed_occurrences": 0,
+        "optimizer_skips": 0,
+        "commits_without_supervision": 0
+      },
+      "unique": {
+        "forward_queries": 2,
+        "moment_loss_queries": 2,
+        "jacobian_loss_records": 2,
+        "committed_moment_queries": 2,
+        "committed_jacobian_records": 2,
+        "forward_records": 2,
+        "committed_supervision_records": 2
+      },
+      "per_source_group": {
+        "analytic_fixture": {
+          "forward_occurrences": 2,
+          "moment_loss_occurrences": 2,
+          "committed_moment_occurrences": 2,
+          "jacobian_loss_occurrences": 2,
+          "committed_jacobian_occurrences": 2
+        }
+      },
+      "per_stratum": [
+        {
+          "source_group_id": "analytic_fixture",
+          "surface_family": "PLANE",
+          "retention_bin": "middle",
+          "trajectory_stage": "synthetic_fixture",
+          "counts": {
+            "forward_occurrences": 2,
+            "moment_loss_occurrences": 2,
+            "committed_moment_occurrences": 2,
+            "jacobian_loss_occurrences": 2,
+            "committed_jacobian_occurrences": 2
+          }
+        }
+      ],
+      "jacobian_by_type": {
+        "R3": {
+          "loss_occurrences": 2,
+          "backward_occurrences": 2,
+          "committed_occurrences": 2,
+          "committed_unique_records": 2
+        },
+        "R8": {
+          "loss_occurrences": 0,
+          "backward_occurrences": 0,
+          "committed_occurrences": 0,
+          "committed_unique_records": 0
+        },
+        "Full-J": {
+          "loss_occurrences": 0,
+          "backward_occurrences": 0,
+          "committed_occurrences": 0,
+          "committed_unique_records": 0
+        }
+      },
+      "skip_reasons": {},
+      "unresolved_windows": [],
+      "loader_records_not_forwarded": [],
+      "loader_records_without_committed_supervision": []
+    },
+    "limitations": [
+      "Counts cover recorded caller assertions only, not unlogged training.",
+      "Positive masked loss participation does not prove nonzero gradients.",
+      "Physical labels, checkpoint bytes, and model promotion are not verified.",
+      "Execution totals include discarded branches; selected lineage excludes them.",
+      "A missing optimizer outcome remains unresolved, never assumed committed."
+    ]
+  },
+  "real_optimizer_calls_executed": 3,
+  "native_solver_acceptance": "NOT_EVALUATED",
+  "scientific_promotion": "NOT_EVALUATED",
+  "exactness_scope": "same CPU runtime, deterministic algorithms; GPU exact continuation not validated here"
+}

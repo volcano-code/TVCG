@@ -1,0 +1,271 @@
+{
+  "schema": "tvcg.v22.operator-efficiency-validation.v1",
+  "created_at": "2026-11-25T23:49:29.146774+08:00",
+  "base_commit": "879233cdc4b843661c569022a9fe9d1ecd4f1be4",
+  "status": "COMPLETE_CHAT_OPERATOR_EFFICIENCY_SCOPE",
+  "scope": "five_agreed_operator_execution_optimizations",
+  "implemented": [
+    {
+      "id": "static_geometry_inputs",
+      "name": "静态编码输入缓存",
+      "status": "IMPLEMENTED_AND_VERIFIED",
+      "code": "v22_geometry_inputs.py"
+    },
+    {
+      "id": "evaluation_encoding_reuse",
+      "name": "同权重评估编码复用",
+      "status": "IMPLEMENTED_AND_VERIFIED",
+      "code": "v22_inference_cache.py + training/runner.py"
+    },
+    {
+      "id": "token_projection",
+      "name": "局部 token 特征预投影",
+      "status": "IMPLEMENTED_AND_VERIFIED",
+      "code": "v21_response.py + compact_pino_v21.py"
+    },
+    {
+      "id": "analytic_response_slope",
+      "name": "同一响应的解析斜率",
+      "status": "IMPLEMENTED_AND_VERIFIED",
+      "code": "v21_response.py"
+    },
+    {
+      "id": "frozen_query_preparation",
+      "name": "冻结查询几何准备缓存",
+      "status": "IMPLEMENTED_AND_VERIFIED",
+      "code": "v22_query_cache.py"
+    }
+  ],
+  "operator": {
+    "native_grid": 256,
+    "encoder_grids": [
+      32,
+      64
+    ],
+    "default_token_grid": 16,
+    "parameter_count": 2976772,
+    "parameter_names_and_shapes_unchanged": true,
+    "single_response_moment_and_jacobian": true,
+    "bandwidth_changed": false,
+    "loss_or_sampling_changed": false
+  },
+  "software_tests": {
+    "tests": 322,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 125.428
+  },
+  "reference_scope": "this commit efficiency=False; same physical computation with current material-identity checks, not an executable replay of the old commit",
+  "numerical_equivalence": {
+    "status": "PASS",
+    "tolerances": {
+      "moment_max_scaled_absolute": 1e-07,
+      "jacobian_max_scaled_absolute": 1e-06,
+      "parameter_gradient_rtol": 0.0002,
+      "parameter_gradient_atol": 1e-09
+    },
+    "queries": [
+      {
+        "record_id": "fixture-0",
+        "moment_max_scaled_absolute": 8.851674046345029e-12,
+        "jacobian_max_scaled_absolute": 4.310929887119257e-11,
+        "moment_pass": true,
+        "jacobian_pass": true
+      },
+      {
+        "record_id": "fixture-1",
+        "moment_max_scaled_absolute": 9.368044835869044e-12,
+        "jacobian_max_scaled_absolute": 7.198938853363086e-11,
+        "moment_pass": true,
+        "jacobian_pass": true
+      }
+    ],
+    "nonzero_encoder_attention_response_gradients": true
+  },
+  "parameter_gradients": {
+    "passed": true,
+    "compared_tensors": 143,
+    "none_membership_mismatches": [],
+    "max_absolute_difference": 2.751221472863108e-11,
+    "max_tolerance_fraction": 0.02169926432841456,
+    "relative_l2_difference": 6.854174449547901e-07
+  },
+  "actual_updates_and_resume": {
+    "status": "PASS",
+    "scope": "synthetic_software_only",
+    "checks": {
+      "model": true,
+      "optimizer": true,
+      "scheduler": true,
+      "scaler": true,
+      "rng": true,
+      "sampler": true,
+      "global_step": true,
+      "attempts": true,
+      "same_second_batch": true,
+      "same_second_loss": true,
+      "parameters_updated": true,
+      "joint_loss_effective": true,
+      "encoder_and_response_finite_nonzero_gradients": true
+    },
+    "optimizer_calls": 3,
+    "logical_final_step": 2,
+    "continuous_model_tensor_sha256": "3d3779d75ff767dc172a6044338cd6278791f12ccc607f282fe9c849cba1092b",
+    "resumed_model_tensor_sha256": "3d3779d75ff767dc172a6044338cd6278791f12ccc607f282fe9c849cba1092b",
+    "gpu_exact_resume_verified": false
+  },
+  "export_training_screen": {
+    "status": "PASS",
+    "screen_decision": "NO_GO",
+    "scope": "synthetic_software_only",
+    "real_training_dataset_used": false
+  },
+  "cpu_benchmark": {
+    "runtime": {
+      "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+      "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+      "numpy": "2.3.5",
+      "torch": "2.8.0+cpu",
+      "cuda_runtime": null,
+      "device": "cpu",
+      "cuda_name": null,
+      "torch_threads": 1,
+      "torch_interop_threads": 9,
+      "deterministic_algorithms": true,
+      "cublas_workspace_config": null,
+      "cuda_matmul_tf32": false,
+      "cudnn_tf32": false,
+      "thread_environment": {
+        "OMP_NUM_THREADS": "1",
+        "OPENBLAS_NUM_THREADS": "1",
+        "MKL_NUM_THREADS": null
+      }
+    },
+    "configuration": {
+      "token_grid": 16,
+      "seed": 830251,
+      "chunk_size": 65536,
+      "repeats": 3,
+      "warmup": 1,
+      "query_repetitions": 4,
+      "static_cache_bytes": 134217728,
+      "query_cache_bytes": 134217728,
+      "feature_cache_bytes": 67108864,
+      "parameter_count": 2976772,
+      "encoder": "unchanged default shared P-CRAFT/U-FNO 32+64",
+      "measured_arm_order": [
+        "reference",
+        "optimized"
+      ],
+      "optimizer_updates": 0
+    },
+    "comparison": {
+      "cache_cold_single_query": {
+        "optimized_over_reference_median_ratio": 0.9636758459058539,
+        "reference_over_optimized_median_speed_ratio": 1.0376933325126578,
+        "median_time_change_percent": -3.6324154094146133,
+        "scope": "measured invocation only; no native-solver speedup inference"
+      },
+      "frozen_query_evaluation": {
+        "optimized_over_reference_median_ratio": 0.1228285689988208,
+        "reference_over_optimized_median_speed_ratio": 8.141428400176187,
+        "median_time_change_percent": -87.71714310011792,
+        "scope": "measured invocation only; no native-solver speedup inference"
+      },
+      "joint_forward_backward": {
+        "optimized_over_reference_median_ratio": 0.9225850105182903,
+        "reference_over_optimized_median_speed_ratio": 1.0839109551955752,
+        "median_time_change_percent": -7.741498948170966,
+        "scope": "measured invocation only; no native-solver speedup inference"
+      }
+    },
+    "scope": "synthetic_software_only",
+    "interpretation": {
+      "native_physical_acceptance": "NOT_EVALUATED",
+      "trained_model_quality": "NOT_EVALUATED",
+      "qualified_solution_speedup_claim": false,
+      "long_training_authorized": false,
+      "cpu_memory_scope": "retained cache payload only; no process-RSS or CPU activation-peak claim",
+      "timing_statistics": "small-sample descriptive medians/P95; no speed threshold, confidence interval or population generalization"
+    }
+  },
+  "remaining_work_measurements": [
+    "RTX 5090 D numerical/gradient/update/resume and memory/timing checks",
+    "admitted real-query performance and changing-operand Newton timings",
+    "same-point native physical attribution and qualified-solution acceptance"
+  ],
+  "real_endpoint_error_resolved": false,
+  "trained_scientific_model_released": false,
+  "native_physical_acceptance_passed": false,
+  "qualified_solution_speedup_claim": false,
+  "long_training_authorized_by_this_release": false,
+  "source_receipts": {
+    "resume": {
+      "files": 23,
+      "matches_current": true
+    },
+    "pipeline": {
+      "files": 23,
+      "matches_current": true
+    },
+    "benchmark": {
+      "files": 25,
+      "matches_current": true
+    }
+  },
+  "source_sha256": {
+    "experiments/compact_pino_v21/efficiency/__init__.py": "57fcaaf933cd308d9f7ed3557e5e1dbeb9d73cd2f674bcd23711b7f0fdafb965",
+    "experiments/compact_pino_v21/efficiency/benchmark.py": "51b7154113b97ac539223fe3087d5efbbd3abe3a3fa74c812cb81c2f46211634",
+    "experiments/compact_pino_v21/p0_diagnostics/baseline_cases.py": "9fe7d0b95e85fbb78a45539a9f02be3b1d84680f4ec027407845d7ac6d672ab3",
+    "experiments/compact_pino_v21/p0_diagnostics/export_cases.py": "253e7c951bbd4794d5ebe59d7caea6d30ac96afe91d782e89ea957243418c330",
+    "experiments/compact_pino_v21/p0_diagnostics/exposure_audit.py": "743375e3cd5fe49d724977d5ad329225159827c329f8c7103c6b2a52ce7ca690",
+    "experiments/compact_pino_v21/p0_diagnostics/handoff_authority.py": "bafdab8eef8c1c20cb3d69b86e42a04210922b98ddc6a3dc21adc1b47f8292b8",
+    "experiments/compact_pino_v21/p0_diagnostics/promotion_gate.py": "2806582a63972b3d1ce5464582f5697b4205a6d16c56c069656763d4b4925758",
+    "experiments/compact_pino_v21/p0_diagnostics/screen_exports.py": "11f4b5e15ccca0f53dce17f9a15dad6b06faf09d0ff3147f7848cf07bef2b8ae",
+    "experiments/compact_pino_v21/training/admission.py": "256fe7bc172710a28fbde87ceda2737c10aa050f4caf813d0da409268d2661b8",
+    "experiments/compact_pino_v21/training/losses.py": "edee887425fcabd5d0c3498ae40819f09f37f7d4e2ac52aa40d0554a31cb4ea4",
+    "experiments/compact_pino_v21/training/manifest.py": "781198d2d2b5443c884eeb5b4a76d9ce746b2c93425571986fcd412a71c9ba9e",
+    "experiments/compact_pino_v21/training/runner.py": "77dcbb1361d547e37f1d221a2fd4d00f26a8135c526802d1edbc02fdbaa85677",
+    "experiments/compact_pino_v21/training/state.py": "16f632fbb335de497af8b5cbf28a830b8dac5b4aac92f22847b28ac279abb4c7",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/compact_pino_v21.py": "62fe5894b39b38645297f5d6f1adda78c26b8e7fe267bdddef67ed8fa176599d",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/unified_factory.py": "8807131ebb792f86ffa76feb0bd7f6bec364733af3121b9de846a861298f0210",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_blocks.py": "d2d43952833968fbfeaf5057eb7490aa5df0b2eec83235d84dce6a41f5c687a2",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_material.py": "16cc8f9779270777f9f603991c5695c1954ffb59d6f0e822596e841577b507ad",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_native.py": "3406f6655ca052b387cfb9187237f07f58cb9b507cdff63ad60e926332898cf7",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_response.py": "a8af91086b83b05b1115ee6f96cb719a0a28b1d074182873c6cfd91a60ae05a6",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_response_surface.py": "04786e33bdfe2e038dd22a1a97b2f0bee3cfbce4e99b19e5a27de034a71ca27d",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v22_geometry_inputs.py": "88503e47df3af9011e959fae9fea3c6b9ff80c8fb1ef13442bc53ef100d1a7ee",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v22_inference_cache.py": "ff01238f9bd1ab5480ae2aea4fad79a787837b5d1f687a6c3292e210e68a78e9",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v22_query_cache.py": "a0bbdfe00f9c2ef7ed042f9cb0d2554fdb1ba461a437274cfa3a60aff2ff998d",
+    "research/NeuralMoments/models/pcraft_ufno/spin_pino/native_pcraft.py": "6a45b7059d6fbc93032f871d1f518fbd1d4515cd24d853a7c6a37f4b09036dcc",
+    "research/NeuralMoments/models/pcraft_ufno/spin_pino/pino_backbone.py": "84f65cdb05b555162ed7ed67f0de3725788ed29324ac751f3870d92270ebcef8"
+  },
+  "evidence": {
+    "software_tests.xml": {
+      "path": "evidence/software_tests.xml",
+      "sha256": "72d7d5a09846611852ddfb79118c1ae05eb1269e1074769a42c4369bf03e4aea",
+      "bytes": 65867
+    },
+    "benchmark_report.json": {
+      "path": "evidence/benchmark_report.json",
+      "sha256": "d995def55868ef6b09962f4a8f8f0ed78b7bd3b4f3c100808f188b07433dd581",
+      "bytes": 82430
+    },
+    "actual_resume.json": {
+      "path": "evidence/actual_resume.json",
+      "sha256": "96ce0b35fce81349a7f64ae4e9a5792f347fa0e4e22f695a03e43f158a3af56d",
+      "bytes": 14043
+    },
+    "export_training_screen.json": {
+      "path": "evidence/export_training_screen.json",
+      "sha256": "3f00eeb746065fe48ced2349c1d7c3a62cb0d2c92190fff2e788e8b0a6a48448",
+      "bytes": 1095
+    },
+    "synthetic_screen.json": {
+      "path": "evidence/synthetic_screen.json",
+      "sha256": "249d33561d1471df72e6610b43709b47acd63984690067c3b914d1a1f82d627a",
+      "bytes": 26169
+    }
+  }
+}
