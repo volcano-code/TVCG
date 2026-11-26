@@ -2,10 +2,85 @@
 from __future__ import annotations
 
 import copy
+import hashlib
+import json
+from pathlib import Path
 import random
+import re
 
 import numpy as np
 import torch
+
+
+SCHEDULE_SCHEMA = 'compact_pino.fixed-exposure-schedule.v1'
+
+
+class ScheduleExhausted(RuntimeError):
+    """A frozen exposure schedule never silently cycles or invents more rows."""
+
+
+def load_exposure_schedule(path, expected_sha256, manifest_sha256, loader_record_ids):
+    """Bind ordered *occurrences* to the exact manifest and admitted train IDs."""
+    if not isinstance(expected_sha256, str) or re.fullmatch(r'[0-9a-f]{64}', expected_sha256) is None:
+        raise ValueError('fixed schedule requires an explicit lowercase SHA256 in TrainConfig')
+    path = Path(path).resolve(strict=True)
+    raw = path.read_bytes()
+    if hashlib.sha256(raw).hexdigest() != expected_sha256:
+        raise ValueError('exposure schedule SHA256 mismatch')
+    value = json.loads(raw)
+    if not isinstance(value, dict) or value.get('schema') != SCHEDULE_SCHEMA:
+        raise ValueError('unsupported exposure schedule schema')
+    if value.get('training_manifest_sha256') != manifest_sha256:
+        raise ValueError('exposure schedule training manifest identity mismatch')
+    ordered = value.get('record_ids')
+    admitted = list(loader_record_ids)
+    if (not admitted or any(not isinstance(rid, str) or not rid for rid in admitted)
+            or len(set(admitted)) != len(admitted)):
+        raise ValueError('fixed schedule requires distinct admitted training record IDs')
+    admitted_set = set(admitted)
+    if (not isinstance(ordered, list) or not ordered
+            or any(not isinstance(rid, str) or rid not in admitted_set for rid in ordered)):
+        raise ValueError('schedule occurrences must reference only admitted training record IDs')
+    identity = dict(schema=SCHEDULE_SCHEMA, sha256=expected_sha256,
+                    training_manifest_sha256=manifest_sha256,
+                    loader_record_ids=admitted, occurrences=len(ordered),
+                    unique_records=len(set(ordered)))
+    return FixedExposureSchedule(ordered, admitted, identity), dict(identity, path=str(path))
+
+
+class FixedExposureSchedule:
+    """Finite, immutable ID schedule with an exactly restorable occurrence cursor."""
+    def __init__(self, ordered_record_ids, loader_record_ids, identity):
+        index = {rid: i for i, rid in enumerate(loader_record_ids)}
+        self.order = tuple(index[rid] for rid in ordered_record_ids)
+        self.identity = copy.deepcopy(identity)
+        self.count = len(self.order)
+        self.cursor = 0
+        self.epoch = 0
+
+    @property
+    def remaining(self):
+        return self.count - self.cursor
+
+    def next_batch(self, size):
+        if type(size) is not int or size < 1:
+            raise ValueError('positive batch size required')
+        if size > self.remaining:
+            raise ScheduleExhausted('fixed exposure schedule exhausted; no partial batch or implicit cycle')
+        result = list(self.order[self.cursor:self.cursor+size])
+        self.cursor += size
+        return result
+
+    def state_dict(self):
+        return dict(schema=SCHEDULE_SCHEMA, identity=copy.deepcopy(self.identity),
+                    count=self.count, cursor=self.cursor, epoch=0)
+
+    def load_state_dict(self, state):
+        if (state.get('schema') != SCHEDULE_SCHEMA or state.get('identity') != self.identity
+                or state.get('count') != self.count or state.get('epoch') != 0
+                or type(state.get('cursor')) is not int or not 0 <= state['cursor'] <= self.count):
+            raise ValueError('invalid or foreign fixed exposure schedule checkpoint')
+        self.cursor = state['cursor']
 
 
 class StatefulShuffle:

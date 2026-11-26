@@ -199,23 +199,38 @@ class ProjectedRetentionContext:
 
 
 class LocalRetention(nn.Module):
-    """Bounded local modification of the cubic, conditioned on static material features.
+    """A bounded local response conditioned only on static material features.
 
     Inputs to forward are active-node coordinates, signed distance divided by
-    half-width, and optional per-node static encoder features. The coordinate
-    network learns a local interface shift and steepness. Exact saturated end
-    states and same-operand difference are imposed by the physical reduction.
+    the fixed outer half-width, and optional static encoder features. The legacy
+    ``bounded_cubic`` profile retains its parameter layout and interpretation.
+    ``monotone_warp`` instead moves and sharpens the cubic's coordinate, allowing
+    saturation inside that SAME prepared band. Its two coefficients are static
+    with respect to the cut, so the distance derivative below is the complete
+    local chain rule. The response is not an exact hard-cut integration rule.
+
+    ``response_type`` belongs in the owning model/checkpoint configuration, not
+    the state_dict: the two interpretations must never be silently interchanged.
+    ``zero_init`` resets only the final layer and reproduces the unlearned cubic.
     """
-    def __init__(self, context_dim=0, hidden_dim=24):
+    def __init__(self, context_dim=0, hidden_dim=24, *, response_type='bounded_cubic', zero_init=False):
         super().__init__()
         if not isinstance(context_dim, int) or context_dim < 0 or not isinstance(hidden_dim, int) or hidden_dim < 1:
             raise ValueError('invalid local retention dimensions')
+        if response_type not in ('bounded_cubic', 'monotone_warp'):
+            raise ValueError('response_type must be bounded_cubic or monotone_warp')
+        if type(zero_init) is not bool:
+            raise ValueError('zero_init must be a Boolean')
         self.context_dim = context_dim
+        self.response_type = response_type
         # Ordinary Python option: no new state_dict entry or model parameter.
         # False retains the independent autograd reference path for comparisons.
         self.use_analytic_slope = True
         self.local = nn.Sequential(nn.Linear(3 + context_dim, hidden_dim), nn.SiLU(), nn.Linear(hidden_dim, 2))
-        nn.init.normal_(self.local[-1].weight, std=.015)
+        if zero_init:
+            nn.init.zeros_(self.local[-1].weight)
+        else:
+            nn.init.normal_(self.local[-1].weight, std=.015)
         nn.init.zeros_(self.local[-1].bias)
 
     def project_context(self, context):
@@ -254,6 +269,30 @@ class LocalRetention(nn.Module):
         bias, steepness = self._coefficients(points, context)
         bias, steepness = bias.to(normalized_distance), steepness.to(normalized_distance)
         s = normalized_distance.clamp(-1., 1.)
+        if self.response_type == 'monotone_warp':
+            # The first output controls sharpness, the second a bounded shift.
+            # _coefficients has already applied tanh to both raw outputs.
+            a = torch.expm1(math.log(3.)*bias)
+            delta = .25*steepness
+            y = s + delta*(1.-s)*(1.+s)
+            q = y*(1. + a*(1.-y)*(1.+y))
+            t = q.clamp(-1., 1.)
+            if operation == 'intersection':
+                retained, sign = _base_profile(t), 1.
+            elif operation == 'difference':
+                # Evaluate the small complement directly, never as 1 - inside.
+                retained, sign = _base_profile(-t), -1.
+            else:
+                raise ValueError('operation must be intersection or difference')
+            if not slope:
+                return retained
+            # dy/ds >= 1/2. For a > 1/2 the coordinate q can turn back near an
+            # endpoint, but only where |q| >= 1 and P' is zero. Thus the complete
+            # saturated response remains monotone and C1 for all allowed a.
+            # Keep this expression connected to a/delta/context for J training.
+            derivative = (sign*.75*(1.-t)*(1.+t)
+                          * (1. + a*(1.-3.*y*y)) * (1.-2.*delta*s))
+            return retained, derivative
         p = _base_profile(s)
         complement = _base_profile(-s)
         # |coefficient| <= 1, so 0 <= p + p(1-p)*coefficient <= 1.
@@ -282,8 +321,9 @@ class LocalRetention(nn.Module):
     def retention_and_slope(self, points, normalized_distance, context=None, *, operation='intersection'):
         """Return r and dr/ds for s=d/h with cut-independent point features.
 
-        Saturated/clamped values have zero slope. This closed form is only used
-        for this exact LocalRetention class; custom models retain AD fallback.
+        Saturated/clamped values have zero slope. Both supported profiles retain
+        the parameter graph. This closed form is only used for this exact class;
+        custom models retain AD fallback.
         """
         return self._response(points, normalized_distance, context, operation, slope=True)
 
@@ -472,6 +512,9 @@ def evaluate_stencil(stencil: ResponseStencil, *, operation='intersection', fixe
                        ambiguous_nodes=stencil.ambiguous_nodes, jacobian_status=status,
                        active_mass=float(stencil.weights.sum()), smoothing='compact_cubic_signed_euclidean',
                        learned_shift_and_steepness=model is not None, operation=operation, moment_order=MOMENT_ORDER)
+    diagnostics['response_type'] = 'unlearned_cubic' if model is None else getattr(model, 'response_type', 'custom')
+    if diagnostics['response_type'] == 'monotone_warp':
+        diagnostics['smoothing'] = 'compact_monotone_warp_signed_euclidean'
     return ResponseResult(fixed + variable, jac, diagnostics)
 
 

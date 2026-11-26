@@ -7,7 +7,7 @@ voxel channels. Stage B training admission lives outside this module.
 from __future__ import annotations
 
 from contextlib import nullcontext
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 import torch
@@ -21,6 +21,8 @@ from .v21_response import LocalRetention, prepare_measure, evaluate_response, ev
 from .v22_geometry_inputs import GeometryInputCache, material_signature
 from .v22_query_cache import QueryPreparationCache
 from .v21_material import validate_full_cell_rule
+from .v22_frozen_features import (FrozenFeatureCache, FrozenStateIdentity,
+                                  tensor_version, validate_feature_payload)
 
 
 @dataclass(frozen=True)
@@ -92,6 +94,20 @@ class GeometryFeatures:
     inference_only: bool
     projected_context: object | None = None
     material_key: object | None = None
+    frozen_encoder: bool = False
+    table_version: tuple | None = None
+    fixed_key: bytes | None = None
+    graph_lifetime: object | None = None
+
+
+class _GeometryGraphLifetime:
+    """All-parameter training features belong to one forward/backward graph."""
+    def __init__(self):
+        self.consumed = False
+
+    def backward(self, gradient):
+        self.consumed = True
+        return gradient
 
 
 def _evaluate_prepared_packed(prepared, operation, fixed_moments, vertex_velocity=None,
@@ -140,13 +156,15 @@ class CompactPINOv21(nn.Module):
     """A Token16/Token8 candidate with one bounded local retention field."""
     def __init__(self, token_grid=16, *, efficiency=True,
                  static_cache_bytes=128*1024**2, query_cache_bytes=128*1024**2,
-                 full_cell_rule='tetra4'):
+                 full_cell_rule='tetra4', response_type='bounded_cubic',
+                 response_zero_init=False, training_scope='all',
+                 frozen_feature_cache_bytes=64*1024**2):
         super().__init__()
         if token_grid not in (8, 16):
             raise ValueError("expected Token8 or Token16")
         if type(efficiency) is not bool:
             raise ValueError('efficiency must be a Boolean')
-        for budget in (static_cache_bytes, query_cache_bytes):
+        for budget in (static_cache_bytes, query_cache_bytes, frozen_feature_cache_bytes):
             if type(budget) is not int or budget < 0:
                 raise ValueError('cache byte limits must be nonnegative integers')
         self.token_grid = token_grid
@@ -154,21 +172,85 @@ class CompactPINOv21(nn.Module):
         self.efficiency = efficiency
         self.geometry_input_cache = GeometryInputCache(max_bytes=static_cache_bytes if efficiency else 0)
         self.query_preparation_cache = QueryPreparationCache(max_bytes=query_cache_bytes if efficiency else 0)
+        self.frozen_feature_cache = FrozenFeatureCache(frozen_feature_cache_bytes if efficiency else 0)
+        self._frozen_state = FrozenStateIdentity()
+        self._last_frozen_signature = None
+        self.encoder_calls = 0
+        self.encoder_grid_calls = 0
         cfg = _make_native_config(get_config('compact_pino_v2_256'))
         self.shared_encoder = PcraftNativeMomentOperator(cfg, encoder_only=True)
         width = cfg.interval_width
         self.geometry_attention = nn.MultiheadAttention(width, 4, batch_first=True)
-        self.response = LocalRetention(context_dim=width, hidden_dim=64)
+        self.response = LocalRetention(context_dim=width, hidden_dim=64,
+                                       response_type=response_type, zero_init=response_zero_init)
         self.response.use_analytic_slope = efficiency
+        self.response_type = response_type
+        self.response_zero_init = response_zero_init
+        self.set_training_scope(training_scope)
+
+    def set_training_scope(self, scope):
+        """Explicitly change which parameters may learn; never reuse old graphs."""
+        if scope not in ('all', 'response'):
+            raise ValueError("training_scope must be 'all' or 'response'")
+        self.training_scope = scope
+        for module in (self.shared_encoder, self.geometry_attention):
+            for parameter in module.parameters():
+                parameter.requires_grad_(scope == 'all')
+                parameter.grad = None
+        for parameter in self.response.parameters():
+            parameter.requires_grad_(True)
+        self._invalidate_frozen_features()
+        self.train(self.training)
+        return self
+
+    def train(self, mode=True):
+        super().train(mode)
+        if getattr(self, 'training_scope', 'all') == 'response':
+            self.shared_encoder.eval()
+            self.geometry_attention.eval()
+        return self
+
+    def _invalidate_frozen_features(self):
+        self.frozen_feature_cache.clear(invalidated=True)
+        self._frozen_state.clear()
+        self._last_frozen_signature = None
+
+    def _apply(self, fn, recurse=True):
+        result = super()._apply(fn, recurse=recurse)
+        if hasattr(self, 'frozen_feature_cache'):
+            self.clear_efficiency_caches()
+        return result
+
+    def load_state_dict(self, state_dict, strict=True, assign=False):
+        result = super().load_state_dict(state_dict, strict=strict, assign=assign)
+        self.clear_efficiency_caches()
+        self.train(self.training)
+        return result
+
+    def _frozen_signature(self):
+        if self.training_scope != 'response':
+            raise ValueError('frozen geometry features require response-only training scope')
+        signature = (self.token_grid, repr(self.shared_encoder.config),
+                     self._frozen_state.signature((('encoder', self.shared_encoder),
+                                                   ('attention', self.geometry_attention))))
+        if self._last_frozen_signature is not None and self._last_frozen_signature != signature:
+            self.frozen_feature_cache.clear(invalidated=True)
+        self._last_frozen_signature = signature
+        return signature
 
     def clear_efficiency_caches(self):
-        """Release parameter-independent caches; checkpoints contain only weights."""
+        """Release inputs, queries and frozen tables; checkpoints contain no caches."""
         self.geometry_input_cache.clear()
         self.query_preparation_cache.clear()
+        self._invalidate_frozen_features()
 
     def efficiency_statistics(self):
         return dict(enabled=self.efficiency, static_inputs=self.geometry_input_cache.snapshot(),
-                    prepared_queries=self.query_preparation_cache.info(), full_cell_rule=self.full_cell_rule)
+                    prepared_queries=self.query_preparation_cache.info(), full_cell_rule=self.full_cell_rule,
+                    frozen_features=self.frozen_feature_cache.snapshot(),
+                    encoder_calls=self.encoder_calls, encoder_grid_calls=self.encoder_grid_calls,
+                    frozen_state_digest_builds=self._frozen_state.digest_builds,
+                    training_scope=self.training_scope, response_type=self.response_type)
 
     def encode_geometry(self, blocks, fixed_moments, density=1., *, inference=False):
         if blocks.side != 256 or blocks.side % (blocks.block_voxels * self.token_grid):
@@ -177,15 +259,33 @@ class CompactPINOv21(nn.Module):
             raise ValueError("inference cache requires eval()")
         encoder = self.shared_encoder
         material_key = material_signature(blocks)
+        frozen = self.training_scope == 'response'
+        inference_only = inference or not torch.is_grad_enabled()
+        versions = self._frozen_signature() if frozen else parameter_versions(self)
+        frozen_key = None
+        if frozen:
+            fixed = np.asarray(fixed_moments, dtype=np.float64)
+            if fixed.shape != (10,) or not np.isfinite(fixed).all():
+                raise ValueError('expected ten finite fixed moments')
+            if not np.isfinite(density) or density <= 0:
+                raise ValueError('density must be positive and finite')
+            frozen_key = (material_key, fixed.tobytes(), float(density), versions)
+            entry = self.frozen_feature_cache.get(frozen_key)
+            if entry is not None:
+                # Inference use must not mark the reusable underlying table as
+                # inference-only for all future response-training requests.
+                return replace(entry, inference_only=inference_only)
         inputs = self.geometry_input_cache.get(blocks, fixed_moments, density,
             token_grid=self.token_grid, grids=tuple(encoder.config.multiscale_grids))
         p = next(encoder.parameters())
         def tensor(a):
             # Prepared arrays are immutable and can outlive any one forward.
             return torch.tensor(a, device=p.device, dtype=p.dtype)
-        with torch.no_grad() if inference else nullcontext():
+        self.encoder_calls += 1
+        with torch.no_grad() if inference or frozen else nullcontext():
             maps, globals_ = [], []
             for grid_input in inputs.encoder_inputs:
+                self.encoder_grid_calls += 1
                 pooled, fmap = encoder.pino_encoder.forward_with_map(tensor(grid_input)[None],
                                                                      preserve_resolution=True)
                 maps.append(fmap)
@@ -202,17 +302,43 @@ class CompactPINOv21(nn.Module):
                                                  attn_mask=log_mass, need_weights=False)
             table = torch.index_copy(local.new_zeros((inputs.token_count, local.shape[1])), 0,
                                      torch.tensor(inputs.active, device=p.device), local + summary[0])
-            projected = self.response.project_context(table) if self.efficiency else None
+            # A cached table may later feed trainable response weights. Inference
+            # tensors cannot be saved for backward, so retain a normal tensor.
+            if table.is_inference():
+                with torch.inference_mode(False), torch.no_grad():
+                    table = table.clone()
+            projected = self.response.project_context(table) if self.efficiency and not frozen else None
         if material_signature(blocks) != material_key:
             raise ValueError('material changed while encoding geometry')
-        return GeometryFeatures(blocks, inputs.fixed_moments, table, id(self), parameter_versions(self),
-                                inference or not torch.is_grad_enabled(), projected, material_key)
+        if frozen and self._frozen_signature() != versions:
+            raise ValueError('frozen geometry state changed while encoding')
+        lifetime = None
+        if not frozen and not inference_only and table.requires_grad:
+            lifetime = _GeometryGraphLifetime()
+            table.register_hook(lifetime.backward)
+        result = GeometryFeatures(blocks, inputs.fixed_moments, table, id(self), versions,
+                                  inference_only, projected, material_key, frozen,
+                                  tensor_version(table), inputs.fixed_moments.tobytes(), lifetime)
+        if frozen:
+            self.frozen_feature_cache.put(frozen_key, replace(result, inference_only=False))
+        return result
 
     def evaluate_operand(self, cache, operand, *, with_jacobian=True, bandwidth=None, chunk_size=65536):
-        if cache.owner != id(self) or cache.versions != parameter_versions(self):
+        if cache.owner != id(self):
+            raise ValueError("foreign or stale learned geometry cache")
+        if cache.frozen_encoder:
+            versions = self._frozen_signature()
+        else:
+            if self.training_scope != 'all':
+                raise ValueError('feature scope changed; encode geometry again')
+            versions = parameter_versions(self)
+        if cache.versions != versions:
             raise ValueError("foreign or stale learned geometry cache")
         if cache.inference_only and self.training:
             raise ValueError("inference-only geometry features cannot train the model")
+        validate_feature_payload(cache)
+        if cache.graph_lifetime is not None and cache.graph_lifetime.consumed:
+            raise ValueError('learned geometry training graph was consumed; encode geometry again')
         blocks = cache.blocks
         if cache.material_key != material_signature(blocks):
             raise ValueError('stale learned geometry cache: material changed')
@@ -222,12 +348,17 @@ class CompactPINOv21(nn.Module):
         prepared = self.query_preparation_cache.get_or_prepare(blocks, operand, width,
             chunk_size=chunk_size, full_cell_rule=self.full_cell_rule)
         surface = prepared.surface if prepared is not None else prepare_surface(operand.vertices, operand.faces)
-        def context(points):
-            origin = torch.as_tensor(blocks.origin, device=points.device, dtype=points.dtype)
-            idx = ((points-origin) * self.token_grid/(blocks.side*blocks.pitch)).floor().long().clamp(0, self.token_grid-1)
-            keys = (idx[:,0]*self.token_grid+idx[:,1])*self.token_grid+idx[:,2]
-            return cache.projected_context.gather(keys) if cache.projected_context is not None else cache.table[keys]
         with torch.no_grad() if cache.inference_only else nullcontext():
+            # Response W_h is trainable even when the encoder is frozen. This
+            # projection belongs to this query graph and is never cached across
+            # updates or backwards. The unprojected table is safe to reuse.
+            projected = (self.response.project_context(cache.table)
+                         if cache.frozen_encoder and self.efficiency else cache.projected_context)
+            def context(points):
+                origin = torch.as_tensor(blocks.origin, device=points.device, dtype=points.dtype)
+                idx = ((points-origin) * self.token_grid/(blocks.side*blocks.pitch)).floor().long().clamp(0, self.token_grid-1)
+                keys = (idx[:,0]*self.token_grid+idx[:,1])*self.token_grid+idx[:,2]
+                return projected.gather(keys) if projected is not None else cache.table[keys]
             if prepared is not None:
                 return _evaluate_prepared_packed(prepared, operand.operation, cache.fixed_moments,
                     operand.vertex_velocity if with_jacobian else None,

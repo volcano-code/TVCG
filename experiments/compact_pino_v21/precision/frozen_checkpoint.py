@@ -20,7 +20,7 @@ from research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_repro
 )
 from ..p0_diagnostics.baseline_cases import sha256
 from ..training.admission import canonical_digest
-from ..training.runner import CHECKPOINT_SCHEMA, TrainConfig
+from ..training.runner import CHECKPOINT_SCHEMA, TrainConfig, model_kwargs
 
 
 def _tensor_versions(model):
@@ -124,10 +124,7 @@ def load_frozen_checkpoint(path, expected_sha256, *, device="cpu"):
     for name, value in state["model"].items():
         if not isinstance(name, str) or not isinstance(value, torch.Tensor) or not bool(torch.isfinite(value).all()):
             raise ValueError("checkpoint model state must contain only named finite tensors")
-    model = CompactPINOv21(token_grid=config.token_grid, efficiency=config.efficiency,
-                          static_cache_bytes=config.static_cache_bytes,
-                          query_cache_bytes=config.query_cache_bytes,
-                          full_cell_rule=config.full_cell_rule)
+    model = CompactPINOv21(**model_kwargs(config))
     expected_state = model.state_dict()
     if any(name in expected_state and value.dtype != expected_state[name].dtype for name, value in state["model"].items()):
         raise ValueError("checkpoint tensor dtype differs from the current model; no implicit weight conversion")
