@@ -27,7 +27,7 @@ import numpy as np
 
 
 _INPUT_VERSION = "compact-pino.geometry-inputs.v1"
-_MATERIAL_SIGNATURE_VERSION = "compact-pino.material-signature.v1"
+_MATERIAL_SIGNATURE_VERSION = "compact-pino.material-signature.v2"
 _mapping_lock = threading.Lock()
 _mapping_ids = {}
 _mapping_serial = itertools.count(1)
@@ -60,7 +60,7 @@ def _array_digest(value):
     digest = hashlib.sha256()
     digest.update(repr((array.dtype.str, array.shape)).encode("ascii"))
     if array.flags.c_contiguous:
-        digest.update(memoryview(array).cast("B"))
+        digest.update(memoryview(array).cast("B") if array.size else b'')
     else:
         iterator = np.nditer(array, flags=["external_loop", "buffered", "zerosize_ok"],
                              op_flags=["readonly"], order="C", buffersize=131072)
@@ -115,9 +115,20 @@ def material_signature(blocks):
         nodes = ("content", _array_digest(blocks.nodes))
     arrays = tuple((name, _array_digest(getattr(blocks, name)))
                    for name in ("ids", "offsets", "moments", "centers", "origin"))
+    material = getattr(blocks, 'material', None)
+    provenance = None
+    if material is not None:
+        compact = []
+        for name in ('full_runs', 'partial_cells', 'boundary_nodes', 'origin'):
+            value = getattr(material, name)
+            signature = _readonly_mapping_signature(value)
+            compact.append((name, signature if signature is not None else ('content', _array_digest(value))))
+        provenance = (str(material.identity), str(material.source),
+                      str(getattr(material, 'partial_rule', 'fit_compressed')),
+                      int(material.side), float(material.pitch), float(material.density), tuple(compact))
     return (_MATERIAL_SIGNATURE_VERSION, type(blocks).__module__, type(blocks).__qualname__,
             str(blocks.identity), int(blocks.side), int(blocks.block_voxels),
-            float(blocks.pitch), float(blocks.radius), nodes, arrays)
+            float(blocks.pitch), float(blocks.radius), nodes, arrays, provenance)
 
 
 def _positive_int(value, name):

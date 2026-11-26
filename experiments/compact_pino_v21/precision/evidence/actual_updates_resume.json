@@ -1,0 +1,441 @@
+{
+  "schema": "compact_pino.precision-software-smoke.v1",
+  "scope": "synthetic_software_only",
+  "status": "PASS",
+  "checks": {
+    "model": true,
+    "optimizer": true,
+    "scheduler": true,
+    "scaler": true,
+    "rng": true,
+    "sampler": true,
+    "global_step": true,
+    "attempts": true,
+    "same_second_batch": true,
+    "same_second_loss": true,
+    "parameters_updated": true,
+    "all_four_objectives_effective": true,
+    "physical_only_reaches_encoder_attention_response": true,
+    "joint_gradients_finite_nonzero": true,
+    "physical_exposure_tracks_selected_checkpoint": true
+  },
+  "config": {
+    "token_grid": 16,
+    "seed": 830251,
+    "learning_rate": 3e-05,
+    "batch_size": 1,
+    "jacobian_loss_weight": 1.0,
+    "auxiliary_loss_weight": 0.0,
+    "chunk_size": 65536,
+    "amp": "off",
+    "deterministic": true,
+    "sampler": "shuffle_without_replacement",
+    "efficiency": true,
+    "static_cache_bytes": 134217728,
+    "query_cache_bytes": 134217728,
+    "evaluation_cache_bytes": 67108864,
+    "full_cell_rule": "gl3",
+    "residual_loss_weight": 0.1,
+    "constraint_loss_weight": 0.1
+  },
+  "execution_sources": {
+    "experiments/compact_pino_v21/p0_diagnostics/baseline_cases.py": "9fe7d0b95e85fbb78a45539a9f02be3b1d84680f4ec027407845d7ac6d672ab3",
+    "experiments/compact_pino_v21/p0_diagnostics/export_cases.py": "8721bb1e666d1050aa580327b2c2d38b5c55b08766a3c250082b5c73b9c26b84",
+    "experiments/compact_pino_v21/p0_diagnostics/exposure_audit.py": "510fffd0a424b8a41e9344641f4073d6212f7dd86e096480b5780bea0cc0271c",
+    "experiments/compact_pino_v21/p0_diagnostics/handoff_authority.py": "bafdab8eef8c1c20cb3d69b86e42a04210922b98ddc6a3dc21adc1b47f8292b8",
+    "experiments/compact_pino_v21/p0_diagnostics/promotion_gate.py": "2806582a63972b3d1ce5464582f5697b4205a6d16c56c069656763d4b4925758",
+    "experiments/compact_pino_v21/p0_diagnostics/screen_exports.py": "11f4b5e15ccca0f53dce17f9a15dad6b06faf09d0ff3147f7848cf07bef2b8ae",
+    "experiments/compact_pino_v21/training/admission.py": "256fe7bc172710a28fbde87ceda2737c10aa050f4caf813d0da409268d2661b8",
+    "experiments/compact_pino_v21/training/losses.py": "626b5004cb49a3282fb04efa0c21de47c18311eec892282dac5ce7a9933d28b9",
+    "experiments/compact_pino_v21/training/manifest.py": "bd0fcc6fc94c63095140fb2ffce007fe45c6c8fbc9b8750293aea52e45fc26e2",
+    "experiments/compact_pino_v21/training/residual_matching.py": "8275793650afda3a3d15d56967970cf4c05f5de43d96a0f92775814128a24f54",
+    "experiments/compact_pino_v21/training/runner.py": "8db6cd54ff22615bc4b3edcedd8ae770aec097af6e1d9d7d30991479c599f267",
+    "experiments/compact_pino_v21/training/state.py": "16f632fbb335de497af8b5cbf28a830b8dac5b4aac92f22847b28ac279abb4c7",
+    "include/spin/MomentInertiaAlgebra.h": "6ed2e361b07e6fff881ffd85743d6bb7fa67c3b5b477a6465648864902d0ecc1",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/compact_pino_v21.py": "31d3154eae2ce8cf398a959b0782f7152f3f76a6c4fc5ec599410eb3d39561d6",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/unified_factory.py": "8807131ebb792f86ffa76feb0bd7f6bec364733af3121b9de846a861298f0210",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_blocks.py": "d500aad2846d711e763d58e281d2f77fa6e16a034da4efdb05a146ab5d38524d",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_material.py": "efc1a72be1e2b7c5ba50139b6202987647f1b768a9c4523bcfb182d831dff50f",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_material_native.cpp": "c5c8eee1dfc2bf0fbfad0d727ca437a3b65fbc2b4b13fcec78935229dd46037a",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_native.py": "3406f6655ca052b387cfb9187237f07f58cb9b507cdff63ad60e926332898cf7",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_response.py": "a8af91086b83b05b1115ee6f96cb719a0a28b1d074182873c6cfd91a60ae05a6",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_response_surface.py": "04786e33bdfe2e038dd22a1a97b2f0bee3cfbce4e99b19e5a27de034a71ca27d",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v22_geometry_inputs.py": "2292ec2c0c7b783f5a45f31eec114c97eea33ddb22ecf0f30d3d014d19606bc7",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v22_inference_cache.py": "ff01238f9bd1ab5480ae2aea4fad79a787837b5d1f687a6c3292e210e68a78e9",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v22_query_cache.py": "8e5a60540a39d72ceeb47c0ad3754ce1cec240be9f204c09985c92843160d8ae",
+    "research/NeuralMoments/models/pcraft_ufno/spin_pino/native_pcraft.py": "6a45b7059d6fbc93032f871d1f518fbd1d4515cd24d853a7c6a37f4b09036dcc",
+    "research/NeuralMoments/models/pcraft_ufno/spin_pino/pino_backbone.py": "84f65cdb05b555162ed7ed67f0de3725788ed29324ac751f3870d92270ebcef8",
+    "src/spin/SpinMomentProblem.cpp": "5f02921f38ba8ba6b8f03445b8db1dcac23ff79039f558d4ceb9322a6b04bbab"
+  },
+  "runtime": {
+    "torch": "2.8.0+cpu",
+    "cuda": null,
+    "numpy": "2.3.5",
+    "device": "cpu",
+    "deterministic": true,
+    "cublas_workspace_config": null,
+    "cuda_device_name": null,
+    "cuda_compute_capability": null,
+    "torch_threads": 1,
+    "interop_threads": 9
+  },
+  "training_manifest_path": "/workspace/scratch/fcf5369c0b51/precision-smoke-final/assets/precision_manifest.json",
+  "training_manifest_sha256": "539c1fec13f72d5430da8af4084d8816eac3ac52423e22b0c5927095fd067ed5",
+  "physical_only_backward": {
+    "loss": 8.110771289540447e-08,
+    "loss_membership": {
+      "moment_mask": [
+        false
+      ],
+      "moment_weight": [
+        0.0
+      ],
+      "jacobian_mask": [
+        false
+      ],
+      "jacobian_weight": [
+        0.0
+      ],
+      "moment_denominator": 0.0,
+      "jacobian_denominator": 0.0,
+      "moment_loss": 0.0,
+      "jacobian_loss": 0.0,
+      "jacobian_reasons": [
+        "RESPONSE_J_UNAVAILABLE"
+      ],
+      "normalization": "M: mL^degree; J: chart parameter_scales / (mL^degree)",
+      "residual_mask": [
+        true
+      ],
+      "residual_weight": [
+        0.1
+      ],
+      "constraint_mask": [
+        true
+      ],
+      "constraint_weight": [
+        0.1
+      ],
+      "residual_denominator": 1.0,
+      "constraint_denominator": 1.0,
+      "residual_loss": 1.7699766144814292e-07,
+      "constraint_loss": 6.340794675059018e-07,
+      "residual_reasons": [
+        "FIXED_REFERENCE_VALID"
+      ],
+      "residual_profiles": [
+        "TVCG_REPO_DUAL_MONOMIAL_RAW_V1_CABI_V1"
+      ],
+      "residual_approximations": [
+        "exact_fixed_multiplier_residual_difference"
+      ],
+      "residual_normalization": "fixed positive teacher scales; vector differences, not zero targets"
+    },
+    "gradients": {
+      "shared_encoder.pino_encoder.": {
+        "parameters_with_grad": 84,
+        "finite": true,
+        "norm": 8.593115552457675e-08
+      },
+      "geometry_attention.": {
+        "parameters_with_grad": 4,
+        "finite": true,
+        "norm": 2.8366539339685914e-08
+      },
+      "response.": {
+        "parameters_with_grad": 4,
+        "finite": true,
+        "norm": 2.1443359798922756e-07
+      }
+    },
+    "optimizer_step_executed": false
+  },
+  "steps": [
+    {
+      "attempt": 1,
+      "global_step": 1,
+      "record_ids": [
+        "fixture-1"
+      ],
+      "committed": true,
+      "amp_skip": false,
+      "skip_reason": null,
+      "loss": 7.573901650233544e-06,
+      "moment_mask": [
+        true
+      ],
+      "moment_weight": [
+        1.0
+      ],
+      "jacobian_mask": [
+        true
+      ],
+      "jacobian_weight": [
+        1.0
+      ],
+      "moment_denominator": 1.0,
+      "jacobian_denominator": 1.0,
+      "moment_loss": 2.8293206180103325e-07,
+      "jacobian_loss": 7.198416103782642e-06,
+      "jacobian_reasons": [
+        "QUALIFIED_AND_RESPONSE_VALID"
+      ],
+      "normalization": "M: mL^degree; J: chart parameter_scales / (mL^degree)",
+      "residual_mask": [
+        true
+      ],
+      "residual_weight": [
+        0.1
+      ],
+      "constraint_mask": [
+        true
+      ],
+      "constraint_weight": [
+        0.1
+      ],
+      "residual_denominator": 1.0,
+      "constraint_denominator": 1.0,
+      "residual_loss": 2.862575453411919e-07,
+      "constraint_loss": 6.392773011574831e-07,
+      "residual_reasons": [
+        "FIXED_REFERENCE_VALID"
+      ],
+      "residual_profiles": [
+        "TVCG_REPO_DUAL_MONOMIAL_RAW_V1_CABI_V1"
+      ],
+      "residual_approximations": [
+        "exact_fixed_multiplier_residual_difference"
+      ],
+      "residual_normalization": "fixed positive teacher scales; vector differences, not zero targets",
+      "gradients": {
+        "shared_encoder.pino_encoder.": {
+          "parameters_with_grad": 84,
+          "finite": true,
+          "norm": 9.199461601383518e-06
+        },
+        "geometry_attention.": {
+          "parameters_with_grad": 4,
+          "finite": true,
+          "norm": 1.477773480473843e-06
+        },
+        "response.": {
+          "parameters_with_grad": 4,
+          "finite": true,
+          "norm": 1.4141129213385284e-05
+        }
+      },
+      "seconds": 15.70481255300001,
+      "cumulative_runner_seconds": 34.588514319999376,
+      "sampler": {
+        "epoch": 0,
+        "cursor": 1,
+        "count": 2
+      }
+    },
+    {
+      "attempt": 2,
+      "global_step": 2,
+      "record_ids": [
+        "fixture-0"
+      ],
+      "committed": true,
+      "amp_skip": false,
+      "skip_reason": null,
+      "loss": 8.445944028115182e-06,
+      "moment_mask": [
+        true
+      ],
+      "moment_weight": [
+        1.0
+      ],
+      "jacobian_mask": [
+        true
+      ],
+      "jacobian_weight": [
+        1.0
+      ],
+      "moment_denominator": 1.0,
+      "jacobian_denominator": 1.0,
+      "moment_loss": 2.6086061236161114e-07,
+      "jacobian_loss": 8.10460209801382e-06,
+      "jacobian_reasons": [
+        "QUALIFIED_AND_RESPONSE_VALID"
+      ],
+      "normalization": "M: mL^degree; J: chart parameter_scales / (mL^degree)",
+      "residual_mask": [
+        true
+      ],
+      "residual_weight": [
+        0.1
+      ],
+      "constraint_mask": [
+        true
+      ],
+      "constraint_weight": [
+        0.1
+      ],
+      "residual_denominator": 1.0,
+      "constraint_denominator": 1.0,
+      "residual_loss": 1.7542629822666103e-07,
+      "constraint_loss": 6.29386879170865e-07,
+      "residual_reasons": [
+        "FIXED_REFERENCE_VALID"
+      ],
+      "residual_profiles": [
+        "TVCG_REPO_DUAL_MONOMIAL_RAW_V1_CABI_V1"
+      ],
+      "residual_approximations": [
+        "exact_fixed_multiplier_residual_difference"
+      ],
+      "residual_normalization": "fixed positive teacher scales; vector differences, not zero targets",
+      "gradients": {
+        "shared_encoder.pino_encoder.": {
+          "parameters_with_grad": 84,
+          "finite": true,
+          "norm": 1.7259002561331727e-05
+        },
+        "geometry_attention.": {
+          "parameters_with_grad": 4,
+          "finite": true,
+          "norm": 2.2678789264318766e-06
+        },
+        "response.": {
+          "parameters_with_grad": 4,
+          "finite": true,
+          "norm": 2.2170015654410236e-05
+        }
+      },
+      "seconds": 14.892571629000486,
+      "cumulative_runner_seconds": 49.61258925099992,
+      "sampler": {
+        "epoch": 0,
+        "cursor": 2,
+        "count": 2
+      }
+    },
+    {
+      "attempt": 2,
+      "global_step": 2,
+      "record_ids": [
+        "fixture-0"
+      ],
+      "committed": true,
+      "amp_skip": false,
+      "skip_reason": null,
+      "loss": 8.445944028115182e-06,
+      "moment_mask": [
+        true
+      ],
+      "moment_weight": [
+        1.0
+      ],
+      "jacobian_mask": [
+        true
+      ],
+      "jacobian_weight": [
+        1.0
+      ],
+      "moment_denominator": 1.0,
+      "jacobian_denominator": 1.0,
+      "moment_loss": 2.6086061236161114e-07,
+      "jacobian_loss": 8.10460209801382e-06,
+      "jacobian_reasons": [
+        "QUALIFIED_AND_RESPONSE_VALID"
+      ],
+      "normalization": "M: mL^degree; J: chart parameter_scales / (mL^degree)",
+      "residual_mask": [
+        true
+      ],
+      "residual_weight": [
+        0.1
+      ],
+      "constraint_mask": [
+        true
+      ],
+      "constraint_weight": [
+        0.1
+      ],
+      "residual_denominator": 1.0,
+      "constraint_denominator": 1.0,
+      "residual_loss": 1.7542629822666103e-07,
+      "constraint_loss": 6.29386879170865e-07,
+      "residual_reasons": [
+        "FIXED_REFERENCE_VALID"
+      ],
+      "residual_profiles": [
+        "TVCG_REPO_DUAL_MONOMIAL_RAW_V1_CABI_V1"
+      ],
+      "residual_approximations": [
+        "exact_fixed_multiplier_residual_difference"
+      ],
+      "residual_normalization": "fixed positive teacher scales; vector differences, not zero targets",
+      "gradients": {
+        "shared_encoder.pino_encoder.": {
+          "parameters_with_grad": 84,
+          "finite": true,
+          "norm": 1.7259002561331727e-05
+        },
+        "geometry_attention.": {
+          "parameters_with_grad": 4,
+          "finite": true,
+          "norm": 2.2678789264318766e-06
+        },
+        "response.": {
+          "parameters_with_grad": 4,
+          "finite": true,
+          "norm": 2.2170015654410236e-05
+        }
+      },
+      "seconds": 15.567149487999814,
+      "cumulative_runner_seconds": 50.46872593599983,
+      "sampler": {
+        "epoch": 0,
+        "cursor": 2,
+        "count": 2
+      }
+    }
+  ],
+  "initial_checkpoint": {
+    "path": "/workspace/scratch/fcf5369c0b51/precision-smoke-final/continuous/step-0-attempt-0-1487f7c4866a.pt",
+    "sha256": "b1ef2df76ef71ac64af69280b28f8cb787ebc94f4ba702c259de1eb663b15e7c",
+    "receipt_path": "/workspace/scratch/fcf5369c0b51/precision-smoke-final/continuous/step-0-attempt-0-1487f7c4866a.resume.json",
+    "model_tensor_sha256": "177ce54237cba240572ed144651adbe07b4d9c23ecd585d4818149af50e8f0ae"
+  },
+  "interrupted_checkpoint": {
+    "path": "/workspace/scratch/fcf5369c0b51/precision-smoke-final/continuous/step-1-attempt-1-063c413612b6.pt",
+    "sha256": "7bd126507d06b712d81547862ed07efeff898e8208959271a4c0185971d75854",
+    "receipt_path": "/workspace/scratch/fcf5369c0b51/precision-smoke-final/continuous/step-1-attempt-1-063c413612b6.resume.json",
+    "model_tensor_sha256": "68f80e15255ed6b0c62dac78114f3085c06b27cd7b80ab243ea9fb27a6eafc62"
+  },
+  "continuous_checkpoint": {
+    "path": "/workspace/scratch/fcf5369c0b51/precision-smoke-final/continuous/step-2-attempt-2-d0b74e5b428b.pt",
+    "sha256": "c35de5c281123e8fbd9fd6ce6ecf2f22d2906229b9dd48c1b1b24c3e3aeb474d",
+    "receipt_path": "/workspace/scratch/fcf5369c0b51/precision-smoke-final/continuous/step-2-attempt-2-d0b74e5b428b.resume.json",
+    "model_tensor_sha256": "01173819de467280a753febcf03a1225025ed6991102842550c58479d25709bb"
+  },
+  "resumed_checkpoint": {
+    "path": "/workspace/scratch/fcf5369c0b51/precision-smoke-final/resumed/step-2-attempt-2-587abd248fdc.pt",
+    "sha256": "1476522430a654a7052a7dd5420ed5925008f694795e0fe218f27e34c84a9d76",
+    "receipt_path": "/workspace/scratch/fcf5369c0b51/precision-smoke-final/resumed/step-2-attempt-2-587abd248fdc.resume.json",
+    "model_tensor_sha256": "01173819de467280a753febcf03a1225025ed6991102842550c58479d25709bb"
+  },
+  "physical_exposure": {
+    "checkpoint_sha256": "1476522430a654a7052a7dd5420ed5925008f694795e0fe218f27e34c84a9d76",
+    "checkpoint_id": "step-2-attempt-2-587abd248fdc",
+    "objectives": {
+      "residual": {
+        "requested": true,
+        "committed_occurrences": 2
+      },
+      "constraint": {
+        "requested": true,
+        "committed_occurrences": 2
+      }
+    },
+    "enabled_objectives_exercised": true
+  },
+  "real_optimizer_calls_executed": 3,
+  "native_solver_acceptance": "NOT_EVALUATED",
+  "scientific_promotion": "NOT_EVALUATED",
+  "exactness_scope": "same CPU runtime; actual default encoder; GPU and private deployed formula not validated"
+}

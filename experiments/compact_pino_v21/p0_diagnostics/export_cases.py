@@ -242,7 +242,11 @@ def _build_case(record, meta, root, output, materials):
     if type(grid.get("side")) is not int or grid["side"] != 256:
         raise ValueError("the current export supports native256 only")
     origin, pitch, side, density = material_module._grid(grid["origin"], grid["pitch"], 256, meta["density"])
-    material_id = material_module._identity("mesh", origin, pitch, side, density, vertices, faces)
+    partial_rule = grid.get('partial_rule', 'fit_compressed')
+    if partial_rule not in material_module.PARTIAL_CELL_RULES:
+        raise ValueError('unsupported partial-cell cubature rule')
+    material_id = material_module._identity("mesh", origin, pitch, side, density, vertices, faces,
+                                           partial_rule=partial_rule)
     if material_id not in materials:
         if "material" in record["assets"]:
             # Static preprocessing can be reused across snapshots, but only
@@ -250,7 +254,8 @@ def _build_case(record, meta, root, output, materials):
             previous_material = _asset(record["assets"]["material"], root, "material")
             material = material_module.load_material(previous_material, material_id)
         else:
-            material = material_module.prepare_material(vertices, faces, origin, pitch, side=side, density=density)
+            material = material_module.prepare_material(vertices, faces, origin, pitch, side=side,
+                                                        density=density, partial_rule=partial_rule)
         material_file = output / "assets" / (material_id + ".material.npz")
         material.save(material_file)
         # Keep only the small static receipt between records. Holding every
@@ -303,6 +308,7 @@ def _build_case(record, meta, root, output, materials):
                    retained_fraction=ratio, derivative_valid=meta["derivative_valid"],
                    derivative_dimension=meta["derivative_dimension"], chart_id=meta["chart_id"],
                    mesh_teacher_full_scaled_max=mesh_error, cache_teacher_full_scaled_max=material_error,
+                   material_source='mesh', material_identity=material_id, partial_cell_rule=partial_rule,
                    teacher_qualification_sha256=qualification_copy["sha256"],
                    qualification_is_external_assertion=True)
     return manifest_row, receipt

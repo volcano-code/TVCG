@@ -7,10 +7,11 @@ from pathlib import Path
 
 import numpy as np
 
-from ..p0_diagnostics.baseline_cases import load_baseline_case, moment_scale, sha256
+from ..p0_diagnostics.baseline_cases import load_baseline_case, moment_scale, sha256, verify_file_receipt
 from ..p0_diagnostics.deterministic_quadrature import _audit_blocks
 from ..p0_diagnostics.export_cases import verify_export_qualification
 from ..p0_diagnostics.handoff_authority import verify_packaged_authority, match_authorized_record
+from .residual_matching import validate_residual_target
 
 SCHEMA = 'compact_pino.training-manifest.v1'
 
@@ -33,6 +34,49 @@ def _weight(value, name):
     if isinstance(value, bool) or not isinstance(value, (float,int)) or not np.isfinite(value) or value < 0:
         raise ValueError(f'{name} must be finite and nonnegative')
     return float(value)
+
+
+def _load_residual_target(item, parent, case, mode, verification_cache):
+    """Load an optional, explicitly case-bound physical target after split checks.
+
+    Native Moment/J qualification is unchanged. A supplied residual target is a
+    separate piece of teacher evidence, never inferred from those two labels.
+    """
+    inline, asset = item.get('residual_target'), item.get('residual_target_asset')
+    if inline is not None and asset is not None:
+        raise ValueError('supply residual_target or residual_target_asset, not both')
+    target = inline
+    if asset is not None:
+        if not isinstance(asset, dict):
+            raise ValueError('residual_target_asset must contain path and sha256')
+        path = Path(asset['path'])
+        path = path if path.is_absolute() else parent / path
+        receipt = verify_file_receipt(path, asset.get('sha256'), cache=verification_cache,
+                                      name='residual target')
+        target = json.loads(path.read_text())
+        item['residual_target_receipt'] = receipt
+    if target is None:
+        return False
+    if not isinstance(target, dict) or type(target.get('valid')) is not bool:
+        raise ValueError('residual target needs an explicit valid Boolean')
+    if not target['valid']:
+        if not isinstance(target.get('reason'), str) or not target['reason'].strip():
+            raise ValueError('invalid residual target requires an explicit reason')
+        item['residual_target'] = target
+        return False
+    binding = target.get('binding')
+    if not isinstance(binding, dict) or binding.get('case_sha256') != item['case_sha256']:
+        raise ValueError('residual target must bind the exact case manifest SHA256')
+    for name, expected in (('record_id', item['record_id']),
+                           ('query_id', case['meta']['query_id']),
+                           ('geometry_sha256', case['meta']['geometry_sha256'])):
+        if name in binding and binding[name] != expected:
+            raise ValueError('residual target binding mismatch: ' + name)
+    if (mode == 'smoke') != (target.get('teacher_role') == 'synthetic_fixture'):
+        raise ValueError('synthetic and native residual targets cannot be interchanged')
+    validate_residual_target(target, case['native_moments'], coefficients=case['coefficients'])
+    item['residual_target'] = target
+    return True
 
 
 def load_training_manifest(path, *, mode, cache_directory=None):
@@ -116,7 +160,9 @@ def load_training_manifest(path, *, mode, cache_directory=None):
         derivative_type = {3:'R3',8:'R8',10:'Full-J'}.get(dimension)
         item = dict(row, case_path=str(candidate), case_meta=case_meta,
                     moment_weight=_weight(row.get('moment_weight',1.),'moment_weight'),
-                    jacobian_weight=_weight(row.get('jacobian_weight',1.),'jacobian_weight'))
+                    jacobian_weight=_weight(row.get('jacobian_weight',1.),'jacobian_weight'),
+                    residual_weight=_weight(row.get('residual_weight',row.get('moment_weight',1.)),
+                                            'residual_weight'))
         if row['role'] == 'train':
             inventory_rows.append(dict(record_id=rid, query_id=case_meta['query_id'],
                 geometry_id=case_meta['geometry_id'], source_group_id=case_meta['source_group'],
@@ -131,6 +177,7 @@ def load_training_manifest(path, *, mode, cache_directory=None):
     # Only after checking ALL metadata/source memberships do we open a target.
     # Share one memmap per material rather than holding one mapping per query.
     shared_blocks,static_cache,asset_verification_cache = {},{},{}
+    inventory_by_id = {row['record_id']: row for row in inventory_rows}
     for item in loaded:
         if not item['loader_eligible']:
             continue
@@ -154,7 +201,12 @@ def load_training_manifest(path, *, mode, cache_directory=None):
         error = float(np.max(np.abs(full-case['native_full_editable_moments'])/scale))
         if error > 1e-8:
             raise ValueError(f"full material ten-moment gate failed for {item['record_id']}: {error}")
-        if item['moment_weight'] == 0 and (not meta['derivative_valid'] or item['jacobian_weight'] == 0):
+        residual_valid = _load_residual_target(item, path.parent, case, mode, asset_verification_cache)
+        item['residual_valid'] = residual_valid
+        if item['role'] == 'train':
+            inventory_by_id[item['record_id']]['residual_valid'] = residual_valid
+        if (item['moment_weight'] == 0 and (not meta['derivative_valid'] or item['jacobian_weight'] == 0)
+                and not (residual_valid and item['residual_weight'] > 0)):
             raise ValueError(f"loader-eligible row has no admitted positive-weight objective: {item['record_id']}")
         item['case'] = case
     train = [row for row in loaded if row['role']=='train' and row['loader_eligible']]

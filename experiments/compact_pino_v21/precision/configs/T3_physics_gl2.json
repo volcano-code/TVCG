@@ -1,0 +1,19 @@
+{
+  "token_grid": 16,
+  "seed": 830251,
+  "learning_rate": 3e-05,
+  "batch_size": 1,
+  "jacobian_loss_weight": 1.0,
+  "auxiliary_loss_weight": 0.0,
+  "chunk_size": 65536,
+  "amp": "off",
+  "deterministic": true,
+  "sampler": "shuffle_without_replacement",
+  "efficiency": true,
+  "static_cache_bytes": 134217728,
+  "query_cache_bytes": 134217728,
+  "evaluation_cache_bytes": 67108864,
+  "full_cell_rule": "gl2",
+  "residual_loss_weight": 0.1,
+  "constraint_loss_weight": 0.1
+}

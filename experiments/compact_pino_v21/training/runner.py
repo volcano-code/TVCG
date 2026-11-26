@@ -2,7 +2,8 @@
 
 This is a NEW runner, not a reconstruction of the unavailable local 17:56
 diagnostic_training/train.py. Defaults are Token16 / seed 830251 / lr 3e-5;
-only normalized Moment and qualified-Jacobian supervision are implemented.
+normalized Moment and qualified-Jacobian supervision remain the defaults.
+Optional case-bound physical residual targets add separate loss memberships.
 No benchmark/test input or automatic long-training promotion is supported.
 """
 from __future__ import annotations
@@ -35,6 +36,8 @@ from .admission import authorize, canonical_digest
 from .losses import physical_loss
 from .manifest import load_training_manifest
 from .state import StatefulShuffle, capture_rng, observed_optimizer_step, restore_rng, seed_everything
+from .residual_matching import residual_metrics, validate_residual_target
+from research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.v21_material import validate_full_cell_rule
 
 CHECKPOINT_SCHEMA = 'compact_pino.training-state.v1'
 RESUME_SCHEMA = 'compact_pino.training-resume.v1'
@@ -56,6 +59,9 @@ class TrainConfig:
     static_cache_bytes: int = 128*1024**2
     query_cache_bytes: int = 128*1024**2
     evaluation_cache_bytes: int = 64*1024**2
+    full_cell_rule: str = 'tetra4'
+    residual_loss_weight: float = 0.
+    constraint_loss_weight: float = 0.
 
     def validate(self):
         if self.token_grid not in (8,16) or type(self.seed) is not int:
@@ -73,7 +79,71 @@ class TrainConfig:
         if type(self.efficiency) is not bool or any(type(value) is not int or value < 0 for value in
                 (self.static_cache_bytes,self.query_cache_bytes,self.evaluation_cache_bytes)):
             raise ValueError('Boolean efficiency and nonnegative integer cache byte budgets required')
+        validate_full_cell_rule(self.full_cell_rule)
+        for value in (self.residual_loss_weight, self.constraint_loss_weight):
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not np.isfinite(value) or value < 0:
+                raise ValueError('physical loss weights must be finite nonnegative numbers')
         return self
+
+
+def _physical_target_coverage(data, config):
+    """Fail before allocating a model if an enabled objective has no targets."""
+    coverage = dict(train_valid=0, development_valid=0, train_constraint_valid=0, profiles={})
+    for role, records in (('train', data.train), ('development', data.development)):
+        for record in records:
+            case = record['case']
+            if config.full_cell_rule != 'tetra4' and getattr(case['blocks'], 'material', None) is None:
+                raise ValueError('gl2/gl3 require a block pack with material provenance; rebuild into a fresh cache directory')
+            target = record.get('residual_target')
+            valid = isinstance(target, dict) and target.get('valid') is True
+            if valid:
+                validate_residual_target(target, case['native_moments'], coefficients=case['coefficients'])
+                coverage[role + '_valid'] += 1
+                coverage['profiles'][target['profile']] = coverage['profiles'].get(target['profile'], 0) + 1
+            if role == 'train':
+                positive = valid and record.get('residual_weight', record['moment_weight']) > 0
+                constraint_positive = positive and len(target['multipliers']) > 0
+                coverage['train_constraint_valid'] += int(constraint_positive)
+                coverage.setdefault('train_positive', 0)
+                coverage['train_positive'] += int(positive)
+                effective = (record['moment_weight'] > 0 or
+                    case['meta']['derivative_valid'] and record['jacobian_weight'] > 0 and config.jacobian_loss_weight > 0 or
+                    positive and config.residual_loss_weight > 0 or
+                    constraint_positive and config.constraint_loss_weight > 0)
+                if not effective:
+                    raise ValueError('training row has no enabled positive-weight objective: ' + record['record_id'])
+    if config.residual_loss_weight > 0 and not coverage.get('train_positive', 0):
+        raise ValueError('residual_loss_weight enabled but no admitted positive-weight training targets')
+    if config.constraint_loss_weight > 0 and not coverage['train_constraint_valid']:
+        raise ValueError('constraint_loss_weight enabled but no admitted positive-weight constraint targets')
+    return coverage
+
+
+def _physical_metrics(values, record):
+    target = record.get('residual_target')
+    if not isinstance(target, dict) or target.get('valid') is not True:
+        return dict(availability='UNAVAILABLE_PROFILE', reason=(target or {}).get('reason', 'NO_RESIDUAL_TARGET'))
+    case = record['case']
+    return residual_metrics(values, case['native_moments'], target, coefficients=case['coefficients'])
+
+
+def _physical_exposure_at_checkpoint(events, checkpoint, config):
+    """Bind participation to this checkpoint, not to a later training update."""
+    receipt = json.loads(Path(checkpoint['receipt_path']).read_text())
+    if (receipt['checkpoint']['sha256'] != checkpoint['sha256'] or
+            receipt['exposure_receipt']['checkpoint_sha256'] != checkpoint['sha256']):
+        raise ValueError('physical exposure checkpoint receipt mismatch')
+    if receipt['exposure_receipt'] not in events:
+        raise ValueError('physical exposure receipt is absent from the recorded checkpoint lineage')
+    identifier = receipt['exposure_receipt']['checkpoint_id']
+    counts = summarize_events(events, selected_checkpoint=identifier)['selected_lineage']['counts']
+    requested = {'residual': config.residual_loss_weight > 0, 'constraint': config.constraint_loss_weight > 0}
+    participation = {name: dict(requested=enabled, committed_occurrences=counts['committed_'+name+'_occurrences'])
+                     for name, enabled in requested.items()}
+    exercised = all(not value['requested'] or value['committed_occurrences'] > 0
+                    for value in participation.values())
+    return dict(checkpoint_sha256=checkpoint['sha256'], checkpoint_id=identifier,
+                objectives=participation, enabled_objectives_exercised=exercised)
 
 
 def _json_write(path, value):
@@ -131,11 +201,14 @@ def _read_resume(path):
 
 def _execution_sources(model):
     root=Path(__file__).resolve().parents[3]
-    paths={Path(__file__).with_name(name) for name in ('runner.py','state.py','losses.py','manifest.py','admission.py')}
+    paths={Path(__file__).with_name(name) for name in ('runner.py','state.py','losses.py','manifest.py','admission.py',
+                                                    'residual_matching.py')}
     adapter=root/'research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter'
     paths.update(adapter/name for name in ('compact_pino_v21.py','v21_response.py','v21_response_surface.py',
                                           'v21_blocks.py','unified_factory.py','v21_material.py','v21_native.py',
                                           'v22_geometry_inputs.py','v22_query_cache.py','v22_inference_cache.py'))
+    paths.update(root/name for name in ('src/spin/SpinMomentProblem.cpp','include/spin/MomentInertiaAlgebra.h'))
+    paths.add(adapter/'v21_material_native.cpp')
     paths.update(Path(__file__).parent.parent/'p0_diagnostics'/name
                  for name in ('baseline_cases.py','exposure_audit.py','export_cases.py','handoff_authority.py',
                               'promotion_gate.py','screen_exports.py'))
@@ -179,6 +252,7 @@ class Trainer:
         self.data,self.mode = data,mode
         if (mode == 'smoke') != (data.scope == 'synthetic'):
             raise ValueError('synthetic smoke and real training data cannot be interchanged')
+        self.residual_target_coverage = _physical_target_coverage(data, self.config)
         self.resume_receipt = _read_resume(resume) if resume is not None else None
         resumed_hash = self.resume_receipt['checkpoint']['sha256'] if self.resume_receipt else None
         self.authorization = authorize(mode=mode,manifest_sha256=data.manifest_sha256,
@@ -217,7 +291,8 @@ class Trainer:
         self.output.mkdir(parents=True,exist_ok=False)
         seed_everything(self.config.seed,self.config.deterministic)
         self.model = CompactPINOv21(token_grid=self.config.token_grid,efficiency=self.config.efficiency,
-            static_cache_bytes=self.config.static_cache_bytes,query_cache_bytes=self.config.query_cache_bytes)
+            static_cache_bytes=self.config.static_cache_bytes,query_cache_bytes=self.config.query_cache_bytes,
+            full_cell_rule=self.config.full_cell_rule)
         if self.config.amp == 'fp16' and any(parameter.is_complex() for parameter in self.model.parameters()):
             raise ValueError('fp16 AMP is not qualified for the complex Fourier parameters; use amp=off')
         self.model.to(self.device)
@@ -269,6 +344,7 @@ class Trainer:
             training_manifest_sha256=data.manifest_sha256,runtime=self.runtime,
             execution_sources=self.execution_sources,initial_weights=self.initial_weights,
             source_admission=data.source_admission,
+            residual_target_coverage=self.residual_target_coverage,
             authorization=self.authorization,registered_train_count=data.inventory['registered_count'],
             eligible_train_records=len(data.train),eligible_development_records=len(data.development),
             admission_note='Loader membership and completed updates do not establish model promotion.'))
@@ -368,18 +444,22 @@ class Trainer:
             raise
         self.audit.forward(batch,window,[r['record_id'] for r in records])
         try:
-            loss,info = physical_loss(predictions,records,jacobian_loss_weight=self.config.jacobian_loss_weight)
+            loss,info = physical_loss(predictions,records,jacobian_loss_weight=self.config.jacobian_loss_weight,
+                residual_loss_weight=self.config.residual_loss_weight,
+                constraint_loss_weight=self.config.constraint_loss_weight)
         except Exception:
             self.audit.optimizer_step(window,committed=False,reason='loss_construction_failed_no_update')
             raise
         self.audit.loss(batch,**{key:info[key] for key in
-            ('moment_mask','moment_weight','jacobian_mask','jacobian_weight')})
+            ('moment_mask','moment_weight','jacobian_mask','jacobian_weight',
+             'residual_mask','residual_weight','constraint_mask','constraint_weight')})
         if not torch.isfinite(loss):
             self.audit.backward(batch,success=False,reason='nonfinite_loss_backward_not_run')
             self.audit.optimizer_step(window,committed=False,reason='nonfinite_loss_no_update')
             raise FloatingPointError('nonfinite training loss')
-        active = any(prediction.diagnostics.get('active_nodes',0)>0 and (mm or jm)
-                     for prediction,mm,jm in zip(predictions,info['moment_mask'],info['jacobian_mask']))
+        active = any(prediction.diagnostics.get('active_nodes',0)>0 and (mm or jm or rm or cm)
+                     for prediction,mm,jm,rm,cm in zip(predictions,info['moment_mask'],info['jacobian_mask'],
+                                                       info['residual_mask'],info['constraint_mask']))
         if not loss.requires_grad or not active:
             self.audit.backward(batch,success=False,reason='NO_PARAMETER_DEPENDENCE_backward_not_run')
             self.audit.optimizer_step(window,committed=False,reason='NO_PARAMETER_DEPENDENCE')
@@ -491,7 +571,8 @@ class Trainer:
                                  jacobian=jac,jacobian_status='available' if jac is not None else 'unavailable',
                                  chart_id=meta['chart_id'],failure_reason=None if jac is not None else
                                  'label_unqualified' if not meta['derivative_valid'] else 'response_nonregular',
-                                 diagnostics=prediction.diagnostics))
+                                 diagnostics=prediction.diagnostics,
+                                 physical_residual=_physical_metrics(values, record)))
         finally:
             feature_cache_stats = feature_cache.snapshot()
             feature_cache.clear()
@@ -527,12 +608,14 @@ class Trainer:
             result=evaluate_packed(case['blocks'],prepare_surface(operand.vertices,operand.faces),
                 case['blocks'].pitch,operand.operation,case['fixed_moments'],
                 operand.vertex_velocity if meta['derivative_valid'] else None,model=None,
-                chunk_size=self.config.chunk_size)
+                chunk_size=self.config.chunk_size,full_cell_rule=self.config.full_cell_rule)
             rows.append(dict(record_id=item['record_id'],status='available',
                 moments=result.moments.detach().cpu().numpy(),
                 jacobian=None if result.jacobian is None else result.jacobian.detach().cpu().numpy(),
                 jacobian_status='unavailable' if result.jacobian is None else 'available',
-                chart_id=meta['chart_id'],failure_reason='derivative_unavailable' if result.jacobian is None else None))
+                chart_id=meta['chart_id'],failure_reason='derivative_unavailable' if result.jacobian is None else None,
+                diagnostics=result.diagnostics,
+                physical_residual=_physical_metrics(result.moments.detach().cpu().numpy(), item)))
         return jsonable(dict(rows=rows,model_weights_used=False))
 
     def _selection_evaluate(self,*,initialize=False):
@@ -609,7 +692,14 @@ class Trainer:
                 if self.global_step>self.selection_state['epoch0_global_step']:
                     selection_evaluations+=1
             last=self.save_checkpoint()
-            screening=self._export_screen() if self.protocol is not None else None
+            events=read_events(self.journal_paths)
+            physics_exposure=_physical_exposure_at_checkpoint(events,last,self.config)
+            candidate=self.selection_state['best_checkpoint'] if self.selection_state else None
+            candidate_exposure=_physical_exposure_at_checkpoint(events,candidate,self.config) if candidate else None
+            candidate_exercised=candidate_exposure is None or candidate_exposure['enabled_objectives_exercised']
+            screening=(self._export_screen() if candidate_exercised else
+                       dict(decision='INSUFFICIENT_EVIDENCE',reason='ENABLED_PHYSICAL_OBJECTIVE_NOT_EXPOSED',
+                            screen_run=False)) if self.protocol is not None else None
             _json_write(self.output/'last.json',last)
             if self.selection_state is not None and self.selection_state['best_checkpoint'] is not None:
                 _json_write(self.output/'best.json',dict(self.selection_state['best_checkpoint'],
@@ -623,6 +713,10 @@ class Trainer:
                 update_records=update_count,segment_committed_updates=self.global_step-start_global_step,
                 no_parameter_updates=(self.global_step==start_global_step),
                 cumulative_runner_seconds=self.elapsed_seconds(),
+                physical_supervision=physics_exposure,
+                physical_objectives_exercised=physics_exposure['enabled_objectives_exercised'],
+                selected_candidate_physical_supervision=candidate_exposure,
+                residual_target_coverage=self.residual_target_coverage,
                 best_checkpoint=self.selection_state['best_checkpoint'] if self.selection_state else None,
                 epoch0_checkpoint=self.selection_state['epoch0_checkpoint'] if self.selection_state else None,
                 screen=screening,promotion_status='NOT_AUTHORIZATION',

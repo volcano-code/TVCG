@@ -20,6 +20,7 @@ from .unified_factory import _make_native_config, get_config
 from .v21_response import LocalRetention, prepare_measure, evaluate_response, evaluate_stencil, prepare_surface
 from .v22_geometry_inputs import GeometryInputCache, material_signature
 from .v22_query_cache import QueryPreparationCache
+from .v21_material import validate_full_cell_rule
 
 
 @dataclass(frozen=True)
@@ -40,8 +41,9 @@ def native_proposal_status(prediction, fixed_moments):
 
 
 def evaluate_packed(blocks, surface, bandwidth, operation, fixed_moments, vertex_velocity=None,
-                    *, model=None, context=None, chunk_size=65536):
+                    *, model=None, context=None, chunk_size=65536, full_cell_rule='tetra4'):
     """Use the signed-distance bound on complete blocks and stream the remainder."""
+    full_cell_rule = validate_full_cell_rule(full_cell_rule)
     full, band = blocks.classify(surface, bandwidth, operation)
     device = next(model.parameters()).device if model is not None else 'cpu'
     fixed = np.asarray(fixed_moments, dtype=float)
@@ -57,8 +59,10 @@ def evaluate_packed(blocks, surface, bandwidth, operation, fixed_moments, vertex
             raise ValueError("vertex velocity must follow the supplied operand")
         jac = value.new_zeros((10, motion.shape[2]))
     diag = dict(total_blocks=len(full), saturated_retained_blocks=int(full.sum()), band_blocks=int(band.sum()),
-                band_nodes=0, active_nodes=0, ambiguous_nodes=0, chunks=0)
-    for nodes, weights in blocks.chunks(band, max_nodes=chunk_size):
+                band_nodes=0, active_nodes=0, ambiguous_nodes=0, chunks=0,
+                full_cell_rule=full_cell_rule, bandwidth=float(bandwidth))
+    options = {} if full_cell_rule == 'tetra4' else dict(full_cell_rule=full_cell_rule)
+    for nodes, weights in blocks.chunks(band, max_nodes=chunk_size, **options):
         result = evaluate_response(prepare_measure(nodes, weights), surface, bandwidth=bandwidth,
                                    operation=operation, vertex_velocity=vertex_velocity, model=model,
                                    context=context, chunk_size=chunk_size)
@@ -111,7 +115,8 @@ def _evaluate_prepared_packed(prepared, operation, fixed_moments, vertex_velocit
         jac = value.new_zeros((10, motion.shape[2]))
     diag = dict(total_blocks=len(prepared.full), saturated_retained_blocks=int(prepared.full.sum()),
                 band_blocks=int(prepared.band.sum()), band_nodes=0, active_nodes=0,
-                ambiguous_nodes=0, chunks=0)
+                ambiguous_nodes=0, chunks=0, full_cell_rule=prepared.full_cell_rule,
+                bandwidth=prepared.bandwidth)
     for stencil in prepared.stencils:
         result = evaluate_stencil(stencil, operation=operation, vertex_velocity=vertex_velocity,
                                   model=model, context=context, chunk_size=chunk_size)
@@ -134,7 +139,8 @@ def _evaluate_prepared_packed(prepared, operation, fixed_moments, vertex_velocit
 class CompactPINOv21(nn.Module):
     """A Token16/Token8 candidate with one bounded local retention field."""
     def __init__(self, token_grid=16, *, efficiency=True,
-                 static_cache_bytes=128*1024**2, query_cache_bytes=128*1024**2):
+                 static_cache_bytes=128*1024**2, query_cache_bytes=128*1024**2,
+                 full_cell_rule='tetra4'):
         super().__init__()
         if token_grid not in (8, 16):
             raise ValueError("expected Token8 or Token16")
@@ -144,6 +150,7 @@ class CompactPINOv21(nn.Module):
             if type(budget) is not int or budget < 0:
                 raise ValueError('cache byte limits must be nonnegative integers')
         self.token_grid = token_grid
+        self.full_cell_rule = validate_full_cell_rule(full_cell_rule)
         self.efficiency = efficiency
         self.geometry_input_cache = GeometryInputCache(max_bytes=static_cache_bytes if efficiency else 0)
         self.query_preparation_cache = QueryPreparationCache(max_bytes=query_cache_bytes if efficiency else 0)
@@ -161,7 +168,7 @@ class CompactPINOv21(nn.Module):
 
     def efficiency_statistics(self):
         return dict(enabled=self.efficiency, static_inputs=self.geometry_input_cache.snapshot(),
-                    prepared_queries=self.query_preparation_cache.info())
+                    prepared_queries=self.query_preparation_cache.info(), full_cell_rule=self.full_cell_rule)
 
     def encode_geometry(self, blocks, fixed_moments, density=1., *, inference=False):
         if blocks.side != 256 or blocks.side % (blocks.block_voxels * self.token_grid):
@@ -212,7 +219,8 @@ class CompactPINOv21(nn.Module):
         if with_jacobian and operand.vertex_velocity is None:
             raise ValueError("this operand has no native derivative")
         width = blocks.pitch if bandwidth is None else bandwidth
-        prepared = self.query_preparation_cache.get_or_prepare(blocks, operand, width, chunk_size=chunk_size)
+        prepared = self.query_preparation_cache.get_or_prepare(blocks, operand, width,
+            chunk_size=chunk_size, full_cell_rule=self.full_cell_rule)
         surface = prepared.surface if prepared is not None else prepare_surface(operand.vertices, operand.faces)
         def context(points):
             origin = torch.as_tensor(blocks.origin, device=points.device, dtype=points.dtype)
@@ -227,4 +235,5 @@ class CompactPINOv21(nn.Module):
             return evaluate_packed(blocks, surface, width,
                                    operand.operation, cache.fixed_moments,
                                    operand.vertex_velocity if with_jacobian else None,
-                                   model=self.response, context=context, chunk_size=chunk_size)
+                                   model=self.response, context=context, chunk_size=chunk_size,
+                                   full_cell_rule=self.full_cell_rule)

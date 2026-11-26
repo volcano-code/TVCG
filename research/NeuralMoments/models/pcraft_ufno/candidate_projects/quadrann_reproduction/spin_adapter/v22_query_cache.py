@@ -26,9 +26,10 @@ import torch
 from .v21_response import ResponseStencil, prepare_measure, prepare_stencil
 from .v21_response_surface import FiniteSurface, prepare_surface
 from .v22_geometry_inputs import material_signature
+from .v21_material import validate_full_cell_rule
 
 
-_VERSION = 'compact-pino.frozen-query-preparation.v1'
+_VERSION = 'compact-pino.frozen-query-preparation.v2'
 
 
 def _numpy(value):
@@ -47,7 +48,7 @@ def _array_digest(value):
     return digest.hexdigest()
 
 
-def query_preparation_key(blocks, operand, bandwidth, chunk_size):
+def query_preparation_key(blocks, operand, bandwidth, chunk_size, full_cell_rule='tetra4'):
     """Bind material and all cut semantics, without binding independent motion.
 
     Motion is intentionally excluded: the prepared witnesses are geometry-only
@@ -57,7 +58,7 @@ def query_preparation_key(blocks, operand, bandwidth, chunk_size):
     parts = (_VERSION, material_signature(blocks),
              _array_digest(operand.vertices), _array_digest(operand.faces),
              _array_digest(operand.face_is_cap), str(operand.operation),
-             float(bandwidth).hex(), int(chunk_size))
+             float(bandwidth).hex(), int(chunk_size), validate_full_cell_rule(full_cell_rule))
     return hashlib.sha256(repr(parts).encode()).hexdigest()
 
 
@@ -108,6 +109,7 @@ class PreparedPackedQuery:
     band_nodes: int
     byte_size: int
     key: str
+    full_cell_rule: str = 'tetra4'
 
 
 class QueryPreparationCache:
@@ -169,7 +171,7 @@ class QueryPreparationCache:
                 self._oversized.popitem(last=False)
         return None
 
-    def get_or_prepare(self, blocks, operand, bandwidth, chunk_size=65536):
+    def get_or_prepare(self, blocks, operand, bandwidth, chunk_size=65536, full_cell_rule='tetra4'):
         """Return immutable geometry preparation, or None for streaming fallback.
 
         A differentiable vertex tensor always bypasses this cache.  Its live
@@ -177,6 +179,7 @@ class QueryPreparationCache:
         Static native vertex velocities may change freely between calls: they
         are neither read nor retained here.
         """
+        full_cell_rule = validate_full_cell_rule(full_cell_rule)
         width = float(bandwidth)
         if not math.isfinite(width) or width <= 0:
             raise ValueError('query bandwidth must be positive and finite')
@@ -190,7 +193,7 @@ class QueryPreparationCache:
         if isinstance(operand.vertices, torch.Tensor) and operand.vertices.requires_grad:
             self._counts['live_vertex_bypasses'] += 1
             return None
-        key = query_preparation_key(blocks, operand, width, chunk_size)
+        key = query_preparation_key(blocks, operand, width, chunk_size, full_cell_rule)
         if key in self._entries:
             self._counts['hits'] += 1
             self._entries.move_to_end(key)
@@ -218,7 +221,8 @@ class QueryPreparationCache:
             return self._too_large(key)
         stencils = []
         band_nodes = 0
-        for nodes, weights in blocks.chunks(band, max_nodes=chunk_size):
+        options = {} if full_cell_rule == 'tetra4' else dict(full_cell_rule=full_cell_rule)
+        for nodes, weights in blocks.chunks(band, max_nodes=chunk_size, **options):
             measure = prepare_measure(nodes, weights)
             stencil = prepare_stencil(measure, surface, bandwidth=width, chunk_size=chunk_size)
             size += _freeze_stencil(stencil) + 16  # tuple slot + list preparation slot
@@ -229,11 +233,11 @@ class QueryPreparationCache:
         # No old input may be admitted if the caller changed arrays/files while
         # preparation ran.  Read-only memmap identity uses the same shared
         # material-signature rule as static encoder input preparation.
-        if key != query_preparation_key(blocks, operand, width, chunk_size):
+        if key != query_preparation_key(blocks, operand, width, chunk_size, full_cell_rule):
             raise RuntimeError('material or operand changed during query preparation')
         packed = PreparedPackedQuery(surface, operand.operation, width, chunk_size,
                                      full, band, saturated, tuple(stencils),
-                                     band_nodes, int(size), key)
+                                     band_nodes, int(size), key, full_cell_rule)
         self._evict_until(packed.byte_size)
         self._entries[key] = packed
         self._bytes += packed.byte_size

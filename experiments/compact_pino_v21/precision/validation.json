@@ -1,0 +1,350 @@
+{
+  "schema": "tvcg.v22.operator-precision-validation.v1",
+  "created_at": "2026-11-26T13:32:18.031399+08:00",
+  "base_commit": "6ffaa99a86d084e8efa2be383edacf4bca24aad8",
+  "release_branch": "research/compact-pino-v22-precision",
+  "status": "IMPLEMENTED_AND_SOFTWARE_VERIFIED_WORK_PHYSICAL_VALIDATION_PENDING",
+  "implemented": [
+    "on_demand_full_cell_tetra4_gl2_gl3",
+    "partial_cell_compression_controls",
+    "bound_exact_or_linearized_residual_matching",
+    "independent_physical_loss_masks_and_checkpoint_exposure",
+    "strict_native_target_attachment",
+    "paired_frozen_checkpoint_and_no_learning_diagnostics"
+  ],
+  "software_tests": {
+    "total": 376,
+    "passed": 369,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 7,
+    "suites": [
+      {
+        "tests": 362,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 7,
+        "passed": 355,
+        "seconds": 122.085,
+        "evidence": "evidence/software_tests.xml"
+      },
+      {
+        "tests": 14,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 14,
+        "seconds": 10.928,
+        "evidence": "evidence/diagnostic_tests.xml"
+      }
+    ],
+    "skipped_tests": [
+      {
+        "test": "experiments.compact_pino_v21.p0_diagnostics.test_native_solver_adapter.test_native_acceptance_ignores_j_and_recomputes_multipliers",
+        "reason": "compiled native bridge unavailable; set CPINO_NATIVE_LIBRARY (no native proof)"
+      },
+      {
+        "test": "experiments.compact_pino_v21.p0_diagnostics.test_native_solver_adapter.test_native_acceptance_includes_positive_multiplier_requirement",
+        "reason": "compiled native bridge unavailable; set CPINO_NATIVE_LIBRARY (no native proof)"
+      },
+      {
+        "test": "experiments.compact_pino_v21.p0_diagnostics.test_native_solver_adapter.test_spinning_top_native_objective_and_moment_order",
+        "reason": "compiled native bridge unavailable; set CPINO_NATIVE_LIBRARY (no native proof)"
+      },
+      {
+        "test": "experiments.compact_pino_v21.p0_diagnostics.test_native_solver_adapter.test_actual_native_step_and_fresh_trials_are_reproducible",
+        "reason": "compiled native bridge unavailable; set CPINO_NATIVE_LIBRARY (no native proof)"
+      },
+      {
+        "test": "experiments.compact_pino_v21.p0_diagnostics.test_native_solver_adapter.test_valid_zero_j_and_unavailable_trial_derivatives_are_different",
+        "reason": "compiled native bridge unavailable; set CPINO_NATIVE_LIBRARY (no native proof)"
+      },
+      {
+        "test": "experiments.compact_pino_v21.p0_diagnostics.test_native_solver_adapter.test_bound_four_arm_replay_and_m_only_invalid_j",
+        "reason": "compiled native bridge unavailable; set CPINO_NATIVE_LIBRARY (no native proof)"
+      },
+      {
+        "test": "experiments.compact_pino_v21.p0_diagnostics.test_native_solver_adapter.test_incompatible_profile_stale_artifact_and_reduced_step_reject",
+        "reason": "compiled native bridge unavailable; set CPINO_NATIVE_LIBRARY (no native proof)"
+      }
+    ]
+  },
+  "compiled_repository_formula_oracle": {
+    "tasks": [
+      {
+        "task": "STATIC_MAXIMUM_MASS",
+        "native_profile": "TVCG_REPO_DUAL_MONOMIAL_RAW_V1_CABI_V1",
+        "stationarity_max_absolute_error": "0.0",
+        "constraint_max_absolute_error": "0.0",
+        "loss_gradient_max_absolute_error": "1.734723475976807e-18"
+      },
+      {
+        "task": "STATIC_LOWER_CENTER",
+        "native_profile": "TVCG_REPO_DUAL_MONOMIAL_RAW_V1_CABI_V1",
+        "stationarity_max_absolute_error": "0.0",
+        "constraint_max_absolute_error": "0.0",
+        "loss_gradient_max_absolute_error": "2.992397996059992e-17"
+      },
+      {
+        "task": "STATIC_PARETO",
+        "native_profile": "TVCG_REPO_DUAL_MONOMIAL_RAW_V1_CABI_V1",
+        "stationarity_max_absolute_error": "0.0",
+        "constraint_max_absolute_error": "0.0",
+        "loss_gradient_max_absolute_error": "1.734723475976807e-18"
+      },
+      {
+        "task": "FIDGET_SPINNER",
+        "native_profile": "TVCG_REPO_DUAL_MONOMIAL_RAW_V1_CABI_V1",
+        "stationarity_max_absolute_error": "0.0",
+        "constraint_max_absolute_error": "0.0",
+        "loss_gradient_max_absolute_error": "1.734723475976807e-18"
+      },
+      {
+        "task": "YOYO",
+        "native_profile": "TVCG_REPO_DUAL_MONOMIAL_RAW_V1_CABI_V1",
+        "stationarity_max_absolute_error": "4.440892098500626e-16",
+        "constraint_max_absolute_error": "0.0",
+        "loss_gradient_max_absolute_error": "6.938893903907228e-17"
+      },
+      {
+        "task": "SPINNING_TOP",
+        "native_profile": "TVCG_REPO_DUAL_MONOMIAL_RAW_V1_CABI_V1",
+        "stationarity_max_absolute_error": "4.440892098500626e-16",
+        "constraint_max_absolute_error": "0.0",
+        "loss_gradient_max_absolute_error": "6.314393452555578e-16"
+      },
+      {
+        "task": "SPINNING_TOP_LOWER_CENTER",
+        "native_profile": "TVCG_REPO_DUAL_MONOMIAL_RAW_V1_CABI_V1",
+        "stationarity_max_absolute_error": "5.551115123125783e-17",
+        "constraint_max_absolute_error": "0.0",
+        "loss_gradient_max_absolute_error": "3.0791341698588326e-17"
+      }
+    ],
+    "stationarity_max_absolute_error": 4.440892098500626e-16,
+    "constraint_max_absolute_error": 0.0,
+    "loss_gradient_max_absolute_error": 6.314393452555578e-16,
+    "scope": "seven exact repository tasks; not proof of private deployed noodles formula"
+  },
+  "actual_updates_and_resume": {
+    "status": "PASS",
+    "scope": "synthetic_software_only",
+    "checks": {
+      "model": true,
+      "optimizer": true,
+      "scheduler": true,
+      "scaler": true,
+      "rng": true,
+      "sampler": true,
+      "global_step": true,
+      "attempts": true,
+      "same_second_batch": true,
+      "same_second_loss": true,
+      "parameters_updated": true,
+      "all_four_objectives_effective": true,
+      "physical_only_reaches_encoder_attention_response": true,
+      "joint_gradients_finite_nonzero": true,
+      "physical_exposure_tracks_selected_checkpoint": true
+    },
+    "real_optimizer_calls": 3,
+    "logical_final_step": 2,
+    "physical_exposure": {
+      "checkpoint_sha256": "1476522430a654a7052a7dd5420ed5925008f694795e0fe218f27e34c84a9d76",
+      "checkpoint_id": "step-2-attempt-2-587abd248fdc",
+      "objectives": {
+        "residual": {
+          "requested": true,
+          "committed_occurrences": 2
+        },
+        "constraint": {
+          "requested": true,
+          "committed_occurrences": 2
+        }
+      },
+      "enabled_objectives_exercised": true
+    },
+    "runtime": {
+      "torch": "2.8.0+cpu",
+      "cuda": null,
+      "numpy": "2.3.5",
+      "device": "cpu",
+      "deterministic": true,
+      "cublas_workspace_config": null,
+      "cuda_device_name": null,
+      "cuda_compute_capability": null,
+      "torch_threads": 1,
+      "interop_threads": 9
+    },
+    "continuous_tensor_sha256": "01173819de467280a753febcf03a1225025ed6991102842550c58479d25709bb",
+    "resumed_tensor_sha256": "01173819de467280a753febcf03a1225025ed6991102842550c58479d25709bb",
+    "execution_sources_match_current": true
+  },
+  "frozen_checkpoint_comparison": {
+    "status": "COMPARISON_COMPLETE_NOT_NATIVE_ACCEPTANCE",
+    "cases": 2,
+    "rules": [
+      "tetra4",
+      "gl2",
+      "gl3"
+    ],
+    "parameter_updates": 0,
+    "encoder_calls": 1,
+    "feature_cache": {
+      "entries": 1,
+      "bytes": 4194304,
+      "peak_bytes": 4194304,
+      "max_bytes": 67108864,
+      "hits": 1,
+      "misses": 1,
+      "evictions": 0,
+      "bypasses": 0,
+      "scope": "one_evaluation_session_feature_tensor_storage"
+    },
+    "same_cases_weights_bandwidth_physical_reference": true,
+    "execution_sources_match_current": true,
+    "scope": "synthetic R3 fixtures; no scientific improvement or speed claim"
+  },
+  "analytic_cell_control": {
+    "status": "SYNTHETIC_COUNTEREXAMPLE_NOT_NATIVE_ACCEPTANCE",
+    "rows": [
+      {
+        "rule": "tetra4",
+        "positive_nodes": 4,
+        "full_cell_ten_moment_scaled_max": 7.291176209797903e-15,
+        "cut_moment_scaled_l2": 0.017550783088456506,
+        "chart_unit_Jv_scaled_max": 0.016058854479270468
+      },
+      {
+        "rule": "gl2",
+        "positive_nodes": 8,
+        "full_cell_ten_moment_scaled_max": 7.291176209797903e-15,
+        "cut_moment_scaled_l2": 0.0007750555045185612,
+        "chart_unit_Jv_scaled_max": 0.00267857142857596
+      },
+      {
+        "rule": "gl3",
+        "positive_nodes": 27,
+        "full_cell_ten_moment_scaled_max": 1.6760097583283612e-15,
+        "cut_moment_scaled_l2": 1.8973349017654292e-15,
+        "chart_unit_Jv_scaled_max": 1.4518301091252047e-15
+      }
+    ],
+    "interpretation": "full-cell ten-moment exactness alone does not imply cubic-response M/J exactness; gl3 exactness is specific to this unclipped planar polynomial fixture",
+    "scope": "unclipped cubic smoothed planar response in one full material cell; not hard-Boolean accuracy"
+  },
+  "configuration_policy": {
+    "default_full_cell_rule": "tetra4",
+    "physics_defaults_off": true,
+    "sample_physics_weights": {
+      "residual": 0.1,
+      "constraint": 0.1
+    },
+    "sample_weights_calibrated_for_deployment": false,
+    "original_five_percent_gate": "UNCHANGED",
+    "sampling_changed": false,
+    "bandwidth_changed": false
+  },
+  "material_policy": {
+    "full_rules": [
+      "tetra4",
+      "gl2",
+      "gl3"
+    ],
+    "partial_rules": [
+      "fit_compressed",
+      "sweep_compressed",
+      "sweep_raw"
+    ],
+    "old_packs_tetra4_compatible": true,
+    "new_rules_require_material_provenance": true,
+    "raw_partial_rule_is_not_higher_order_sweep": true
+  },
+  "private_deployment_formula_bound": false,
+  "real_noodles_endpoint_rerun": false,
+  "gpu_validation_completed": false,
+  "trained_scientific_model_released": false,
+  "native_physical_acceptance_passed": false,
+  "qualified_solution_speedup_claim": false,
+  "long_training_authorized_by_this_release": false,
+  "remaining_work": [
+    "bind private deployed formula or qualified native linearized targets",
+    "run common-query comparison on admitted Work cases and selected checkpoint",
+    "calibrate and freeze physical loss scales and coefficients on training sources",
+    "run matched single-factor pilots with effective physical exposure",
+    "RTX 5090 D gradient/update/resume and query-cost measurements",
+    "native corrected optimization and independent original-mesh acceptance"
+  ],
+  "source_sha256": {
+    "experiments/compact_pino_v21/p0_diagnostics/baseline_cases.py": "9fe7d0b95e85fbb78a45539a9f02be3b1d84680f4ec027407845d7ac6d672ab3",
+    "experiments/compact_pino_v21/p0_diagnostics/export_cases.py": "8721bb1e666d1050aa580327b2c2d38b5c55b08766a3c250082b5c73b9c26b84",
+    "experiments/compact_pino_v21/p0_diagnostics/exposure_audit.py": "510fffd0a424b8a41e9344641f4073d6212f7dd86e096480b5780bea0cc0271c",
+    "experiments/compact_pino_v21/p0_diagnostics/handoff_authority.py": "bafdab8eef8c1c20cb3d69b86e42a04210922b98ddc6a3dc21adc1b47f8292b8",
+    "experiments/compact_pino_v21/p0_diagnostics/promotion_gate.py": "2806582a63972b3d1ce5464582f5697b4205a6d16c56c069656763d4b4925758",
+    "experiments/compact_pino_v21/p0_diagnostics/screen_exports.py": "11f4b5e15ccca0f53dce17f9a15dad6b06faf09d0ff3147f7848cf07bef2b8ae",
+    "experiments/compact_pino_v21/precision/__init__.py": "501debcfcb36111933cc483c690753da33be0120a6bbf57d84e5dea0b83ccd35",
+    "experiments/compact_pino_v21/precision/analytic_cells.py": "937b5a0774e778e4f4328ec8b8053efe1e64b19bf1262f3bd63cba49f930c5a4",
+    "experiments/compact_pino_v21/precision/compare_rules.py": "19c9f2a6582e00dace0147a3bdde1aa652665c56c50ef499a4d2ea03914e0f27",
+    "experiments/compact_pino_v21/precision/configs/D1_old_loss_gl3.json": "5165ab43ded376405e178f4be93e61318f1bd312adcd72f02f23b1590f5bc382",
+    "experiments/compact_pino_v21/precision/configs/T0_old_loss_tetra4.json": "9b6a19383563c153d71bb982bbd439297413c96ce4f878f121db65eb4a2a0507",
+    "experiments/compact_pino_v21/precision/configs/T1_physics_tetra4.json": "317d4a4f7d9333ae2b305714a7d83e71544de6d43a074e1216ebfd1b1ee563de",
+    "experiments/compact_pino_v21/precision/configs/T2_old_loss_gl2.json": "49b78d80a426924c7de5931cf897d8fa7060b76d66f38ee947522372def52aa8",
+    "experiments/compact_pino_v21/precision/configs/T3_physics_gl2.json": "aaa55e85191bbcda190f2f156a405a196ad5508622150522972b826b384451fc",
+    "experiments/compact_pino_v21/precision/frozen_checkpoint.py": "be3e3a647963426dc83380660f55ee9df3e78b43b62d754afddffe1a8604e429",
+    "experiments/compact_pino_v21/precision/test_frozen_checkpoint.py": "88e4e76dc82737a954d2757c3d849c1148ca8102a0bf5c128e22fe2cb517730a",
+    "experiments/compact_pino_v21/precision/test_precision.py": "e47b2a7086fe46fb06677c55d3110e9fcb7aac0e6361b3f1d2c087be01e06d03",
+    "experiments/compact_pino_v21/training/admission.py": "256fe7bc172710a28fbde87ceda2737c10aa050f4caf813d0da409268d2661b8",
+    "experiments/compact_pino_v21/training/attach_residual_targets.py": "2e225447a0da57de9183aa7c824d1b377197056af0a087e7c3a607cec1cff70e",
+    "experiments/compact_pino_v21/training/losses.py": "626b5004cb49a3282fb04efa0c21de47c18311eec892282dac5ce7a9933d28b9",
+    "experiments/compact_pino_v21/training/manifest.py": "bd0fcc6fc94c63095140fb2ffce007fe45c6c8fbc9b8750293aea52e45fc26e2",
+    "experiments/compact_pino_v21/training/precision_smoke.py": "084bf74f98263d933fa3ac2aeb2d247055ee97ff9be339e042de6ad169bc6019",
+    "experiments/compact_pino_v21/training/residual_matching.py": "8275793650afda3a3d15d56967970cf4c05f5de43d96a0f92775814128a24f54",
+    "experiments/compact_pino_v21/training/runner.py": "8db6cd54ff22615bc4b3edcedd8ae770aec097af6e1d9d7d30991479c599f267",
+    "experiments/compact_pino_v21/training/state.py": "16f632fbb335de497af8b5cbf28a830b8dac5b4aac92f22847b28ac279abb4c7",
+    "experiments/compact_pino_v21/training/test_precision_training.py": "b277904feff1d8f07df632217a6099e4172867d22da58e06c6cc937778f36565",
+    "experiments/compact_pino_v21/training/test_residual_matching.py": "fb1820d55cb1e041a4ad177c2f04a14c4556a5b13dafdfa22916e45b13e6a26f",
+    "include/spin/MomentInertiaAlgebra.h": "6ed2e361b07e6fff881ffd85743d6bb7fa67c3b5b477a6465648864902d0ecc1",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/compact_pino_v21.py": "31d3154eae2ce8cf398a959b0782f7152f3f76a6c4fc5ec599410eb3d39561d6",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/tests/test_v21_cubature_rules.py": "56a7eb63503d2dc458fe9de602efb48405b49148b926483fbfddb978cbcef699",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/tests/test_v22_precision_cache.py": "56c44ec09f07147730fddaddec73bc7d31ca79ddf21efb819c583449e6050bec",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/unified_factory.py": "8807131ebb792f86ffa76feb0bd7f6bec364733af3121b9de846a861298f0210",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_blocks.py": "d500aad2846d711e763d58e281d2f77fa6e16a034da4efdb05a146ab5d38524d",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_material.py": "efc1a72be1e2b7c5ba50139b6202987647f1b768a9c4523bcfb182d831dff50f",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_material_native.cpp": "c5c8eee1dfc2bf0fbfad0d727ca437a3b65fbc2b4b13fcec78935229dd46037a",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_native.py": "3406f6655ca052b387cfb9187237f07f58cb9b507cdff63ad60e926332898cf7",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_response.py": "a8af91086b83b05b1115ee6f96cb719a0a28b1d074182873c6cfd91a60ae05a6",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_response_surface.py": "04786e33bdfe2e038dd22a1a97b2f0bee3cfbce4e99b19e5a27de034a71ca27d",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v22_geometry_inputs.py": "2292ec2c0c7b783f5a45f31eec114c97eea33ddb22ecf0f30d3d014d19606bc7",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v22_inference_cache.py": "ff01238f9bd1ab5480ae2aea4fad79a787837b5d1f687a6c3292e210e68a78e9",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v22_query_cache.py": "8e5a60540a39d72ceeb47c0ad3754ce1cec240be9f204c09985c92843160d8ae",
+    "research/NeuralMoments/models/pcraft_ufno/spin_pino/native_pcraft.py": "6a45b7059d6fbc93032f871d1f518fbd1d4515cd24d853a7c6a37f4b09036dcc",
+    "research/NeuralMoments/models/pcraft_ufno/spin_pino/pino_backbone.py": "84f65cdb05b555162ed7ed67f0de3725788ed29324ac751f3870d92270ebcef8",
+    "src/spin/SpinMomentProblem.cpp": "5f02921f38ba8ba6b8f03445b8db1dcac23ff79039f558d4ceb9322a6b04bbab"
+  },
+  "evidence": {
+    "software_tests.xml": {
+      "path": "evidence/software_tests.xml",
+      "sha256": "2c278840d19081cc31c9992073a84d8f3a63e7af76912fc7c4f4f3ad4ec421b0",
+      "bytes": 75872
+    },
+    "diagnostic_tests.xml": {
+      "path": "evidence/diagnostic_tests.xml",
+      "sha256": "a6c20d3e32b12a82ac5ece1cbc4ab2f67bf464a457c13b6a243776d18286520b",
+      "bytes": 2513
+    },
+    "actual_updates_resume.json": {
+      "path": "evidence/actual_updates_resume.json",
+      "sha256": "c200b8c6381c569d9f91794d738e68623ec67bf528fa961d15f9a1c4210401c0",
+      "bytes": 16341
+    },
+    "analytic_cells.json": {
+      "path": "evidence/analytic_cells.json",
+      "sha256": "f61e8ac9602d92ce54da0e45c948e03b7c1ec82ac21b2d0805247f1e9b99b58a",
+      "bytes": 21101
+    },
+    "frozen_checkpoint_comparison.json": {
+      "path": "evidence/frozen_checkpoint_comparison.json",
+      "sha256": "bdc0029b4e343865ed7ab22e6cefe974e0942f5994e7c41c35f1b3c1af98df1a",
+      "bytes": 302744
+    }
+  }
+}

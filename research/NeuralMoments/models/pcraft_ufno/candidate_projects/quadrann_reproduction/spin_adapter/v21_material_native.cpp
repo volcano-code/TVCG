@@ -433,7 +433,8 @@ struct Column {
     double local_residual = 0;
 };
 Column integrate_column(int x, int y, int side, const std::vector<int32_t> &indices,
-                        const double *v, const int32_t *f, const std::vector<Rule> &rules) {
+                        const double *v, const int32_t *f, const std::vector<Rule> &rules,
+                        int partial_rule) {
     std::vector<Face> faces;
     std::vector<M> ramps(side + 1), full(side + 1);
     std::vector<std::vector<Polygon>> boundaries(side);
@@ -495,8 +496,13 @@ Column integrate_column(int x, int y, int side, const std::vector<int32_t> &indi
         if (bulk)
             throw std::runtime_error("uncut voxel has nonbinary oriented winding");
         std::vector<Node> nodes;
-        if (!fit_supported_rule(m, k, faces, rules, nodes)) {
-            nodes = compress_rule(sweep(k, boundaries[k], faces));
+        // 0 retains the original supported fit + compressed fallback. Modes 1
+        // and 2 use the exact same geometric sweep, differing only in reduction.
+        // Reduction never moves nodes, so all three rules retain material support.
+        if (partial_rule != 0 || !fit_supported_rule(m, k, faces, rules, nodes)) {
+            nodes = sweep(k, boundaries[k], faces);
+            if (partial_rule != 2)
+                nodes = compress_rule(nodes);
             ++out.fallback;
         }
         M check = node_moments(nodes);
@@ -533,8 +539,11 @@ template <class T> void write_array(std::ofstream &out, const std::vector<T> &da
 } // namespace
 
 extern "C" int build_material(const double *vertices, const int32_t *faces, int nfaces, int side,
+                              int partial_rule,
                               const char *dir, int threads, char *error, size_t error_size) {
     try {
+        if (partial_rule < 0 || partial_rule > 2)
+            throw std::runtime_error("unknown partial material quadrature rule");
         std::vector<std::vector<int32_t>> bins(size_t(side) * side);
         for (int i = 0; i < nfaces; ++i) {
             const double *a = vertices + 3 * int64_t(faces[3 * int64_t(i)]);
@@ -571,7 +580,8 @@ extern "C" int build_material(const double *vertices, const int32_t *faces, int 
                     continue;
                 try {
                     result[j] =
-                        integrate_column(t / side, t % side, side, bins[t], vertices, faces, rules);
+                        integrate_column(t / side, t % side, side, bins[t], vertices, faces, rules,
+                                         partial_rule);
                 } catch (const std::exception &exc) {
                     errors[j] = "column " + std::to_string(t / side) + "," +
                                 std::to_string(t % side) + ": " + exc.what();

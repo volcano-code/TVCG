@@ -5,8 +5,10 @@ For each native voxel it integrates the signed flux of the original clipped
 faces. A positive four-point rule that reproduces the local mass, centroid and
 covariance is accepted only if every point lies in material. Remaining cells
 use a vertical decomposition of their clipped faces, GL(3,2,2), and positive
-moment-preserving reduction. Full voxels use four tetrahedral-sign Gauss points
-and are stored as half-open z runs. All ten moments are certified against a
+moment-preserving reduction. An explicit partial rule can instead retain the
+raw sweep or compress that same sweep, without first trying the four-point fit.
+Full voxels are stored as half-open z runs and expand on demand to tetra4
+(legacy), gl2 (8 points), or gl3 (27 points). All ten moments are certified against a
 separate signed tetrahedral mesh integral. Inexact arithmetic is float64.
 
 Mesh coordinates and ``origin`` must share the physical frame. ``origin`` is
@@ -38,11 +40,49 @@ import numpy as np
 from .rle_quadrature import native_moment_basis
 
 
-_SCHEMA = "compact-v21-cell-material-v1"
+_SCHEMA = "compact-v21-cell-material-v2"
 _NATIVE = Path(__file__).with_name("v21_material_native.cpp")
 _SIGNS = np.array(
     [[1, 1, 1], [1, -1, -1], [-1, 1, -1], [-1, -1, 1]], dtype=np.float64
 ) / np.sqrt(12.0)
+FULL_CELL_RULES = ("tetra4", "gl2", "gl3")
+PARTIAL_CELL_RULES = ("fit_compressed", "sweep_compressed", "sweep_raw")
+
+
+def validate_full_cell_rule(rule):
+    """Validate the query quadrature independently of material/encoder geometry."""
+    if not isinstance(rule, str) or rule not in FULL_CELL_RULES:
+        raise ValueError(f"full_cell_rule must be one of {FULL_CELL_RULES}")
+    return rule
+
+
+def _partial_rule(rule):
+    if not isinstance(rule, str) or rule not in PARTIAL_CELL_RULES:
+        raise ValueError(f"partial_rule must be one of {PARTIAL_CELL_RULES}")
+    return rule
+
+
+def full_cell_cubature(rule="tetra4"):
+    """Positive unit-cube rule, with offsets about its center and unit total mass.
+
+    This creates at most 27 reference points, never a dense material grid. The
+    legacy ordering and coordinates are retained exactly for tetra4.
+    """
+    return _full_cell_cubature(validate_full_cell_rule(rule))
+
+
+@lru_cache(maxsize=3)
+def _full_cell_cubature(rule):
+    if rule == "tetra4":
+        points, weights = _SIGNS.copy(), np.full(4, 0.25)
+    else:
+        order = 2 if rule == "gl2" else 3
+        axis, weight = np.polynomial.legendre.leggauss(order)
+        index = np.indices((order,) * 3).reshape(3, -1).T
+        points = 0.5 * axis[index]
+        weights = np.prod(0.5 * weight[index], axis=1)
+    points.flags.writeable = weights.flags.writeable = False
+    return points, weights
 
 
 def _index(value, name):
@@ -125,19 +165,21 @@ def _revision():
     ).hexdigest()
 
 
-def _identity(kind, origin, pitch, side, density, *geometry):
+def _identity(kind, origin, pitch, side, density, *geometry, partial_rule="fit_compressed"):
     return _hash_arrays(
-        _SCHEMA + _revision() + kind,
+        _SCHEMA + _revision() + kind + ":partial=" + partial_rule,
         origin,
         np.asarray([pitch, side, density]),
         *geometry,
     )
 
 
-def material_identity(vertices, faces, origin, pitch, side=256, density=1.0):
+def material_identity(vertices, faces, origin, pitch, side=256, density=1.0,
+                      *, partial_rule="fit_compressed"):
     """Content key for locating a mesh cache ahead of one-time preparation."""
     return _identity(
-        "mesh", *_grid(origin, pitch, side, density), *_mesh(vertices, faces)
+        "mesh", *_grid(origin, pitch, side, density), *_mesh(vertices, faces),
+        partial_rule=_partial_rule(partial_rule),
     )
 
 
@@ -180,6 +222,7 @@ def _builder():
     build.argtypes = [
         np.ctypeslib.ndpointer(np.float64, ndim=2, flags="C_CONTIGUOUS"),
         np.ctypeslib.ndpointer(np.int32, ndim=2, flags="C_CONTIGUOUS"),
+        ctypes.c_int,
         ctypes.c_int,
         ctypes.c_int,
         ctypes.c_char_p,
@@ -244,6 +287,7 @@ class PreparedMaterial:
     partial_cells: np.ndarray  # [i,j,k,node_count], matching consecutive boundary_nodes
     boundary_nodes: np.ndarray  # [grid_x,grid_y,grid_z,unit_cell_volume_weight]
     audit: dict = field(default_factory=dict)
+    partial_rule: str = "fit_compressed"
 
     @property
     def full_cell_count(self):
@@ -256,6 +300,11 @@ class PreparedMaterial:
     @property
     def node_count(self):
         return 4 * self.full_cell_count + len(self.boundary_nodes)
+
+    def node_count_for_rule(self, full_cell_rule="tetra4"):
+        """Potential expanded size; selection/chunking need not materialize it."""
+        _, weights = full_cell_cubature(full_cell_rule)
+        return len(weights) * self.full_cell_count + len(self.boundary_nodes)
 
     @cached_property
     def _partial_ptr(self):
@@ -318,25 +367,31 @@ class PreparedMaterial:
                 index + offset[np.searchsorted(end, index, side="right")]
             ]
 
-    def iter_chunks(self, chunk_size=65536, box=None):
-        """Yield bounded, positive physical (positions [N,3], mass_weights [N]) batches."""
+    def iter_chunks(self, chunk_size=65536, box=None, *, full_cell_rule="tetra4"):
+        """Stream positive atoms only for selected cells, retaining partial support.
+
+        The full-cell rule changes only this expansion. Analytic run moments,
+        partial nodes, density, and the material identity are unchanged.
+        """
         size = _index(chunk_size, "chunk_size")
+        offsets, rule_weights = full_cell_cubature(full_cell_rule)
+        points_per_cell = len(rule_weights)
         bounds = None if box is None else self._box(box)
         runs = self._selected_runs(bounds)
         unit_mass = self.density * self.pitch**3
         if len(runs):
             ncell = runs[:, 3] - runs[:, 2]
             ends = np.cumsum(ncell, dtype=np.int64)
-            for a in range(0, 4 * int(ends[-1]), size):
-                node = np.arange(a, min(a + size, 4 * ends[-1]), dtype=np.int64)
-                cell = node // 4
+            for a in range(0, points_per_cell * int(ends[-1]), size):
+                node = np.arange(a, min(a + size, points_per_cell * ends[-1]), dtype=np.int64)
+                cell = node // points_per_cell
                 row = np.searchsorted(ends, cell, side="right")
                 xyz = runs[row, :3].astype(np.float64)
                 xyz[:, 2] += cell - (ends[row] - ncell[row])
-                xyz += 0.5 + _SIGNS[node % 4]
+                xyz += 0.5 + offsets[node % points_per_cell]
                 yield (
                     self.origin + self.pitch * xyz,
-                    np.full(len(xyz), unit_mass * 0.25),
+                    unit_mass * rule_weights[node % points_per_cell],
                 )
         for p in self._boundary_chunks(bounds, size):
             yield self.origin + self.pitch * p[:, :3], unit_mass * p[:, 3]
@@ -421,6 +476,8 @@ class PreparedMaterial:
                 density=self.density,
                 identity=self.identity,
                 source=self.source,
+                partial_rule=self.partial_rule,
+                default_full_cell_rule="tetra4",
                 audit=self.audit,
             ),
             sort_keys=True,
@@ -454,6 +511,12 @@ def load_material(path, expected_identity=None):
             raise ValueError("unsupported material cache revision")
         if expected_identity is not None and info["identity"] != expected_identity:
             raise ValueError("material cache identity mismatch")
+        partial_rule = info.get("partial_rule")
+        if ((info["source"] == "mesh" and partial_rule not in PARTIAL_CELL_RULES)
+                or (info["source"] == "rle" and partial_rule != "none")
+                or info["source"] not in ("mesh", "rle")
+                or info.get("default_full_cell_rule") != "tetra4"):
+            raise ValueError("invalid material cache source or quadrature provenance")
         runs, cells, nodes = (
             a[k] for k in ("full_runs", "partial_cells", "boundary_nodes")
         )
@@ -467,15 +530,18 @@ def load_material(path, expected_identity=None):
         cells,
         nodes,
         info["audit"],
+        partial_rule,
     )
 
 
-def prepare_material(vertices, faces, origin, pitch, side=256, density=1.0):
+def prepare_material(vertices, faces, origin, pitch, side=256, density=1.0,
+                     *, partial_rule="fit_compressed"):
     """Build an editable material cache from a registered oriented physical mesh."""
     origin, pitch, side, density = _grid(origin, pitch, side, density)
+    partial_rule = _partial_rule(partial_rule)
     v, f = _mesh(vertices, faces)
     _require_closed(v, f)
-    key = _identity("mesh", origin, pitch, side, density, v, f)
+    key = _identity("mesh", origin, pitch, side, density, v, f, partial_rule=partial_rule)
     g = np.ascontiguousarray((v - origin) / pitch)
     if (g < -1e-11).any() or (g > side + 1e-11).any():
         raise ValueError("native lattice does not contain mesh vertices")
@@ -492,7 +558,8 @@ def prepare_material(vertices, faces, origin, pitch, side=256, density=1.0):
     with tempfile.TemporaryDirectory(prefix="v21-material-") as folder:
         error = ctypes.create_string_buffer(2048)
         if _builder()(
-            g, f, len(f), side, os.fsencode(folder), threads, error, len(error)
+            g, f, len(f), side, PARTIAL_CELL_RULES.index(partial_rule),
+            os.fsencode(folder), threads, error, len(error)
         ):
             raise ValueError(error.value.decode("utf8", "replace"))
         work = Path(folder)
@@ -504,7 +571,8 @@ def prepare_material(vertices, faces, origin, pitch, side=256, density=1.0):
         len(nodes) and (not np.isfinite(nodes).all() or np.min(nodes[:, 3]) <= 0)
     ) or int(cells[:, 3].sum()) != len(nodes):
         raise ValueError("invalid positive boundary cubature payload")
-    m = PreparedMaterial(origin, pitch, side, density, key, "mesh", runs, cells, nodes)
+    m = PreparedMaterial(origin, pitch, side, density, key, "mesh", runs, cells, nodes,
+                         partial_rule=partial_rule)
     measured = m.moments()
     length = float(np.ptp(v, axis=0).max())
     scale = exact[0] * np.array([1.0, length, length, length, *([length**2] * 6)])
@@ -525,6 +593,9 @@ def prepare_material(vertices, faces, origin, pitch, side=256, density=1.0):
         full_cells=m.full_cell_count,
         partial_cells=m.partial_cell_count,
         nodes=m.node_count,
+        material_source="mesh",
+        partial_rule=partial_rule,
+        default_full_cell_rule="tetra4",
     )
     return m
 
@@ -548,7 +619,7 @@ def prepare_rle_material(columns, origin, pitch, side=256, density=1.0):
         and (((c[1:, :2] == c[:-1, :2]).all(axis=1)) & (c[1:, 2] < c[:-1, 3])).any()
     ):
         raise ValueError("overlapping native RLE runs")
-    key = _identity("rle", origin, pitch, side, density, c)
+    key = _identity("rle", origin, pitch, side, density, c, partial_rule="none")
     return PreparedMaterial(
         origin,
         pitch,
@@ -559,4 +630,5 @@ def prepare_rle_material(columns, origin, pitch, side=256, density=1.0):
         c,
         np.empty((0, 4), np.int32),
         np.empty((0, 4)),
+        partial_rule="none",
     )

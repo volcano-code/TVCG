@@ -136,6 +136,8 @@ def _inventory(value: Any) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
             _string(row.get(key), key)
         for key in ("moment_valid", "jacobian_valid", "loader_eligible"):
             _boolean(row.get(key), key)
+        if 'residual_valid' in row:
+            _boolean(row['residual_valid'], 'residual_valid')
         dtype = row.get("derivative_type")
         if dtype is not None and (not isinstance(dtype, str) or dtype not in DERIVATIVE_TYPES):
             raise AuditError(f"unsupported derivative_type: {dtype!r}")
@@ -258,6 +260,12 @@ class _State:
                     _weight(row.get(prefix + "_weight"), prefix + "_weight")
                     if mask and not meta[valid]:
                         raise AuditError(f"invalid {prefix} label has true loss mask")
+                for prefix in ('residual', 'constraint'):
+                    if prefix + '_mask' in row or prefix + '_weight' in row:
+                        mask = _boolean(row.get(prefix + '_mask'), prefix + '_mask')
+                        _weight(row.get(prefix + '_weight'), prefix + '_weight')
+                        if mask and not meta.get('residual_valid', False):
+                            raise AuditError(f'invalid {prefix} target has true loss mask')
             batch["loss"] = event
         elif kind == "backward":
             bid = _string(event.get("batch_id"), "batch_id")
@@ -393,7 +401,8 @@ class ExposureRecorder:
 
     def loss(self, batch_id: str, *, moment_mask: Sequence[bool],
              moment_weight: Sequence[float], jacobian_mask: Sequence[bool],
-             jacobian_weight: Sequence[float]) -> None:
+             jacobian_weight: Sequence[float], residual_mask=None, residual_weight=None,
+             constraint_mask=None, constraint_weight=None) -> None:
         if batch_id not in self._state.batches:
             raise AuditError("loss requires a recorded batch")
         ids = self._state.batches[batch_id]["forward"]["record_ids"]
@@ -404,6 +413,15 @@ class ExposureRecorder:
         rows = [{"record_id": rid, "moment_mask": mm, "moment_weight": mw,
                  "jacobian_mask": jm, "jacobian_weight": jw}
                 for rid, mm, mw, jm, jw in zip(ids, *values)]
+        for prefix, masks, weights in (('residual', residual_mask, residual_weight),
+                                        ('constraint', constraint_mask, constraint_weight)):
+            if masks is None and weights is None:
+                continue
+            if masks is None or weights is None or len(masks) != len(ids) or len(weights) != len(ids):
+                raise AuditError('physical mask/weight lengths must equal batch occurrences')
+            for row, mask, weight in zip(rows, masks, weights):
+                row[prefix + '_mask'] = mask
+                row[prefix + '_weight'] = weight
         self._emit("loss", {"batch_id": batch_id, "rows": rows})
 
     def backward(self, batch_id: str, *, success: bool,
@@ -548,7 +566,9 @@ def _statistics(states: dict[str, _State],
         key: set() for key in ("forward_queries", "moment_loss_queries",
                               "jacobian_loss_records", "committed_moment_queries",
                               "committed_jacobian_records", "forward_records",
-                              "committed_supervision_records")}
+                              "committed_supervision_records", 'residual_loss_queries',
+                              'constraint_loss_queries', 'committed_residual_queries',
+                              'committed_constraint_queries')}
     inventory_state = next(iter(states.values()))
     groups: dict[str, Counter[str]] = {
         row["source_group_id"]: Counter() for row in inventory_state.records.values()}
@@ -612,15 +632,17 @@ def _statistics(states: dict[str, _State],
                     membership = loss["rows"][index]
                     for name, unique_name in (
                         ("moment", "moment_loss_queries"),
-                        ("jacobian", "jacobian_loss_records")):
-                        included = (membership[name + "_mask"] and
-                                    membership[name + "_weight"] > 0)
+                        ("jacobian", "jacobian_loss_records"),
+                        ('residual', 'residual_loss_queries'),
+                        ('constraint', 'constraint_loss_queries')):
+                        included = (membership.get(name + "_mask", False) and
+                                    membership.get(name + "_weight", 0.) > 0)
                         if not included:
                             continue
                         counts[name + "_loss_occurrences"] += 1
                         group[name + "_loss_occurrences"] += 1
                         stratum[name + "_loss_occurrences"] += 1
-                        unique[unique_name].add(query if name == "moment" else derivative)
+                        unique[unique_name].add(derivative if name == "jacobian" else query)
                         dtype = row["derivative_type"]
                         if name == "jacobian":
                             derivative_counts[dtype]["loss_occurrences"] += 1
@@ -635,8 +657,8 @@ def _statistics(states: dict[str, _State],
                             stratum["committed_" + name + "_occurrences"] += 1
                             unique["committed_supervision_records"].add(rid)
                             unique["committed_" + name +
-                                   ("_queries" if name == "moment" else "_records")].add(
-                                       query if name == "moment" else derivative)
+                                   ("_records" if name == "jacobian" else "_queries")].add(
+                                       derivative if name == "jacobian" else query)
                             if name == "jacobian":
                                 derivative_counts[dtype]["committed_occurrences"] += 1
                                 committed_derivative_records[dtype].add(derivative)
@@ -648,12 +670,17 @@ def _statistics(states: dict[str, _State],
         "moment_loss_occurrences", "jacobian_loss_occurrences",
         "moment_backward_occurrences", "jacobian_backward_occurrences",
         "committed_moment_occurrences", "committed_jacobian_occurrences",
+        'residual_loss_occurrences', 'constraint_loss_occurrences',
+        'residual_backward_occurrences', 'constraint_backward_occurrences',
+        'committed_residual_occurrences', 'committed_constraint_occurrences',
         "optimizer_attempts", "optimizer_commits", "optimizer_skips",
         "commits_without_supervision")
     for key in required:
         counts.setdefault(key, 0)
     group_keys = ("forward_occurrences", "moment_loss_occurrences", "jacobian_loss_occurrences",
-                  "committed_moment_occurrences", "committed_jacobian_occurrences")
+                  "committed_moment_occurrences", "committed_jacobian_occurrences",
+                  'residual_loss_occurrences', 'constraint_loss_occurrences',
+                  'committed_residual_occurrences', 'committed_constraint_occurrences')
     for group in list(groups.values()) + list(strata.values()):
         for key in group_keys:
             group.setdefault(key, 0)
