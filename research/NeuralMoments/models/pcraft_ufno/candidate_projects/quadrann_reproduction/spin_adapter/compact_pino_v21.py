@@ -17,7 +17,8 @@ from research.NeuralMoments.models.pcraft_ufno.spin_pino.native_pcraft import (
     PcraftNativeMomentOperator, parameter_versions,
 )
 from .unified_factory import _make_native_config, get_config
-from .v21_response import LocalRetention, prepare_measure, evaluate_response, evaluate_stencil, prepare_surface
+from .v21_response import (LocalRetention, prepare_measure, prepare_stencil,
+                           evaluate_response, evaluate_stencil, prepare_surface)
 from .v22_geometry_inputs import GeometryInputCache, material_signature
 from .v22_query_cache import QueryPreparationCache
 from .v21_material import validate_full_cell_rule
@@ -32,6 +33,22 @@ class PackedPrediction:
     diagnostics: dict
 
 
+def _trace_stage(trace, name):
+    """Optional caller-owned timing; no profiler or device sync in ordinary calls."""
+    return nullcontext() if trace is None else trace.stage(name)
+
+
+def _material_chunks(blocks, band, chunk_size, options, trace):
+    chunks = iter(blocks.chunks(band, max_nodes=chunk_size, **options))
+    while True:
+        with _trace_stage(trace, 'material_rule'):
+            try:
+                item = next(chunks)
+            except StopIteration:
+                return
+        yield item
+
+
 def native_proposal_status(prediction, fixed_moments):
     """The numerical response alone never certifies a Boolean result or minimizer."""
     m = prediction.moments
@@ -43,10 +60,12 @@ def native_proposal_status(prediction, fixed_moments):
 
 
 def evaluate_packed(blocks, surface, bandwidth, operation, fixed_moments, vertex_velocity=None,
-                    *, model=None, context=None, chunk_size=65536, full_cell_rule='tetra4'):
+                    *, model=None, context=None, chunk_size=65536, full_cell_rule='tetra4',
+                    fused_contraction=False, trace=None):
     """Use the signed-distance bound on complete blocks and stream the remainder."""
     full_cell_rule = validate_full_cell_rule(full_cell_rule)
-    full, band = blocks.classify(surface, bandwidth, operation)
+    with _trace_stage(trace, 'block_classification'):
+        full, band = blocks.classify(surface, bandwidth, operation)
     device = next(model.parameters()).device if model is not None else 'cpu'
     fixed = np.asarray(fixed_moments, dtype=float)
     if fixed.shape != (10,) or not np.all(np.isfinite(fixed)):
@@ -64,10 +83,15 @@ def evaluate_packed(blocks, surface, bandwidth, operation, fixed_moments, vertex
                 band_nodes=0, active_nodes=0, ambiguous_nodes=0, chunks=0,
                 full_cell_rule=full_cell_rule, bandwidth=float(bandwidth))
     options = {} if full_cell_rule == 'tetra4' else dict(full_cell_rule=full_cell_rule)
-    for nodes, weights in blocks.chunks(band, max_nodes=chunk_size, **options):
-        result = evaluate_response(prepare_measure(nodes, weights), surface, bandwidth=bandwidth,
-                                   operation=operation, vertex_velocity=vertex_velocity, model=model,
-                                   context=context, chunk_size=chunk_size)
+    for nodes, weights in _material_chunks(blocks, band, chunk_size, options, trace):
+        with _trace_stage(trace, 'positive_measure'):
+            measure = prepare_measure(nodes, weights)
+        with _trace_stage(trace, 'distance_stencil'):
+            stencil = prepare_stencil(measure, surface, bandwidth=bandwidth, chunk_size=chunk_size)
+        with _trace_stage(trace, 'response_moment_jacobian'):
+            result = evaluate_stencil(stencil, operation=operation, vertex_velocity=vertex_velocity,
+                                      model=model, context=context, chunk_size=chunk_size,
+                                      fused_contraction=fused_contraction)
         value = value + result.moments
         if jac is not None:
             jac = None if result.jacobian is None else jac + result.jacobian
@@ -80,6 +104,7 @@ def evaluate_packed(blocks, surface, bandwidth, operation, fixed_moments, vertex
         value = value + zero
         jac = jac + zero if jac is not None else None
     prediction = PackedPrediction(value, jac, diag)
+    diag['fused_contraction_requested'] = fused_contraction
     diag["solver_status"] = native_proposal_status(prediction, fixed)
     return prediction
 
@@ -111,7 +136,7 @@ class _GeometryGraphLifetime:
 
 
 def _evaluate_prepared_packed(prepared, operation, fixed_moments, vertex_velocity=None,
-                              *, model, context, chunk_size):
+                              *, model, context, chunk_size, fused_contraction=False, trace=None):
     """Reduce the same streamed stencils after parameter-independent preparation.
 
     QueryPreparationCache has checked the actual material and operand bytes.
@@ -134,8 +159,10 @@ def _evaluate_prepared_packed(prepared, operation, fixed_moments, vertex_velocit
                 ambiguous_nodes=0, chunks=0, full_cell_rule=prepared.full_cell_rule,
                 bandwidth=prepared.bandwidth)
     for stencil in prepared.stencils:
-        result = evaluate_stencil(stencil, operation=operation, vertex_velocity=vertex_velocity,
-                                  model=model, context=context, chunk_size=chunk_size)
+        with _trace_stage(trace, 'response_moment_jacobian'):
+            result = evaluate_stencil(stencil, operation=operation, vertex_velocity=vertex_velocity,
+                                      model=model, context=context, chunk_size=chunk_size,
+                                      fused_contraction=fused_contraction)
         value = value + result.moments
         if jac is not None:
             jac = None if result.jacobian is None else jac + result.jacobian
@@ -148,6 +175,7 @@ def _evaluate_prepared_packed(prepared, operation, fixed_moments, vertex_velocit
         value = value + zero
         jac = jac + zero if jac is not None else None
     result = PackedPrediction(value, jac, diag)
+    diag['fused_contraction_requested'] = fused_contraction
     diag['solver_status'] = native_proposal_status(result, fixed)
     return result
 
@@ -323,7 +351,14 @@ class CompactPINOv21(nn.Module):
             self.frozen_feature_cache.put(frozen_key, replace(result, inference_only=False))
         return result
 
-    def evaluate_operand(self, cache, operand, *, with_jacobian=True, bandwidth=None, chunk_size=65536):
+    def _project_query_context(self, cache):
+        # Trainable response projections belong to the current learning graph.
+        # V2.3 overrides only the verified inference/no-grad case.
+        return (self.response.project_context(cache.table)
+                if cache.frozen_encoder and self.efficiency else cache.projected_context)
+
+    def evaluate_operand(self, cache, operand, *, with_jacobian=True, bandwidth=None, chunk_size=65536,
+                         fused_contraction=False, execution_context=None, trace=None):
         if cache.owner != id(self):
             raise ValueError("foreign or stale learned geometry cache")
         if cache.frozen_encoder:
@@ -345,15 +380,20 @@ class CompactPINOv21(nn.Module):
         if with_jacobian and operand.vertex_velocity is None:
             raise ValueError("this operand has no native derivative")
         width = blocks.pitch if bandwidth is None else bandwidth
-        prepared = self.query_preparation_cache.get_or_prepare(blocks, operand, width,
-            chunk_size=chunk_size, full_cell_rule=self.full_cell_rule)
-        surface = prepared.surface if prepared is not None else prepare_surface(operand.vertices, operand.faces)
+        with _trace_stage(trace, 'query_preparation_cache'):
+            prepared = self.query_preparation_cache.get_or_prepare(blocks, operand, width,
+                chunk_size=chunk_size, full_cell_rule=self.full_cell_rule,
+                execution_context=execution_context)
+        with _trace_stage(trace, 'surface_prepare'):
+            surface = prepared.surface if prepared is not None else (
+                prepare_surface(operand.vertices, operand.faces) if execution_context is None else
+                prepare_surface(operand.vertices, operand.faces, execution_context=execution_context))
         with torch.no_grad() if cache.inference_only else nullcontext():
             # Response W_h is trainable even when the encoder is frozen. This
             # projection belongs to this query graph and is never cached across
             # updates or backwards. The unprojected table is safe to reuse.
-            projected = (self.response.project_context(cache.table)
-                         if cache.frozen_encoder and self.efficiency else cache.projected_context)
+            with _trace_stage(trace, 'context_projection'):
+                projected = self._project_query_context(cache)
             def context(points):
                 origin = torch.as_tensor(blocks.origin, device=points.device, dtype=points.dtype)
                 idx = ((points-origin) * self.token_grid/(blocks.side*blocks.pitch)).floor().long().clamp(0, self.token_grid-1)
@@ -362,9 +402,11 @@ class CompactPINOv21(nn.Module):
             if prepared is not None:
                 return _evaluate_prepared_packed(prepared, operand.operation, cache.fixed_moments,
                     operand.vertex_velocity if with_jacobian else None,
-                    model=self.response, context=context, chunk_size=chunk_size)
+                    model=self.response, context=context, chunk_size=chunk_size,
+                    fused_contraction=fused_contraction, trace=trace)
             return evaluate_packed(blocks, surface, width,
                                    operand.operation, cache.fixed_moments,
                                    operand.vertex_velocity if with_jacobian else None,
                                    model=self.response, context=context, chunk_size=chunk_size,
-                                   full_cell_rule=self.full_cell_rule)
+                                   full_cell_rule=self.full_cell_rule,
+                                   fused_contraction=fused_contraction, trace=trace)

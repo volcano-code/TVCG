@@ -7,14 +7,17 @@ and directed edge incidence are checked here; this is not an embedding audit.
 """
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from fractions import Fraction
 import math
-import os
 
 import numpy as np
 import torch
+
+from .v23_surface_runtime import (
+    SurfaceExecutionContext, get_surface_execution_context,
+    shutdown_default_surface_execution,
+)
 
 try:
     from numba import njit
@@ -261,6 +264,7 @@ class FiniteSurface:
     tensor_vertices: torch.Tensor | None
     _data: tuple
     tolerance: float
+    execution_context: SurfaceExecutionContext | None = field(default=None, repr=False, compare=False)
 
     def check_tensor_source(self):
         if self.tensor_vertices is not None and not np.array_equal(_numpy(self.tensor_vertices), self.vertices):
@@ -269,13 +273,9 @@ class FiniteSurface:
     def _query(self, points):
         p = _points(points)
         args = (*self._data, self.tolerance)
-        jobs = min(8, os.cpu_count() or 1, max(1, len(p)//8192))
-        if jobs < 2:
-            result = _query_batch(p, *args)
-        else:
-            with ThreadPoolExecutor(max_workers=jobs) as pool:
-                outputs = list(pool.map(lambda x: _query_batch(x, *args), np.array_split(p, jobs)))
-            result = tuple(np.concatenate(parts) for parts in zip(*outputs))
+        runtime = (self.execution_context if self.execution_context is not None
+                   else get_surface_execution_context())
+        result = runtime.query(_query_batch, p, *args)
         signed, face, bary, normal, status = result
         for index in np.flatnonzero(status & 2):
             # For an embedded oriented solid the generalized winding is either
@@ -338,8 +338,15 @@ class FiniteSurface:
         return sign*d, f, bary, -sign*ray/d, tied
 
 
-def prepare_surface(vertices, faces) -> FiniteSurface:
-    """Build one spatial hierarchy for the entire indexed operand, caps included."""
+def prepare_surface(vertices, faces, *, execution_context=None) -> FiniteSurface:
+    """Build one spatial hierarchy for the entire indexed operand, caps included.
+
+    An explicit execution_context is borrowed, never closed by the surface.
+    Without one, each query uses the currently active scope (or process default),
+    so a cached geometric stencil does not retain a closed earlier solve scope.
+    """
+    if execution_context is not None and not isinstance(execution_context, SurfaceExecutionContext):
+        raise TypeError('execution_context must be a SurfaceExecutionContext')
     v = _points(vertices).copy()
     f = _numpy(faces)
     if f.dtype.kind not in 'iu' or f.ndim != 2 or f.shape[1] != 3 or len(f) < 4 or len(v) < 4:
@@ -397,4 +404,4 @@ def prepare_surface(vertices, faces) -> FiniteSurface:
     for array in (v, *arrays):
         array.flags.writeable = False
     tensor = vertices if isinstance(vertices, torch.Tensor) and vertices.requires_grad else None
-    return FiniteSurface(v, f, tensor, arrays, 128*eps*scale)
+    return FiniteSurface(v, f, tensor, arrays, 128*eps*scale, execution_context)

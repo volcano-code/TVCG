@@ -1,0 +1,158 @@
+{
+  "schema": "compact-pino-v23.software-validation.v1",
+  "recorded_utc": "2026-11-27T04:40:18.069415+00:00",
+  "base_commit": "1e78b8a89065f70f2486d5953e55011f2f97719d",
+  "scope": "CPU software equivalence and archived formula replay; not a live GPU/native optimization acceptance",
+  "counts": {
+    "tests": 179,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "passed": 179,
+  "test_seconds": 115.579,
+  "test_classes": {
+    "experiments.compact_pino_v21.runtime_efficiency.test_acceptance": 13,
+    "experiments.compact_pino_v21.runtime_efficiency.test_coverage": 7,
+    "experiments.compact_pino_v21.runtime_efficiency.test_deployment": 5,
+    "experiments.compact_pino_v21.runtime_efficiency.test_metrics": 7,
+    "experiments.compact_pino_v21.runtime_efficiency.test_native_moment_only": 3,
+    "research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.tests.test_v21_native": 6,
+    "research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.tests.test_v21_response": 15,
+    "research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.tests.test_v22_compact_integration": 4,
+    "research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.tests.test_v22_frozen_training": 8,
+    "research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.tests.test_v22_native_value": 4,
+    "research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.tests.test_v22_precision_cache": 9,
+    "research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.tests.test_v22_query_cache": 29,
+    "research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.tests.test_v22_response_efficiency": 22,
+    "research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.tests.test_v22_response_upgrade": 16,
+    "research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.tests.test_v23_operator_runtime": 13,
+    "research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.tests.test_v23_query_execution": 3,
+    "research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.tests.test_v23_surface_runtime": 15
+  },
+  "python": "3.12.14",
+  "numpy": "2.3.5",
+  "torch": "2.8.0+cpu",
+  "cuda_available": false,
+  "omp_threads": 2,
+  "mkl_threads": 2,
+  "raw_log": "software_validation.log",
+  "junit": "software_validation.xml",
+  "changed_python_sha256": {
+    "experiments/compact_pino_v21/runtime_efficiency/__init__.py": "6a390bcb87a48a9f5e1cf22b5b353860fa7dc03412f8e9c201a2c87c5258cb3a",
+    "experiments/compact_pino_v21/runtime_efficiency/acceptance.py": "88ef808b8207284b3828ada77f3a024eb719971a4b4cc31a0d34424de37021fd",
+    "experiments/compact_pino_v21/runtime_efficiency/coverage.py": "14e76d55c6def50431ac1cb62c85a34a7566f8f1032bfc3cec7ee45ccd48bad9",
+    "experiments/compact_pino_v21/runtime_efficiency/deployment.py": "f842ca174de05c4ee0db480602d09460eb3da857f7c1ec0570c28115f8dcf554",
+    "experiments/compact_pino_v21/runtime_efficiency/metrics.py": "3dfd62e6f3b6e0b8a71f396425a06697c26ac417f4f7a4e2b1c51d5c75696d1d",
+    "experiments/compact_pino_v21/runtime_efficiency/replay_cli.py": "b6b7d9e1e11e34978acda87aeda6d7321a019ed286d02fa2bf2d7675bd873c4f",
+    "experiments/compact_pino_v21/runtime_efficiency/surface_benchmark.py": "331f361c9474aa43b5955543ad44c35a2eed7c2b43fe9868b1f665c9e0916d23",
+    "experiments/compact_pino_v21/runtime_efficiency/test_acceptance.py": "7cb216cf12066da12df88d6e2cb6841878f2248e4ac0d62f33df8f815c3bc87a",
+    "experiments/compact_pino_v21/runtime_efficiency/test_coverage.py": "38c38747b9b5084e60e0f1c4aca764cb11616166989c2e0c1ab7821d95320468",
+    "experiments/compact_pino_v21/runtime_efficiency/test_deployment.py": "4cafd1c53447df63ea5dea3696d1ebecb5863bb5223b58bf75927cdfe7501f24",
+    "experiments/compact_pino_v21/runtime_efficiency/test_metrics.py": "3dbf71c4279caabe2fcc5af0684d58c07f6f030d869db5d5a8365f1688c2a54b",
+    "experiments/compact_pino_v21/runtime_efficiency/test_native_moment_only.py": "bf1789684a3ccc9e926ae247bfebc85171d7afe5a5d9d03bd7b55690ed0fb1d3",
+    "experiments/compact_pino_v21/runtime_efficiency/verify_work_formula.py": "75a3d5378f79bc49894d6488c435331824e73addf87eaef85ffbd9e5c644ffb4",
+    "python/make_it_stand/verification/cherchi_inprocess.py": "8ec13978c5fa1ac96ff7cf17d3fd0f7160840985b6fe476979ef37a4f3d34810",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/compact_pino_v21.py": "dcde521bc097e115935e9468a9043aa1b36bca3daab85aecae1fcfc749b34970",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/compact_pino_v23.py": "06088a8efd8479d008386b06a8403b5259b1cbb96187aed3b15c63fdc3183f7b",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/tests/test_v22_native_value.py": "1d1976b26af0b5378f0f129a94d63697aa56caaa147d85ff3f1c4599fc95068c",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/tests/test_v23_operator_runtime.py": "e252b93b46fc5643faea864b46b8d5dc38065d0c7f0e50838d7806120e5b3e80",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/tests/test_v23_query_execution.py": "ede881875dc3aa4013735d8bab881d9333b139a7db68727ddd8cdf7708e14bfa",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/tests/test_v23_surface_runtime.py": "5b675428272a91eb0fea581d0efd686193ff9bfff6762593c89f5f185fd21e74",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_native.py": "7ba86926d6863f76438523d8a84398c42bb60fc4e385b8e4072d3116996c1ebe",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_response.py": "42f29eca6fddec923abf09e10a73380fdd563ecde7f5ea430a4f2c16c5961e41",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_response_surface.py": "693dd5469e73038df63772aff727069e897ea18453919e9c4a9461c9da66ae2c",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v22_query_cache.py": "699205f56d51d177c14f8745bbccc16e41106bfe5e522f464a8d26bd6b080735",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v23_surface_runtime.py": "cdbfa39b5668cd05b03e381c14096f9324cc32d289f9ec86cb1878f4512b595c"
+  },
+  "not_run": [
+    "RTX 5090 D real-query throughput",
+    "live deployed Cherchi/GMP/MPFR full solve",
+    "real E16 checkpoint physics replay",
+    "cross-geometry independent initial-condition study",
+    "new model training"
+  ],
+  "post_test_formatting_only": [
+    {
+      "path": "experiments/compact_pino_v21/runtime_efficiency/coverage.py",
+      "before_sha256": "14e76d55c6def50431ac1cb62c85a34a7566f8f1032bfc3cec7ee45ccd48bad9",
+      "after_sha256": "8438ee5f624e9fdd29baec41dc943b1e031cd7b713fc498209c62f8dcd69237a",
+      "ast_unchanged": true
+    },
+    {
+      "path": "experiments/compact_pino_v21/runtime_efficiency/deployment.py",
+      "before_sha256": "f842ca174de05c4ee0db480602d09460eb3da857f7c1ec0570c28115f8dcf554",
+      "after_sha256": "ff410b7e4ba527f6728af0380d73aab22f1fe3a1bc5bcc964642c7bbe23a3f89",
+      "ast_unchanged": true
+    },
+    {
+      "path": "experiments/compact_pino_v21/runtime_efficiency/metrics.py",
+      "before_sha256": "3dfd62e6f3b6e0b8a71f396425a06697c26ac417f4f7a4e2b1c51d5c75696d1d",
+      "after_sha256": "28b57cc1994c3acee2a1b6ba7d03aaa119a6ed3a4ecd9961db21dd689f67dd67",
+      "ast_unchanged": true
+    },
+    {
+      "path": "experiments/compact_pino_v21/runtime_efficiency/replay_cli.py",
+      "before_sha256": "b6b7d9e1e11e34978acda87aeda6d7321a019ed286d02fa2bf2d7675bd873c4f",
+      "after_sha256": "befabcf8fd2c1f4e2efc1540132d1ca2272b8bfb93a5e27cf75ef94cbfa601b6",
+      "ast_unchanged": true
+    },
+    {
+      "path": "experiments/compact_pino_v21/runtime_efficiency/test_coverage.py",
+      "before_sha256": "38c38747b9b5084e60e0f1c4aca764cb11616166989c2e0c1ab7821d95320468",
+      "after_sha256": "df30c57b321c3547600c61c875ef85576469f73020fe6018d447729c9672b782",
+      "ast_unchanged": true
+    },
+    {
+      "path": "experiments/compact_pino_v21/runtime_efficiency/test_deployment.py",
+      "before_sha256": "4cafd1c53447df63ea5dea3696d1ebecb5863bb5223b58bf75927cdfe7501f24",
+      "after_sha256": "08982e349392afc47e50b442673fe44d3c8ca9d70102f572f73e51f667947be9",
+      "ast_unchanged": true
+    },
+    {
+      "path": "experiments/compact_pino_v21/runtime_efficiency/test_metrics.py",
+      "before_sha256": "3dbf71c4279caabe2fcc5af0684d58c07f6f030d869db5d5a8365f1688c2a54b",
+      "after_sha256": "3ca661a8f046e16d68a8a74191dd4517eb06923ccb1c957fd3409d1c8fc6ce3a",
+      "ast_unchanged": true
+    },
+    {
+      "path": "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/compact_pino_v23.py",
+      "before_sha256": "06088a8efd8479d008386b06a8403b5259b1cbb96187aed3b15c63fdc3183f7b",
+      "after_sha256": "804b64877f57d53d22d5469158b7988db5cdb7f2366db0e8c815512b047426be",
+      "ast_unchanged": true
+    },
+    {
+      "path": "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/tests/test_v23_operator_runtime.py",
+      "before_sha256": "e252b93b46fc5643faea864b46b8d5dc38065d0c7f0e50838d7806120e5b3e80",
+      "after_sha256": "308e7d3620665868ac404ae0b0aebba901c57499547d8688bc23f227b8833db9",
+      "ast_unchanged": true
+    }
+  ],
+  "delivery_python_sha256": {
+    "experiments/compact_pino_v21/runtime_efficiency/__init__.py": "6a390bcb87a48a9f5e1cf22b5b353860fa7dc03412f8e9c201a2c87c5258cb3a",
+    "experiments/compact_pino_v21/runtime_efficiency/acceptance.py": "88ef808b8207284b3828ada77f3a024eb719971a4b4cc31a0d34424de37021fd",
+    "experiments/compact_pino_v21/runtime_efficiency/coverage.py": "8438ee5f624e9fdd29baec41dc943b1e031cd7b713fc498209c62f8dcd69237a",
+    "experiments/compact_pino_v21/runtime_efficiency/deployment.py": "ff410b7e4ba527f6728af0380d73aab22f1fe3a1bc5bcc964642c7bbe23a3f89",
+    "experiments/compact_pino_v21/runtime_efficiency/metrics.py": "28b57cc1994c3acee2a1b6ba7d03aaa119a6ed3a4ecd9961db21dd689f67dd67",
+    "experiments/compact_pino_v21/runtime_efficiency/replay_cli.py": "befabcf8fd2c1f4e2efc1540132d1ca2272b8bfb93a5e27cf75ef94cbfa601b6",
+    "experiments/compact_pino_v21/runtime_efficiency/surface_benchmark.py": "331f361c9474aa43b5955543ad44c35a2eed7c2b43fe9868b1f665c9e0916d23",
+    "experiments/compact_pino_v21/runtime_efficiency/test_acceptance.py": "7cb216cf12066da12df88d6e2cb6841878f2248e4ac0d62f33df8f815c3bc87a",
+    "experiments/compact_pino_v21/runtime_efficiency/test_coverage.py": "df30c57b321c3547600c61c875ef85576469f73020fe6018d447729c9672b782",
+    "experiments/compact_pino_v21/runtime_efficiency/test_deployment.py": "08982e349392afc47e50b442673fe44d3c8ca9d70102f572f73e51f667947be9",
+    "experiments/compact_pino_v21/runtime_efficiency/test_metrics.py": "3ca661a8f046e16d68a8a74191dd4517eb06923ccb1c957fd3409d1c8fc6ce3a",
+    "experiments/compact_pino_v21/runtime_efficiency/test_native_moment_only.py": "bf1789684a3ccc9e926ae247bfebc85171d7afe5a5d9d03bd7b55690ed0fb1d3",
+    "experiments/compact_pino_v21/runtime_efficiency/verify_work_formula.py": "75a3d5378f79bc49894d6488c435331824e73addf87eaef85ffbd9e5c644ffb4",
+    "python/make_it_stand/verification/cherchi_inprocess.py": "8ec13978c5fa1ac96ff7cf17d3fd0f7160840985b6fe476979ef37a4f3d34810",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/compact_pino_v21.py": "dcde521bc097e115935e9468a9043aa1b36bca3daab85aecae1fcfc749b34970",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/compact_pino_v23.py": "804b64877f57d53d22d5469158b7988db5cdb7f2366db0e8c815512b047426be",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/tests/test_v22_native_value.py": "1d1976b26af0b5378f0f129a94d63697aa56caaa147d85ff3f1c4599fc95068c",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/tests/test_v23_operator_runtime.py": "308e7d3620665868ac404ae0b0aebba901c57499547d8688bc23f227b8833db9",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/tests/test_v23_query_execution.py": "ede881875dc3aa4013735d8bab881d9333b139a7db68727ddd8cdf7708e14bfa",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/tests/test_v23_surface_runtime.py": "5b675428272a91eb0fea581d0efd686193ff9bfff6762593c89f5f185fd21e74",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_native.py": "7ba86926d6863f76438523d8a84398c42bb60fc4e385b8e4072d3116996c1ebe",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_response.py": "42f29eca6fddec923abf09e10a73380fdd563ecde7f5ea430a4f2c16c5961e41",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_response_surface.py": "693dd5469e73038df63772aff727069e897ea18453919e9c4a9461c9da66ae2c",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v22_query_cache.py": "699205f56d51d177c14f8745bbccc16e41106bfe5e522f464a8d26bd6b080735",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v23_surface_runtime.py": "cdbfa39b5668cd05b03e381c14096f9324cc32d289f9ec86cb1878f4512b595c"
+  }
+}

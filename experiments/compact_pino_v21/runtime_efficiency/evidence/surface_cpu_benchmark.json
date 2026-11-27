@@ -1,0 +1,367 @@
+{
+  "schema": "compact-pino-v23-surface-scheduling-benchmark-v1",
+  "captured_utc": "2026-11-27T04:29:15.677014+00:00",
+  "measurement_kind": "new_capture_from_reproducible_script",
+  "scope": "synthetic_only_cpu_kernel_scheduling",
+  "exclusions": [
+    "native finite-cut construction",
+    "BVH preparation",
+    "Numba compilation",
+    "exact ambiguity refinement after the kernel",
+    "neural response",
+    "GPU",
+    "native correction",
+    "independent acceptance",
+    "end-to-end solve"
+  ],
+  "fixture": {
+    "name": "finite_oriented_box",
+    "vertices": 8,
+    "triangles": 12,
+    "points": 16384,
+    "seed": 830251,
+    "point_distribution": "uniform[-1.4,1.4]^3",
+    "point_dtype": "float64",
+    "point_hash": "c6baae7ef1e382ca44cb8f3b5433ca02dfe54b57f51b839a7383864970036980",
+    "vertex_hash": "3e1c3029076e713542631e20b9499379e9032ebf71afbde66a7f6fcc08fceb79",
+    "face_hash": "255f196f9986185d304ce2c1e345d6f7e16336d26f18322432116cb364697661"
+  },
+  "environment": {
+    "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+    "executable": "/workspace/scratch/2b7eb383e241/tvcg-test-venv/bin/python",
+    "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+    "machine": "x86_64",
+    "package_versions": {
+      "numpy": "2.3.5",
+      "numba": "0.68.1",
+      "llvmlite": "0.50.0",
+      "torch": "2.8.0+cpu"
+    },
+    "os_cpu_count": 9,
+    "affinity_before": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "affinity_during": [
+      0,
+      1
+    ],
+    "requested_affinity_cpus": 2,
+    "selected_workers": 2,
+    "torch_intraop_threads": 1,
+    "torch_interop_threads": 9,
+    "thread_environment": {
+      "OMP_NUM_THREADS": "1",
+      "OPENBLAS_NUM_THREADS": "1",
+      "MKL_NUM_THREADS": null,
+      "NUMBA_NUM_THREADS": null,
+      "NUMEXPR_NUM_THREADS": null
+    },
+    "cgroup_cpu_max": null,
+    "cgroup_cpuset_effective": null
+  },
+  "protocol": {
+    "warmup_calls_per_path": 3,
+    "timed_calls_per_path": 30,
+    "points_per_worker": 8192,
+    "fresh_pool_workers": 2,
+    "reusable_max_workers": 2,
+    "pair_order": [
+      [
+        "fresh_pool",
+        "reusable_pool"
+      ],
+      [
+        "reusable_pool",
+        "fresh_pool"
+      ],
+      [
+        "fresh_pool",
+        "reusable_pool"
+      ],
+      [
+        "reusable_pool",
+        "fresh_pool"
+      ],
+      [
+        "fresh_pool",
+        "reusable_pool"
+      ],
+      [
+        "reusable_pool",
+        "fresh_pool"
+      ],
+      [
+        "fresh_pool",
+        "reusable_pool"
+      ],
+      [
+        "reusable_pool",
+        "fresh_pool"
+      ],
+      [
+        "fresh_pool",
+        "reusable_pool"
+      ],
+      [
+        "reusable_pool",
+        "fresh_pool"
+      ],
+      [
+        "fresh_pool",
+        "reusable_pool"
+      ],
+      [
+        "reusable_pool",
+        "fresh_pool"
+      ],
+      [
+        "fresh_pool",
+        "reusable_pool"
+      ],
+      [
+        "reusable_pool",
+        "fresh_pool"
+      ],
+      [
+        "fresh_pool",
+        "reusable_pool"
+      ],
+      [
+        "reusable_pool",
+        "fresh_pool"
+      ],
+      [
+        "fresh_pool",
+        "reusable_pool"
+      ],
+      [
+        "reusable_pool",
+        "fresh_pool"
+      ],
+      [
+        "fresh_pool",
+        "reusable_pool"
+      ],
+      [
+        "reusable_pool",
+        "fresh_pool"
+      ],
+      [
+        "fresh_pool",
+        "reusable_pool"
+      ],
+      [
+        "reusable_pool",
+        "fresh_pool"
+      ],
+      [
+        "fresh_pool",
+        "reusable_pool"
+      ],
+      [
+        "reusable_pool",
+        "fresh_pool"
+      ],
+      [
+        "fresh_pool",
+        "reusable_pool"
+      ],
+      [
+        "reusable_pool",
+        "fresh_pool"
+      ],
+      [
+        "fresh_pool",
+        "reusable_pool"
+      ],
+      [
+        "reusable_pool",
+        "fresh_pool"
+      ],
+      [
+        "fresh_pool",
+        "reusable_pool"
+      ],
+      [
+        "reusable_pool",
+        "fresh_pool"
+      ]
+    ],
+    "timer": "time.perf_counter_ns",
+    "quantile": "numpy linear interpolation",
+    "timing_boundary": "full scheduler call including partition, submit, join and concatenate",
+    "warmup_and_correctness_excluded": true,
+    "cpu_load_not_isolated": true,
+    "note": "No speed assertion or deployment promotion threshold is inferred from this fixture."
+  },
+  "correctness": {
+    "all_timed_outputs_equal_to_serial_reference": true,
+    "serial_output_hashes": [
+      "90bab49b050ba3ab48cbf795c89e2165b72c995d5d1c5b950bcba7bfa654bd21",
+      "190fccbe08073af619e005bb5c02bde53584cbcea9eb24c75c4bfe8fcabaf9e7",
+      "7f32a9a4681612f571ad44976a95a6b5ca0111a77c840b89c3410819e809a583",
+      "90e0c8baec9c86b5790b703dcbb20badb9846150a572f3b99ccda417be245873",
+      "1e28ae621ba74818ae18aac81d56905c36e80cda2d986f670aa01e99058810cd"
+    ],
+    "output_hashes": {
+      "fresh_pool": [
+        "90bab49b050ba3ab48cbf795c89e2165b72c995d5d1c5b950bcba7bfa654bd21",
+        "190fccbe08073af619e005bb5c02bde53584cbcea9eb24c75c4bfe8fcabaf9e7",
+        "7f32a9a4681612f571ad44976a95a6b5ca0111a77c840b89c3410819e809a583",
+        "90e0c8baec9c86b5790b703dcbb20badb9846150a572f3b99ccda417be245873",
+        "1e28ae621ba74818ae18aac81d56905c36e80cda2d986f670aa01e99058810cd"
+      ],
+      "reusable_pool": [
+        "90bab49b050ba3ab48cbf795c89e2165b72c995d5d1c5b950bcba7bfa654bd21",
+        "190fccbe08073af619e005bb5c02bde53584cbcea9eb24c75c4bfe8fcabaf9e7",
+        "7f32a9a4681612f571ad44976a95a6b5ca0111a77c840b89c3410819e809a583",
+        "90e0c8baec9c86b5790b703dcbb20badb9846150a572f3b99ccda417be245873",
+        "1e28ae621ba74818ae18aac81d56905c36e80cda2d986f670aa01e99058810cd"
+      ]
+    }
+  },
+  "results": {
+    "fresh_pool": {
+      "raw_seconds": [
+        0.014931606,
+        0.00593585,
+        0.006277675,
+        0.005737628,
+        0.006627025,
+        0.006441747,
+        0.006936647,
+        0.006535415,
+        0.00608491,
+        0.006168173,
+        0.006135966,
+        0.006071771,
+        0.006441846,
+        0.005623008,
+        0.00661353,
+        0.007078807,
+        0.007213566,
+        0.006177527,
+        0.006768589,
+        0.005890613,
+        0.005695225,
+        0.005428351,
+        0.005531403,
+        0.006495696,
+        0.006446864,
+        0.006317183,
+        0.006081836,
+        0.00554955,
+        0.006048206,
+        0.005757387
+      ],
+      "median_seconds": 0.0061728500000000006,
+      "p95_seconds": 0.00715292445,
+      "mean_seconds": 0.006501453333333335,
+      "minimum_seconds": 0.005428351,
+      "maximum_seconds": 0.014931606
+    },
+    "reusable_pool": {
+      "raw_seconds": [
+        0.018097098,
+        0.006150156,
+        0.006794237,
+        0.007771438,
+        0.006841671,
+        0.006229729,
+        0.005838517,
+        0.00676194,
+        0.005984912,
+        0.006439033,
+        0.005655767,
+        0.006486312,
+        0.006243935,
+        0.006899312,
+        0.006514554,
+        0.006924769,
+        0.00612509,
+        0.006323352,
+        0.006494004,
+        0.006881917,
+        0.005440939,
+        0.006077369,
+        0.005630009,
+        0.006625994,
+        0.00626076,
+        0.006801487,
+        0.00580737,
+        0.006222143,
+        0.00582707,
+        0.006443098
+      ],
+      "median_seconds": 0.0063811925000000005,
+      "p95_seconds": 0.007390436949999997,
+      "mean_seconds": 0.006753132733333334,
+      "minimum_seconds": 0.005440939,
+      "maximum_seconds": 0.018097098
+    }
+  },
+  "execution_context": {
+    "before_close": {
+      "queries": 33,
+      "serial_queries": 0,
+      "parallel_queries": 33,
+      "pool_creations": 1,
+      "pool_shutdowns": 0,
+      "failed_queries": 0,
+      "submitted_partitions": 66,
+      "max_workers": 2,
+      "points_per_worker": 8192,
+      "last_workers": 2,
+      "last_available_cpus": 2,
+      "last_affinity": [
+        "affinity",
+        [
+          0,
+          1
+        ]
+      ],
+      "pool_capacity": 2,
+      "closed": false,
+      "owner_pid": 2
+    },
+    "after_close": {
+      "queries": 33,
+      "serial_queries": 0,
+      "parallel_queries": 33,
+      "pool_creations": 1,
+      "pool_shutdowns": 1,
+      "failed_queries": 0,
+      "submitted_partitions": 66,
+      "max_workers": 2,
+      "points_per_worker": 8192,
+      "last_workers": 2,
+      "last_available_cpus": 2,
+      "last_affinity": [
+        "affinity",
+        [
+          0,
+          1
+        ]
+      ],
+      "pool_capacity": 0,
+      "closed": true,
+      "owner_pid": 2
+    }
+  },
+  "provenance": {
+    "git_head": "1e78b8a89065f70f2486d5953e55011f2f97719d",
+    "source_sha256": {
+      "experiments/compact_pino_v21/runtime_efficiency/surface_benchmark.py": "331f361c9474aa43b5955543ad44c35a2eed7c2b43fe9868b1f665c9e0916d23",
+      "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v21_response_surface.py": "693dd5469e73038df63772aff727069e897ea18453919e9c4a9461c9da66ae2c",
+      "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/v23_surface_runtime.py": "cdbfa39b5668cd05b03e381c14096f9324cc32d289f9ec86cb1878f4512b595c"
+    }
+  }
+}

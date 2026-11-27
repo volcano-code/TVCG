@@ -171,13 +171,21 @@ class QueryPreparationCache:
                 self._oversized.popitem(last=False)
         return None
 
-    def get_or_prepare(self, blocks, operand, bandwidth, chunk_size=65536, full_cell_rule='tetra4'):
+    def get_or_prepare(self, blocks, operand, bandwidth, chunk_size=65536, full_cell_rule='tetra4',
+                       *, execution_context=None):
         """Return immutable geometry preparation, or None for streaming fallback.
 
         A differentiable vertex tensor always bypasses this cache.  Its live
         vertex graph must be constructed afresh by the original evaluator.
         Static native vertex velocities may change freely between calls: they
         are neither read nor retained here.
+
+        An optional execution context is borrowed by each newly built surface.
+        It controls scheduling, not physical identity, and never enters the
+        cache key. The owning operator must keep the context open while using
+        this private cache, then clear the cache before closing the context.
+        Cache hits retain their original surface/context binding. Without an
+        explicit context, legacy current-scope/default scheduling is unchanged.
         """
         full_cell_rule = validate_full_cell_rule(full_cell_rule)
         width = float(bandwidth)
@@ -204,7 +212,8 @@ class QueryPreparationCache:
             return None
         self._counts['misses'] += 1
         self._counts['builds'] += 1
-        surface = prepare_surface(operand.vertices, operand.faces)
+        surface = prepare_surface(operand.vertices, operand.faces,
+                                  execution_context=execution_context)
         # Container/key accounting is deliberately conservative and does not
         # depend on how CPython happens to resize an OrderedDict allocation.
         size = _surface_bytes(surface) + 1024 + len(key)

@@ -1,0 +1,99 @@
+{
+  "python": "3.12.14",
+  "torch": "2.8.0+cpu",
+  "cuda_available": false,
+  "parameters": 2976772,
+  "trainable_parameters": 12674,
+  "context_dim": 192,
+  "hidden_dim": 64,
+  "multiscale_grids": [
+    32,
+    64
+  ],
+  "token_grid": 16,
+  "full_cell_rule": "tetra4",
+  "runtime": {
+    "enabled": true,
+    "static_inputs": {
+      "requests": 0,
+      "hits": 0,
+      "misses": 0,
+      "builds": 0,
+      "bypasses": 0,
+      "evictions": 0,
+      "source_changes": 0,
+      "entries": 0,
+      "bytes": 0,
+      "max_bytes": 134217728,
+      "max_entries": 128,
+      "scope": "parameter_independent_cpu_inputs"
+    },
+    "prepared_queries": {
+      "hits": 0,
+      "misses": 0,
+      "builds": 0,
+      "evictions": 0,
+      "disabled_bypasses": 0,
+      "live_vertex_bypasses": 0,
+      "oversize_bypasses": 0,
+      "negative_hits": 0,
+      "entries": 0,
+      "bytes": 0,
+      "max_bytes": 0,
+      "negative_entries": 0,
+      "negative_capacity": 256,
+      "scope": "static_query_preparation_no_motion_or_learning_graph"
+    },
+    "full_cell_rule": "tetra4",
+    "frozen_features": {
+      "entries": 0,
+      "bytes": 0,
+      "peak_bytes": 0,
+      "max_bytes": 67108864,
+      "max_entries": 128,
+      "hits": 0,
+      "misses": 0,
+      "evictions": 0,
+      "bypasses": 0,
+      "invalidations": 1,
+      "scope": "frozen_encoder_unprojected_tables_across_response_updates"
+    },
+    "encoder_calls": 0,
+    "encoder_grid_calls": 0,
+    "frozen_state_digest_builds": 0,
+    "training_scope": "response",
+    "response_type": "monotone_warp",
+    "runtime_version": "compact-pino-v23-execution-v1",
+    "runtime_config": {
+      "fused_contraction": true,
+      "cache_inference_projection": true,
+      "projection_cache_bytes": 8388608,
+      "surface_workers": null
+    },
+    "inference_projection": {
+      "hits": 0,
+      "misses": 0,
+      "bypasses": 0,
+      "bytes": 0,
+      "entries": 0
+    },
+    "surface_execution": {
+      "queries": 0,
+      "serial_queries": 0,
+      "parallel_queries": 0,
+      "pool_creations": 0,
+      "pool_shutdowns": 0,
+      "failed_queries": 0,
+      "submitted_partitions": 0,
+      "max_workers": 8,
+      "points_per_worker": 8192,
+      "last_workers": 0,
+      "last_available_cpus": null,
+      "last_affinity": null,
+      "pool_capacity": 0,
+      "closed": false,
+      "owner_pid": 5
+    },
+    "runtime_closed": false
+  }
+}

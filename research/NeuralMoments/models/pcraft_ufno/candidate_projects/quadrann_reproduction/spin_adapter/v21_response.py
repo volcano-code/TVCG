@@ -371,7 +371,8 @@ def _as_tensor(x, *, device, dtype=torch.float64):
     return torch.as_tensor(x, device=device, dtype=dtype)
 
 
-def _evaluate_torch_band(stencil, region, model, context, device, velocity, live_vertices, need_graph, operation):
+def _evaluate_torch_band(stencil, region, model, context, device, velocity, live_vertices, need_graph, operation,
+                         fused_contraction=False):
     analytic = type(model) is LocalRetention and model.use_analytic_slope
     # AD fallback still works inside no_grad/inference_mode. The analytic path
     # does not build a temporary local graph merely to produce inference J.
@@ -414,7 +415,7 @@ def _evaluate_torch_band(stencil, region, model, context, device, velocity, live
             else:
                 retained = model(points, scale, features, operation=operation)
         basis = _as_tensor(_weighted_basis(stencil.nodes[region], stencil.weights[region]), device=device)
-        moments = basis.T @ retained
+        moments = None if velocity is not None and fused_contraction else basis.T @ retained
         jac = None
         if velocity is not None:
             if slope is None:
@@ -422,7 +423,14 @@ def _evaluate_torch_band(stencil, region, model, context, device, velocity, live
                 # separate Moment reverse passes.
                 slope, = torch.autograd.grad(retained.sum(), d, create_graph=need_graph, retain_graph=need_graph)
             ds = _as_tensor(_contract_motion(stencil, region, velocity), device=device)
-            jac = basis.T @ (slope[:, None]*ds)
+            differentiated = slope[:, None]*ds
+            if fused_contraction:
+                # One shared FP64 reduction for the value and its own local
+                # differential. No independent J head or detached training path.
+                combined = basis.T @ torch.cat((retained[:, None], differentiated), dim=1)
+                moments, jac = combined[:, 0], combined[:, 1:]
+            else:
+                jac = basis.T @ differentiated
         if not need_graph:
             moments = moments.detach()
             jac = jac.detach() if jac is not None else None
@@ -430,7 +438,8 @@ def _evaluate_torch_band(stencil, region, model, context, device, velocity, live
 
 
 def evaluate_stencil(stencil: ResponseStencil, *, operation='intersection', fixed_moments=None,
-                     vertex_velocity=None, model=None, context=None, chunk_size=65536) -> ResponseResult:
+                     vertex_velocity=None, model=None, context=None, chunk_size=65536,
+                     fused_contraction=False) -> ResponseResult:
     """Evaluate both operations from the same inside retention and motion.
 
     An encoder callback receives active static node positions on the model's
@@ -443,6 +452,8 @@ def evaluate_stencil(stencil: ResponseStencil, *, operation='intersection', fixe
     """
     if operation not in ('intersection', 'difference'):
         raise ValueError('operation must be intersection or difference')
+    if type(fused_contraction) is not bool:
+        raise ValueError('fused_contraction must be a Boolean')
     stencil.surface.check_tensor_source()
     chunk_size = _size(chunk_size)
     if model is None and context is not None:
@@ -502,7 +513,8 @@ def evaluate_stencil(stencil: ResponseStencil, *, operation='intersection', fixe
                 jj = np.einsum('ki,kj->ij', basis, slope[:, None]*ds, optimize=False)
                 jac = jac + _as_tensor(jj, device=device)
         else:
-            mm, jj = _evaluate_torch_band(stencil, region, model, context, device, velocity, live, need_graph, operation)
+            mm, jj = _evaluate_torch_band(stencil, region, model, context, device, velocity, live, need_graph, operation,
+                                         fused_contraction=fused_contraction)
             variable = variable + mm
             if jj is not None:
                 jac = jac + jj
@@ -512,6 +524,7 @@ def evaluate_stencil(stencil: ResponseStencil, *, operation='intersection', fixe
                        ambiguous_nodes=stencil.ambiguous_nodes, jacobian_status=status,
                        active_mass=float(stencil.weights.sum()), smoothing='compact_cubic_signed_euclidean',
                        learned_shift_and_steepness=model is not None, operation=operation, moment_order=MOMENT_ORDER)
+    diagnostics['fused_contraction'] = bool(fused_contraction and not use_numpy and velocity is not None)
     diagnostics['response_type'] = 'unlearned_cubic' if model is None else getattr(model, 'response_type', 'custom')
     if diagnostics['response_type'] == 'monotone_warp':
         diagnostics['smoothing'] = 'compact_monotone_warp_signed_euclidean'
@@ -520,7 +533,8 @@ def evaluate_stencil(stencil: ResponseStencil, *, operation='intersection', fixe
 
 def evaluate_response(measure: PositiveMeasure, surface: FiniteSurface, *, bandwidth,
                       operation='intersection', fixed_moments=None, vertex_velocity=None,
-                      model=None, context=None, chunk_size=65536) -> ResponseResult:
+                      model=None, context=None, chunk_size=65536, fused_contraction=False) -> ResponseResult:
     stencil = prepare_stencil(measure, surface, bandwidth=bandwidth, chunk_size=chunk_size)
     return evaluate_stencil(stencil, operation=operation, fixed_moments=fixed_moments,
-                            vertex_velocity=vertex_velocity, model=model, context=context, chunk_size=chunk_size)
+                            vertex_velocity=vertex_velocity, model=model, context=context, chunk_size=chunk_size,
+                            fused_contraction=fused_contraction)

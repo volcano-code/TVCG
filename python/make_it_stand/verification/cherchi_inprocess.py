@@ -195,6 +195,35 @@ class InProcessCherchiEvaluator:
             source_vertices.tolist(),source_faces.tolist(),operation))
 
     def __call__(self,q):
+        """Historical joint solver entry; its derivative and qualification are unchanged."""
+        return self._evaluate(q,with_jacobian=True)
+
+    @property
+    def moment_only_capabilities(self):
+        """Actual work saved by ``evaluate_moments``, not just omitted output fields.
+
+        The currently deployed full-rank source exposes motion only. Boolean,
+        source validation, orientation, exact integration and material/branch
+        provenance are still computed afresh for every query.
+        """
+        return dict(schema='cherchi-native-moment-only-v1',
+                    independent_mesh_evaluation=True,
+                    source_motion_avoided=False,
+                    intersection_motion_avoided=True,
+                    material_jacobian_avoided=True,
+                    material_result_cache_used=False,
+                    integral_profile=self.integral_profile)
+
+    def evaluate_moments(self,q):
+        """Evaluate the same native Boolean/material without a cut Jacobian.
+
+        Intended for final native acceptance, which differentiates the objective
+        with respect to ten moments, not the geometry with respect to q. This
+        entry does not grant ambient or reduced derivative qualification.
+        """
+        return self._evaluate(q,with_jacobian=False)
+
+    def _evaluate(self,q,*,with_jacobian):
         q=tuple(float(x) for x in q)
         if len(q)!=10 or not np.isfinite(q).all():raise ValueError('INVALID_QUADRIC_COEFFICIENTS')
         source=self._stage('source',lambda:self.native.evaluate_spin_it_faster_source_motion(np.asarray(q),self.target_design,self.triangulation))
@@ -226,19 +255,21 @@ class InProcessCherchiEvaluator:
                 positions.append([float(x) for x in exact])
             records.append(dict(vertex_index=item['vertex_index'],point_type=item['point_type'],
                 parameter_t=item['parameter_t'],operands=operands,operand_coordinates=positions))
-        velocity=np.asarray(source['vertex_velocity']).reshape(len(sv),3,10)
-        physical_velocity=np.einsum('vkd,jk->vjd',velocity,axes)*self.length
-        physical_moving=self._stage('intersection_motion',lambda:
-            recover_construction_vertex_motion(records,self.design,sv,physical_velocity,physical_vertices))
-        moving=np.einsum('vkd,kj->vjd',physical_moving/self.length,axes)
+        if with_jacobian:
+            velocity=np.asarray(source['vertex_velocity']).reshape(len(sv),3,10)
+            physical_velocity=np.einsum('vkd,jk->vjd',velocity,axes)*self.length
+            physical_moving=self._stage('intersection_motion',lambda:
+                recover_construction_vertex_motion(records,self.design,sv,physical_velocity,physical_vertices))
+            moving=np.einsum('vkd,kj->vjd',physical_moving/self.length,axes)
         prepared = None
         if self.arithmetic is not None and hasattr(self.arithmetic,'PreparedBoundary'):
             prepared = self._stage('prepare_arithmetic_boundary',lambda:
                 self.arithmetic.PreparedBoundary(
                     [[str(x.numerator)+'/'+str(x.denominator) for x in row] for row in rational],
                     np.asarray(faces,dtype=np.int64)))
-        jacobian=self._stage('derivative',lambda:
+        jacobian=(self._stage('derivative',lambda:
             self._differentiate(vertices,faces,moving,rational,prepared_boundary=prepared))
+            if with_jacobian else None)
         variable=self._stage('integration',lambda:
             self._integrate(vertices,faces,rational,prepared_boundary=prepared))
         geometry=digest(dict(vertices=packet['exact_vertices'],faces=faces.tolist()))
@@ -256,9 +287,13 @@ class InProcessCherchiEvaluator:
             original_construction_records=packet['construction_records'],
             resolved_construction_records=records)
         mapped=dict(raw_moments=np.asarray(variable)+self.fixed,variable_raw_moments=variable,moment_jacobian=jacobian,
-            derivative_defined=True,derivative_diagnostic='INPROCESS_CHERCHI_PROVENANCE_DISCRETE_MAP_V1',
+            derivative_defined=with_jacobian,derivative_diagnostic=(
+                'INPROCESS_CHERCHI_PROVENANCE_DISCRETE_MAP_V1' if with_jacobian else 'NOT_REQUESTED_NATIVE_MOMENTS_V1'),
             geometry_hash=geometry,topology_hash=topology,evaluation_map_identity=self.context_identity,
-            boolean_backend_identity=self.backend_identity,derivative_identity='cherchi-constructed-vertex-motion-v1')
+            boolean_backend_identity=self.backend_identity,derivative_identity=(
+                'cherchi-constructed-vertex-motion-v1' if with_jacobian else 'not-requested-native-moments-v1'))
+        if not with_jacobian:
+            mapped['moment_only_capabilities']=self.moment_only_capabilities
         if self.arithmetic_identity is not None:
             mapped['rational_arithmetic_identity']=dict(self.arithmetic_identity)
 

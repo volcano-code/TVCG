@@ -1,0 +1,275 @@
+{
+  "schema": "compact_pino.work_acceptance_formula_replay.v1",
+  "status": "PASS",
+  "scope": "archived numeric-moment formula equivalence; no live native mesh or GPU execution",
+  "legacy_source_path": "/workspace/scratch/fcf5369c0b51/work_decision_20261126/context/native_acceptance/solve.py",
+  "legacy_source_sha256": "ad5093d39d4487daf0c805b79b8747b811595c8f2f773a9341ef06a0d1a2e37f",
+  "legacy_function_sha256": "4c50ddeb8ec031ad5c4dca92d5c1a078b3bab986f52419ac520c03a700b53259",
+  "legacy_function_ast_sha256": "237c9972d7e280b5e7e2ec1b7e4d90f974766bb90b513ef870077779be985e75",
+  "replay_fixture_path": "/workspace/scratch/fcf5369c0b51/TVCG/experiments/compact_pino_v21/runtime_efficiency/fixtures/work_acceptance_replay.json",
+  "replay_fixture_sha256": "96bcdf26af230e78539438882c0b2316842caaf70dc6b21e0ea67fd8aa715a4e",
+  "upstream_archive_member": "V22/cold.json from supplied 2026-11-26 speed audit",
+  "upstream_archive_member_sha256": "9608fe126a9e46fb0c3a492c63ff2bcf4f5910597262548181d4df616a5f23f4",
+  "new_source_path": "/workspace/scratch/fcf5369c0b51/TVCG/experiments/compact_pino_v21/runtime_efficiency/acceptance.py",
+  "new_source_sha256": "88ef808b8207284b3828ada77f3a024eb719971a4b4cc31a0d34424de37021fd",
+  "environment": {
+    "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+    "numpy": "2.3.5",
+    "sympy": "1.14.0",
+    "system": "Linux",
+    "machine": "x86_64"
+  },
+  "center_of_mass_weight": 2.1093783369465413,
+  "acceptance_profile": "WORK_SPINNING_TOP_DUAL_MONOMIAL_RAW_V1",
+  "equation_tolerance": 1e-12,
+  "physical_relative_tolerance": 1e-06,
+  "compared_fields": [
+    "accepted",
+    "objective",
+    "constraints",
+    "max_constraint",
+    "raw_residual",
+    "physical_relative_residual",
+    "stationarity_residual",
+    "mu",
+    "mass",
+    "center_of_mass",
+    "I_xz",
+    "I_yz",
+    "max_transverse_com",
+    "exact_ten_moments"
+  ],
+  "cases": {
+    "direct": {
+      "query": [
+        -0.0634090518698052,
+        -0.00011891352743533888,
+        -0.00014243498183617192,
+        0.4720274830988213,
+        0.04477801629350206,
+        0.16582039413020444,
+        -0.8623617543363764,
+        0.0001888288245515247,
+        8.899525075915712e-05,
+        1.1871949499380027e-05
+      ],
+      "moments": [
+        0.13052804431318987,
+        1.6014640931205547e-07,
+        7.743224641403581e-08,
+        0.04055922111679607,
+        0.006553375219991159,
+        0.0046369684871204325,
+        0.013834877457586279,
+        2.7773670805211293e-08,
+        4.2531757043441056e-08,
+        -2.0317928045654227e-07
+      ],
+      "old": {
+        "accepted": false,
+        "objective": 1.414510998614882,
+        "constraints": [
+          1.6014640931205547e-07,
+          7.743224641403581e-08,
+          7.230833521108033e-09,
+          -3.713005371953429e-09
+        ],
+        "max_constraint": 1.6014640931205547e-07,
+        "raw_residual": 0.0027165714971061354,
+        "physical_relative_residual": 1.7806935885370763e-07,
+        "stationarity_residual": 0.0027165714912699744,
+        "mu": 252.87856436472782,
+        "mass": 0.13052804431318987,
+        "center_of_mass": [
+          1.226911888205412e-06,
+          5.932230642193976e-07,
+          0.31073185329796255
+        ],
+        "I_xz": 7.230833521108033e-09,
+        "I_yz": -3.713005371953429e-09,
+        "max_transverse_com": 1.226911888205412e-06,
+        "exact_ten_moments": [
+          0.13052804431318987,
+          1.6014640931205547e-07,
+          7.743224641403581e-08,
+          0.04055922111679607,
+          0.006553375219991159,
+          0.0046369684871204325,
+          0.013834877457586279,
+          2.7773670805211293e-08,
+          4.2531757043441056e-08,
+          -2.0317928045654227e-07
+        ]
+      },
+      "new": {
+        "accepted": false,
+        "objective": 1.414510998614882,
+        "constraints": [
+          1.6014640931205547e-07,
+          7.743224641403581e-08,
+          7.230833521108033e-09,
+          -3.713005371953429e-09
+        ],
+        "max_constraint": 1.6014640931205547e-07,
+        "raw_residual": 0.0027165714971061354,
+        "physical_relative_residual": 1.7806935885370763e-07,
+        "stationarity_residual": 0.0027165714912699744,
+        "mu": 252.87856436472782,
+        "mass": 0.13052804431318987,
+        "center_of_mass": [
+          1.226911888205412e-06,
+          5.932230642193976e-07,
+          0.31073185329796255
+        ],
+        "I_xz": 7.230833521108033e-09,
+        "I_yz": -3.713005371953429e-09,
+        "max_transverse_com": 1.226911888205412e-06,
+        "exact_ten_moments": [
+          0.13052804431318987,
+          1.6014640931205547e-07,
+          7.743224641403581e-08,
+          0.04055922111679607,
+          0.006553375219991159,
+          0.0046369684871204325,
+          0.013834877457586279,
+          2.7773670805211293e-08,
+          4.2531757043441056e-08,
+          -2.0317928045654227e-07
+        ]
+      },
+      "field_exact_equal": {
+        "accepted": true,
+        "objective": true,
+        "constraints": true,
+        "max_constraint": true,
+        "raw_residual": true,
+        "physical_relative_residual": true,
+        "stationarity_residual": true,
+        "mu": true,
+        "mass": true,
+        "center_of_mass": true,
+        "I_xz": true,
+        "I_yz": true,
+        "max_transverse_com": true,
+        "exact_ten_moments": true
+      },
+      "archived_raw_residual": 0.0027165714971130323
+    },
+    "corrected": {
+      "query": [
+        -0.06340628501226948,
+        -0.00012087825774766096,
+        -0.00014303674849884142,
+        0.4720190811507072,
+        0.04477656251057803,
+        0.1658145119652877,
+        -0.8623677626852746,
+        0.00018841286220586765,
+        9.098191801979981e-05,
+        1.2451826538188386e-05
+      ],
+      "moments": [
+        0.1305257708873644,
+        3.782002109490451e-19,
+        -2.210755992333724e-19,
+        0.04055805807451135,
+        0.0065532310306032435,
+        0.004636854905836817,
+        0.013834366935693327,
+        -6.28921963336318e-20,
+        1.9693516023662483e-19,
+        -1.971479457063762e-07
+      ],
+      "old": {
+        "accepted": true,
+        "objective": 1.4145084348759525,
+        "constraints": [
+          3.782002109490451e-19,
+          -2.210755992333724e-19,
+          -7.941763082321518e-20,
+          -5.802260949458731e-21
+        ],
+        "max_constraint": 3.782002109490451e-19,
+        "raw_residual": 1.4206518660210468e-13,
+        "physical_relative_residual": 4.4525346316002415e-19,
+        "stationarity_residual": 1.4206518660140695e-13,
+        "mu": 252.88459530385865,
+        "mass": 0.1305257708873644,
+        "center_of_mass": [
+          2.897513712256933e-18,
+          -1.6937314197067402e-18,
+          0.3107283550120568
+        ],
+        "I_xz": -7.941763082321518e-20,
+        "I_yz": -5.802260949458731e-21,
+        "max_transverse_com": 2.897513712256933e-18,
+        "exact_ten_moments": [
+          0.1305257708873644,
+          3.782002109490451e-19,
+          -2.210755992333724e-19,
+          0.04055805807451135,
+          0.0065532310306032435,
+          0.004636854905836817,
+          0.013834366935693327,
+          -6.28921963336318e-20,
+          1.9693516023662483e-19,
+          -1.971479457063762e-07
+        ]
+      },
+      "new": {
+        "accepted": true,
+        "objective": 1.4145084348759525,
+        "constraints": [
+          3.782002109490451e-19,
+          -2.210755992333724e-19,
+          -7.941763082321518e-20,
+          -5.802260949458731e-21
+        ],
+        "max_constraint": 3.782002109490451e-19,
+        "raw_residual": 1.4206518660210468e-13,
+        "physical_relative_residual": 4.4525346316002415e-19,
+        "stationarity_residual": 1.4206518660140695e-13,
+        "mu": 252.88459530385865,
+        "mass": 0.1305257708873644,
+        "center_of_mass": [
+          2.897513712256933e-18,
+          -1.6937314197067402e-18,
+          0.3107283550120568
+        ],
+        "I_xz": -7.941763082321518e-20,
+        "I_yz": -5.802260949458731e-21,
+        "max_transverse_com": 2.897513712256933e-18,
+        "exact_ten_moments": [
+          0.1305257708873644,
+          3.782002109490451e-19,
+          -2.210755992333724e-19,
+          0.04055805807451135,
+          0.0065532310306032435,
+          0.004636854905836817,
+          0.013834366935693327,
+          -6.28921963336318e-20,
+          1.9693516023662483e-19,
+          -1.971479457063762e-07
+        ]
+      },
+      "field_exact_equal": {
+        "accepted": true,
+        "objective": true,
+        "constraints": true,
+        "max_constraint": true,
+        "raw_residual": true,
+        "physical_relative_residual": true,
+        "stationarity_residual": true,
+        "mu": true,
+        "mass": true,
+        "center_of_mass": true,
+        "I_xz": true,
+        "I_yz": true,
+        "max_transverse_com": true,
+        "exact_ten_moments": true
+      },
+      "archived_raw_residual": 1.2846632988491367e-13
+    }
+  },
+  "interpretation": "same-process old/new fields are exact; different LAPACK runtimes may change tiny residual roundoff"
+}
