@@ -579,7 +579,8 @@ def parser():
             sub.add_argument('--steps',type=int,default=128)
             sub.add_argument('--seed',type=int,default=830251)
             sub.add_argument('--learning-rate',type=float,default=3e-5)
-            sub.add_argument('--evaluate-every',type=int,default=32)
+            sub.add_argument('--evaluate-every',type=int,default=128,
+                             help='full-development cadence; default evaluates the 128-step screen only at start/end')
             sub.add_argument('--save-every',type=int,default=16)
     return p
 

@@ -6,12 +6,12 @@
   "scope": "CPU synthetic numerical/software verification and exact loading of supplied real checkpoints; no production-query or GPU benchmark",
   "pytest": {
     "command": "python -m pytest -q tests/research/test_henmo_*.py",
-    "tests": 168,
+    "tests": 170,
     "failures": 0,
     "errors": 0,
     "skipped": 0,
-    "passed": 168,
-    "observed_seconds": 22.37,
+    "passed": 170,
+    "observed_seconds": 22.79,
     "warnings": 2,
     "warning_scope": "existing pytest plugin deprecation and unknown asyncio config option"
   },
@@ -26,7 +26,8 @@
     "Evaluation/probes preserve RNG/module modes and next optimizer update",
     "Missing qualified derivatives rejected for calibration, train-only role enforced",
     "Verified checkpoint/snapshot bindings, fresh controlled-screen optimizer and capped budget",
-    "Committed checkpoint saved before interrupted evaluation and exact next-step recovery"
+    "Committed checkpoint saved before interrupted evaluation and exact next-step recovery",
+    "Adaptive frontier at leaf: no unused coarse neural/token work; intersection/difference with fixed material match deterministic M/J and solver status"
   ],
   "legacy_checkpoint_loading": [
     {
@@ -52,13 +53,14 @@
     "Separate adaptive32 and adaptive64; leaf-start fine output is not neural gain",
     "Check derivative completeness in addition to Moment prediction success",
     "Release the final gradient graph and per-query references before the next forward",
-    "Support mapping/dataclass model contracts in shared training-session reporting"
+    "Support mapping/dataclass model contracts in shared training-session reporting",
+    "Skip proven-unused neural coarse response at adaptive leaf frontier without changing selection bandwidth or leaf integration"
   ],
   "code_sha256": {
-    "experiments/henmo_v1plus/cli.py": "85601b138ef02ae075686e60366b8aaa118bd62afb89170ec5b319adc13020b1",
+    "experiments/henmo_v1plus/cli.py": "0152e36abb1f68e84c7622c6474470ce867768bacf0070682458a771f74157ee",
     "experiments/henmo_v1plus/diagnostics.py": "afad9d14102034c610e765ffadfa523cc49db3ad1331a554917231866cbf2b84",
     "experiments/henmo_v1plus/training.py": "0fa53e2c888c2d6012f6b48314997dd727d6c4ad5ef8f2ecfdcf1a55a38a9b68",
-    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/henmo_operator.py": "00f85503143d8237542ebdc8e6de7a52251fd57aab68668ed036712e36e97355",
+    "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/henmo_operator.py": "bcfb6a3f43b29383340ecef16f3a0d5e4614b1a63cc144850465a40b4193a48b",
     "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/henmo_geometry.py": "e3009e1c3fbefee2879ddb7e0ce2c692bea5d1023e86d6314064425b07fcd0ed"
   },
   "production_geometry_queries_executed_in_chat": false,
@@ -67,5 +69,6 @@
   "physical_accuracy_improvement_proven": false,
   "physics_promotion": false,
   "long_training_promotion": false,
-  "work_next": "Use Work B R3 guide with original admitted material/snapshot on target GPU; Work A prepares targeted trajectory/derivative coverage"
+  "work_next": "Use Work B R3 guide with original admitted material/snapshot on target GPU; Work A prepares targeted trajectory/derivative coverage",
+  "screen_default_evaluation": "initial and final full development evaluation for 128 updates; save committed checkpoint every16"
 }

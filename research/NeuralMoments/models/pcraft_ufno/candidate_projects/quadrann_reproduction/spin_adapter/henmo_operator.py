@@ -283,6 +283,10 @@ class HENMOOperator(nn.Module):
             selection_width = width if execution == 'leaf' or c.response_path == 'deterministic' else coarse_support
             selected = tree.select(surface,selection_width,operation,stop_grid=stop)
         self._counts['queries'] += 1
+        # At an adaptive frontier already at the leaf, refine() always returns
+        # the deterministic leaf result. Its coarse network and cut-token work
+        # cannot affect M, J, a gate, or the solver status.
+        needs_coarse_frontier = execution == 'coarse' or (execution == 'adaptive' and stop < tree.leaf_grid)
         diagnostics = dict(architecture='HENMO_V1_PLUS',response_path=c.response_path,
             execution=execution,training_execution=self.training,native_resolution=tree.side,leaf_grid=tree.leaf_grid,
             coarse_grid=stop,coarse_support_fraction=c.coarse_support_fraction,
@@ -299,6 +303,8 @@ class HENMOOperator(nn.Module):
             bandwidth=width,operation=operation,requires_native_acceptance=True,
             classification_bandwidth=selection_width,
             initial_coarse_support=coarse_support,
+            skipped_unused_coarse_frontier_nodes=(len(selected.boundary_nodes)
+                if execution == 'adaptive' and stop == tree.leaf_grid and c.response_path == 'neural' else 0),
             parameter_scale_supplied=parameter_scales is not None)
         trace_enabled = diagnostic_nodes > 0
         frontier_ids = set(selected.boundary_nodes)
@@ -337,7 +343,7 @@ class HENMOOperator(nn.Module):
                 gate_jacobian=gate,
                 alpha_derivative=None if output is None else output.diagnostics.get('alpha_derivative'),
                 coarse=values(coarse),probe=values(probe),fine=values(fine),output=values(output)))
-        if c.response_path == 'neural':
+        if c.response_path == 'neural' and (needs_coarse_frontier or execution == 'leaf'):
             with _stage(trace,'finite_cut_descriptors'):
                 cut = finite_cut_tokens(surface,motion,origin=tree.origin,
                     length_scale=tree.side*tree.pitch,max_tokens=c.cut_token_count,
@@ -584,7 +590,7 @@ class HENMOOperator(nn.Module):
             return result
 
         with torch.no_grad() if cache.inference_only else nullcontext():
-            if execution != 'leaf':
+            if needs_coarse_frontier:
                 prime_coarse(selected.boundary_nodes)
             if execution == 'adaptive' and c.response_path != 'deterministic':
                 prime_children(selected.boundary_nodes)

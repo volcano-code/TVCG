@@ -173,3 +173,48 @@ def test_diagnostic_stage_timing_supports_nested_scopes_without_double_counting(
     assert phases['material_rule'] == dict(calls=1,inclusive_s=3.,exclusive_s=2.)
     assert phases['response'] == dict(calls=1,inclusive_s=1.,exclusive_s=1.)
     assert sum(row['exclusive_s'] for row in phases.values()) == 3.
+
+
+@pytest.mark.parametrize('operation', ['intersection', 'difference'])
+def test_adaptive_leaf_skips_only_unused_neural_work_and_matches_fine_reference(monkeypatch, operation):
+    import research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.henmo_operator as operator_module
+    from research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.henmo_hierarchy import evaluate_deterministic
+    from research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.v21_response import prepare_surface
+    from research.NeuralMoments.models.pcraft_ufno.candidate_projects.quadrann_reproduction.spin_adapter.compact_pino_v21 import native_proposal_status
+    config = HENMOConfig.cpu_smoke(execution='adaptive', coarse_grid=4, response_zero_init=False, leaf_rule='gl2')
+    material = cube_material(16)
+    fixed = np.array([.02,.005,.005,.005,.00125,.00125,.00125,.00125,.00125,.00125])
+    operand = plane_operand(.43, operation=operation)
+    original_tokens = operator_module.finite_cut_tokens
+    calls = []
+    def counted_tokens(*args, **kwargs):
+        calls.append(True)
+        return original_tokens(*args, **kwargs)
+    monkeypatch.setattr(operator_module, 'finite_cut_tokens', counted_tokens)
+    with HENMOOperator(config).double().eval() as model:
+        cache = model.encode_geometry(material, fixed, inference=True)
+        prediction = model.evaluate_operand(cache, operand, diagnostic_nodes=128)
+        assert calls == []
+        assert prediction.diagnostics['neural_network_calls'] == 0
+        assert prediction.diagnostics['coarse_evaluations'] == 0
+        assert prediction.diagnostics['deterministic_leaf_evaluations'] > 0
+        assert prediction.diagnostics['skipped_unused_coarse_frontier_nodes'] == prediction.diagnostics['selected_coarse_blocks']
+        assert prediction.diagnostics['classification_bandwidth'] == pytest.approx(
+            max(material.pitch*config.bandwidth_voxels, math.sqrt(3.)*material.side*material.pitch/config.leaf_grid))
+        surface = prepare_surface(operand.vertices, operand.faces)
+        reference = evaluate_deterministic(cache.hierarchy, surface,
+            material.pitch*config.bandwidth_voxels, operation, fixed, operand.vertex_velocity,
+            full_cell_rule='gl2', stop_grid=config.leaf_grid)
+        torch.testing.assert_close(prediction.moments, reference.moments, rtol=2e-12, atol=2e-13)
+        torch.testing.assert_close(prediction.jacobian, reference.jacobian, rtol=2e-11, atol=2e-12)
+        assert prediction.diagnostics['solver_status'] == native_proposal_status(reference, fixed)
+
+        # A coarse query at the same leaf level still requests learned cubature.
+        model.config = replace(config, execution='coarse')
+        coarse = model.evaluate_operand(cache, operand)
+        assert len(calls) == 1 and coarse.diagnostics['neural_network_calls'] > 0
+        assert coarse.diagnostics['skipped_unused_coarse_frontier_nodes'] == 0
+        # Explicit neural leaf evaluation is also a different, retained route.
+        model.config = replace(config, execution='leaf')
+        neural_leaf = model.evaluate_operand(cache, operand)
+        assert len(calls) == 2 and neural_leaf.diagnostics['neural_network_calls'] > 0

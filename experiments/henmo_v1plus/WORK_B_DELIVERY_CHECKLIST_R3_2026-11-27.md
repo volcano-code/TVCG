@@ -82,6 +82,7 @@ export HENMO_CPSHA="$(cat "$HENMO_RESULTS/source_checkpoint.sha256")"
 - 原始预测在每个 `routes.<route>.rows`，包含教师、缩放、资格、求解状态和执行诊断。
 - 默认八条路径：coarse32/64、coarse32/64_zero_correction、adaptive32/64、deterministic_gl2/gl3。
 - **adaptive64/leaf64直接由细积分承担边界输出**，不据此宣称网络精度；原部署32→64的连接看adaptive32。
+- 新实现跳过adaptive64/leaf64中无用的粗神经响应和切面token构造，`skipped_unused_coarse_frontier_nodes`记录该项。分类、fine积分和验收不变；一次编码尚未由这项优化省掉，不能夸大节省范围。
 - 节点trace详情有上限，但汇总计数与初始frontier质量完整。父子多层计数不能当材料比例重复相加。
 - GL2/GL3不运行学习编码器，属于同材料平滑参考。关闭粗学习修正并不等于GL2。
 - 详细trace包含同步开销；阶段时间用于定位，不用它计算正式GPU吞吐或原生求解加速。
@@ -103,6 +104,7 @@ done
 - [ ] 核对 `qualified_derivative_objectives`、`observed_derivative_objectives`、`derivative_objective_complete`。
 - [ ] 看shared_encoder/local_geometry/geometry_attention/response各组和整体M/J范数及夹角。
 - [ ] 诊断只允许训练role；不会更新参数，不把描述性范数比自动转换为λ。
+- [ ] E0零输出头可能使编码器梯度暂为零，不能据此判定链路失效；在头已非零的权重另测。用于校准的报告和screen源权重必须相同，不能拿819步的梯度报告去调E0起点而不登记新的实验。
 - [ ] 复谱参数使用实Hermitian内积。不能用不同查询M-only与M+J的总梯度作同点冲突证据。
 - [ ] 困难J先核对教师、chart、尺度、有效邻域，不能直接删除。
 
@@ -119,12 +121,14 @@ for HENMO_ARM in moment joint; do
     --mode trial --device cuda:0 --dtype float32 \
     --coarse-grid "$HENMO_GRID" --arm "$HENMO_ARM" \
     --steps 128 --seed 830251 --learning-rate 3e-5 \
-    --evaluate-every 32 --save-every 16 \
+    --evaluate-every 128 --save-every 16 \
     --output "$HENMO_RESULTS/screen_$HENMO_ARM"
 done
 ```
 
 两臂均为batch1、同源精确权重、同训练池、同种子、同更新预算；moment为λJ=0，joint为λJ=1。源optimizer不载入，明确作为新阶段；如出现失败/跳步，另外比较曝光与attempts，不能假设等更新就等曝光。
+
+128步默认仅E0和末步做完整开发评估，过程每16步保存last；避免小训练预算反而被反复全222条评估主导。若使用更频繁固定探针，另记探针身份，不冒充全开发指标，不与正式性能测量并发争用GPU。
 
 `screen` 强制训练与主要评估都使用所选coarse路径，单次最多256步。它用于定位学习目标与表示，**不代表旧adaptive正式协议的复验或长训批准**。若要继续同一screen精确恢复，使用其导出的model_config.json/training_config.json与last.pt，全部配置与原预算保持不变。
 
@@ -139,7 +143,7 @@ export HENMO_J_WEIGHT=REPLACE_WITH_TRAIN_SIDE_FROZEN_VALUE
   --coarse-grid "$HENMO_GRID" --arm calibrated --jacobian-weight "$HENMO_J_WEIGHT" \
   --calibration-report "$HENMO_RESULTS/gradients_${HENMO_GRID}.json" \
   --steps 128 --seed 830251 --learning-rate 3e-5 \
-  --evaluate-every 32 --save-every 16 \
+  --evaluate-every 128 --save-every 16 \
   --output "$HENMO_RESULTS/screen_calibrated"
 ```
 

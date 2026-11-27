@@ -35,6 +35,8 @@
 
 特别处理 `coarse_grid == leaf_grid`：例如 adaptive64/leaf64 会直接由细积分计算边界输出。其精度不能解释成学习分支的收益。因此诊断显式输出 adaptive32 与 adaptive64，不只给含糊的 adaptive 标签。
 
+本轮进一步移除这一特定路径中随后会被丢弃的粗神经响应及有限切面token构造；空间分类带宽、最终细积分和验收规则不变。`skipped_unused_coarse_frontier_nodes`记录跳过的工作。此优化不等于adaptive32的粗细连接已修好，也没有省去调用者的一次几何编码。
+
 ### 2.3 性能整改不改变目标函数
 
 新增有界静态输入缓存，默认每模型256 MiB，可用 `HENMOOperator(config, static_input_cache_bytes=0)` 禁用。缓存材料聚合、编码输入和占据/距离/边界图；每次参数更新后的 learned table 仍重新计算。键绑定材料/层级、物理网格、固定材料、密度、编码网格、设备和dtype；入口保留原材料变异检查。
@@ -59,6 +61,7 @@
 | 固定训练探针 | `trainer.evaluate_training_probe` | 已实现；仅绑定训练对象 |
 | 固定层级、M-only/joint/calibrated有限预算新阶段 | `cli screen` | 已实现；1–256步，默认128 |
 | 静态几何输入有界LRU | `henmo_geometry.StaticGeometryInputCache` | 已实现；完整M/J及两次Adam等价 |
+| adaptive起始前沿已到叶层时跳过无用粗神经计算 | `henmo_operator.evaluate_surface` | 已实现；细积分/求导保持原规则 |
 | 评估不改变RNG/模块模式；训练Host分段计时 | `training.py` | 已实现 |
 | 评估前保存已提交更新；默认每16步保存last | `cli train`、`cli screen` | 已实现；中断恢复验证 |
 | 三轮失败点和训练控制点的精确ID选择 | `configs/diagnostic_*_r2.json` | 已从冻结快照生成；不构成新训练准入 |
@@ -85,6 +88,8 @@
 ### P1：有界训练对照
 
 在P0支持的层级上，固定同一个源checkpoint、同一训练池、seed830251、Adam3e-5、batch1、FP32网络/FP64矩、辅助损失0。先比较M-only和joint(λJ=1)，各128次真实更新；查看方向后最多延至256。校准臂需要同源checkpoint、同快照、同层级、导数完整且无参数更新的训练梯度报告，再显式登记λ。
+
+默认128步screen仅在E0和末步完整评价开发集，每16步保存last；小规模固定探针可另行运行，不能把频繁完整评估或并发争用GPU算成模型推理成本。
 
 `screen` 的训练与主要诊断评估都采用声明的同一coarse路径。其结果只用于学习性/目标归因，**不能冒充旧adaptive协议晋级**。结束后用该阶段导出的 `model_config.json` 和权重，再运行八路径诊断及原部署路径完整评估。
 
