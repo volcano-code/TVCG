@@ -17,20 +17,12 @@ class CutAttentionStats:
 class CutConditionedCrossAttention(nn.Module):
     """Cross-attend active material tokens to a small set of cut-condition tokens.
 
-    Inputs:
-      material_tokens: [B,N,D]
-      cut_tokens: [B,S,D]
-      active_mask: [B,N] bool
-      cut_mask: [B,S] bool; True denotes a valid cut token.
-
-    Only active material tokens are gathered into attention. Inactive tokens
-    never enter Q/K/V attention work and are exact pass-through values. Complexity
-    is proportional to sum_b(N_active_b*S_b*D), not N_all^2*D.
-
-    The zero residual gate gives an exact identity conditioned-feature path at
-    initialization. The zero-initialized response projection gives zero response
-    delta initially while receiving a useful gradient for nonzero targets.
-    Keep cut_tokens attached to autograd: their derivative belongs in dM/dc.
+    Inputs: material_tokens [B,N,D], cut_tokens [B,S,D],
+    active_mask [B,N] bool, cut_mask [B,S] bool.
+    Only active material tokens are gathered into MHA; inactive tokens do not
+    enter Q/K/V work and remain exact pass-through values. The residual gate
+    preserves the input feature at initialization. Keep cut_tokens attached to
+    autograd so their derivative contribution is included in dM/dc.
     """
     def __init__(self, width: int = 192, heads: int = 4,
                  output_dim: int = 2, dropout: float = 0.0):
@@ -72,12 +64,10 @@ class CutConditionedCrossAttention(nn.Module):
         conditioned = material_tokens.clone()
         delta = material_tokens.new_zeros((b,n,self.output_dim))
         attention_weights = [] if need_weights else None
-        active_total = 0
-        cut_total = 0
-        attention_elements = 0
+        active_total = cut_total = attention_elements = 0
         gate = torch.tanh(self.residual_gate)
 
-        # Per-sample compaction ensures inactive material tokens do not enter MHA.
+        # Per-sample compaction ensures inactive tokens never enter attention.
         for batch_index in range(b):
             q_index = torch.nonzero(active_mask[batch_index], as_tuple=False).flatten()
             kv_index = torch.nonzero(cut_mask[batch_index], as_tuple=False).flatten()
@@ -89,11 +79,13 @@ class CutConditionedCrossAttention(nn.Module):
                 if need_weights:
                     attention_weights.append(None)
                 continue
-            q = self.norm_q(material_tokens[batch_index:batch_index+1].index_select(1,q_index))
-            kv = self.norm_kv(cut_tokens[batch_index:batch_index+1].index_select(1,kv_index))
+            q_raw = material_tokens[batch_index:batch_index+1].index_select(1,q_index)
+            q = self.norm_q(q_raw)
+            kv_raw = cut_tokens[batch_index:batch_index+1].index_select(1,kv_index)
+            kv = self.norm_kv(kv_raw)
             attended, weights = self.attention(q,kv,kv,need_weights=need_weights,
                                                average_attn_weights=False)
-            updated = q.squeeze(0) + gate * self.ffn(attended).squeeze(0)
+            updated = q_raw.squeeze(0) + gate * self.ffn(attended).squeeze(0)
             response = self.response_delta(updated)
             conditioned[batch_index] = conditioned[batch_index].index_copy(0,q_index,updated)
             delta[batch_index] = delta[batch_index].index_copy(0,q_index,response)
