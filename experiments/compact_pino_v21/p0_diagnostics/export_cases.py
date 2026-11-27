@@ -26,7 +26,7 @@ import numpy as np
 from .baseline_cases import (
     COEFFICIENT_MULTIPLIERS, LABEL_IDENTITY_FIELDS, ORDER, PREFIX, SCHEMA,
     _checked_fixed, finite_array, jsonable, moment_scale, operand_fingerprint,
-    query_fingerprint, sha256, validate_meta, verify_file_receipt,
+    query_fingerprint, sha256, validate_meta, verify_file_receipt, _native_resolutions,
 )
 
 EXPORT_SCHEMA = "tvcg.v22.case-export.v1"
@@ -180,7 +180,14 @@ def _row_meta(record, synthetic):
     return meta
 
 
-def _build_case(record, meta, root, output, materials):
+def _build_case(record, meta, root, output, materials, *, allowed_native_resolutions=(256,)):
+    grid = record["grid"]
+    if type(grid.get("side")) is not int or grid["side"] not in allowed_native_resolutions:
+        raise ValueError("native resolution outside explicit exporter admission contract")
+    if ("native_material_resolution" in meta and
+            (type(meta["native_material_resolution"]) is not int
+             or meta["native_material_resolution"] != grid["side"])):
+        raise ValueError("metadata native_material_resolution differs from requested material grid")
     assets = {key: _asset(record["assets"][key], root, key)
               for key in ("geometry", "operand", "targets", "qualification")}
     if sha256(assets["geometry"]) != meta["geometry_sha256"]:
@@ -238,10 +245,7 @@ def _build_case(record, meta, root, output, materials):
             allowed = "synthetic_fixture" if meta["split"] == "synthetic" else "native_newton"
             if meta.get("direction_source") != allowed:
                 raise ValueError("an actual direction requires its registered native/synthetic source")
-    grid = record["grid"]
-    if type(grid.get("side")) is not int or grid["side"] != 256:
-        raise ValueError("the current export supports native256 only")
-    origin, pitch, side, density = material_module._grid(grid["origin"], grid["pitch"], 256, meta["density"])
+    origin, pitch, side, density = material_module._grid(grid["origin"], grid["pitch"], grid["side"], meta["density"])
     partial_rule = grid.get('partial_rule', 'fit_compressed')
     if partial_rule not in material_module.PARTIAL_CELL_RULES:
         raise ValueError('unsupported partial-cell cubature rule')
@@ -266,10 +270,15 @@ def _build_case(record, meta, root, output, materials):
     if material_error > 1e-8:
         raise ValueError(f"conservative cache/teacher full-moment mismatch: {material_error}")
     meta["material_identity"] = material_id
+    if side != 256 or "native_material_resolution" in meta:
+        meta["native_material_resolution"] = side
     validate_meta(meta)
     # The raw teacher archive remains unmodified; final targets bind the newly
     # computed static material identity in addition to all original identities.
-    arrays["metadata"] = np.asarray(json.dumps({key: meta[key] for key in LABEL_IDENTITY_FIELDS}))
+    target_metadata = {key: meta[key] for key in LABEL_IDENTITY_FIELDS}
+    if "native_material_resolution" in meta:
+        target_metadata["native_material_resolution"] = meta["native_material_resolution"]
+    arrays["metadata"] = np.asarray(json.dumps(target_metadata))
     index = record["record_id"]
     import hashlib
     identifier = hashlib.sha256(index.encode("utf8")).hexdigest()[:24]
@@ -282,8 +291,8 @@ def _build_case(record, meta, root, output, materials):
     evidence_copies = [_copy_asset(p, output / "assets", ".evidence" + p.suffix) for p in evidence]
     raw_teacher_copy = _copy_asset(assets["targets"], output / "assets", ".teacher.npz")
     block_width = record.get("block_voxels", 8)
-    if type(block_width) is not int or block_width <= 0 or 256 % block_width:
-        raise ValueError("block_voxels must divide 256")
+    if type(block_width) is not int or block_width <= 0 or side % block_width:
+        raise ValueError("block_voxels must divide the actual material side")
     case_file = output / "cases" / (identifier + ".json")
     _write(case_file, dict(schema=SCHEMA, meta=meta, block_voxels=block_width, assets=case_assets,
                          source_qualification=qualification_copy, source_evidence=evidence_copies,
@@ -314,8 +323,9 @@ def _build_case(record, meta, root, output, materials):
     return manifest_row, receipt
 
 
-def export_cases(request_path, output, *, synthetic=False):
+def export_cases(request_path, output, *, synthetic=False, allowed_native_resolutions=(256,)):
     started = time.perf_counter()
+    allowed_native_resolutions = _native_resolutions(allowed_native_resolutions)
     request_path = Path(request_path).resolve(strict=True)
     request, output = _read(request_path), Path(output).resolve()
     if request.get("schema") != EXPORT_SCHEMA:
@@ -363,7 +373,8 @@ def export_cases(request_path, output, *, synthetic=False):
                 for role, receipt in authority_receipt["verified_assets"].items()}
             packaged_authority["teacher_contract_sha256"] = authority_receipt["teacher_contract_sha256"]
         for row, meta in zip(rows, metas):
-            exported, receipt = _build_case(row, meta, request_path.parent, output, material_cache)
+            exported, receipt = _build_case(row, meta, request_path.parent, output, material_cache,
+                                            allowed_native_resolutions=allowed_native_resolutions)
             manifest_rows.append(exported); receipts.append(receipt)
         counts = Counter((r["role"], r["source_group"], r["surface_family"], r["retention_bin"], r["trajectory_stage"],
                           ("R" + str(r["derivative_dimension"]) if r["derivative_valid"] else "Moment_only")) for r in receipts)
@@ -374,7 +385,9 @@ def export_cases(request_path, output, *, synthetic=False):
                        input_request_sha256=sha256(request_path), snapshot_id=request["snapshot_id"],
                        registered_train_count=registered, exported_count=len(rows), static_material_count=len(material_cache),
                        seconds=time.perf_counter() - started, coverage=coverage, records=receipts,
-                       source_admission=authority["receipt"])
+                       source_admission=authority["receipt"],
+                       allowed_native_resolutions=list(allowed_native_resolutions),
+                       material_resolutions=sorted({row["grid"]["side"] for row in rows}))
         _write(output / "export_receipt.json", receipt)
         manifest = dict(schema=TRAINING_SCHEMA, snapshot_id=request["snapshot_id"],
                registered_train_count=registered, records=manifest_rows,
@@ -396,8 +409,12 @@ def main():
     parser.add_argument("--request", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--synthetic-fixture", action="store_true")
+    parser.add_argument("--allowed-native-resolutions", type=int, nargs="+", default=[256],
+                        choices=(256, 512, 1024),
+                        help="explicit material resolutions; legacy default remains native256")
     args = parser.parse_args()
-    print(export_cases(args.request, args.output, synthetic=args.synthetic_fixture))
+    print(export_cases(args.request, args.output, synthetic=args.synthetic_fixture,
+                       allowed_native_resolutions=tuple(args.allowed_native_resolutions)))
 
 
 if __name__ == "__main__":

@@ -156,7 +156,15 @@ def _checked_fixed(value, scale):
     return fixed
 
 
-def validate_case(case):
+def _native_resolutions(values):
+    values = tuple(values)
+    if (not values or len(set(values)) != len(values)
+            or any(type(value) is not int or value not in (256, 512, 1024) for value in values)):
+        raise ValueError("explicit distinct native material resolutions among 256/512/1024 required")
+    return values
+
+
+def validate_case(case, *, allowed_native_resolutions=(256,)):
     """Check loaded identity and qualification before any response evaluation."""
     meta = case["meta"]
     validate_meta(meta)
@@ -164,8 +172,17 @@ def validate_case(case):
         if key not in case["reference_meta"] or case["reference_meta"][key] != meta[key]:
             raise ValueError(f"reference identity mismatch: {key}")
     blocks, operand = case["blocks"], case["operand"]
-    if blocks.side != 256 or not np.isfinite(blocks.pitch) or blocks.pitch <= 0:
-        raise ValueError("real V2.1 code path requires native256 and positive pitch")
+    allowed = _native_resolutions(allowed_native_resolutions)
+    if blocks.side not in allowed or not np.isfinite(blocks.pitch) or blocks.pitch <= 0:
+        raise ValueError("native material resolution outside explicit admission contract or nonpositive pitch")
+    # Legacy native256 manifests retain their exact interpretation. New native
+    # resolutions additionally bind their dimension in the teacher metadata;
+    # material hashes already cover origin, pitch, density and source geometry.
+    if blocks.side != 256 or "native_material_resolution" in meta:
+        if (type(meta.get("native_material_resolution")) is not int
+                or meta["native_material_resolution"] != blocks.side
+                or case["reference_meta"].get("native_material_resolution") != blocks.side):
+            raise ValueError("native resolution must match material and teacher metadata")
     if blocks.identity != meta["material_identity"]:
         raise ValueError("material identity mismatch")
     if operand.operation != meta["operation"] or operand_fingerprint(operand) != meta["operand_content_sha256"]:
@@ -245,9 +262,70 @@ def _checked_assets(spec, parent, verification_cache=None):
     return paths, receipts
 
 
-def load_baseline_case(path, *, cache_directory=None, static_cache=None, asset_verification_cache=None):
+def audit_prepared_material(material, scale, material_cache_moments=None):
+    """Audit sparse analytic runs and positive partial atoms without expanding cells.
+
+    The full-cell component is an explicit union of nonoverlapping cuboids.
+    Only partial-cell quadrature is stored. This replaces a packed-point audit
+    for the opt-in sparse loader; it does not qualify any cut or derivative.
+    """
+    runs, cells, atoms = material.full_runs, material.partial_cells, material.boundary_nodes
+    side = material.side
+    if (runs.ndim != 2 or runs.shape[1] != 4 or runs.dtype.kind not in "iu"
+            or cells.ndim != 2 or cells.shape[1] != 4 or cells.dtype.kind not in "iu"
+            or atoms.shape != (int(cells[:,3].sum(dtype=np.int64)), 4)
+            or not np.isfinite(atoms).all() or np.any(atoms[:,3] <= 0)):
+        raise ValueError("invalid sparse material runs or positive partial atoms")
+    if (np.any(runs[:,:3] < 0) or np.any(runs[:,:2] >= side) or np.any(runs[:,2] >= runs[:,3])
+            or np.any(runs[:,3] > side) or np.any(cells[:,:3] < 0) or np.any(cells[:,:3] >= side)
+            or np.any(cells[:,3] <= 0)):
+        raise ValueError("sparse material indices escape the registered grid")
+    run_keys = (runs[:,0].astype(np.int64) * side + runs[:,1]) * side + runs[:,2]
+    order = np.argsort(run_keys, kind="stable")
+    sorted_runs, sorted_keys = runs[order], run_keys[order]
+    if len(runs) > 1:
+        same_column = np.all(sorted_runs[1:,:2] == sorted_runs[:-1,:2], axis=1)
+        if np.any(same_column & (sorted_runs[1:,2] < sorted_runs[:-1,3])):
+            raise ValueError("overlapping analytic material runs")
+    cell_keys = (cells[:,0].astype(np.int64) * side + cells[:,1]) * side + cells[:,2]
+    if len(np.unique(cell_keys)) != len(cell_keys):
+        raise ValueError("duplicate partial material cell")
+    if len(runs) and len(cells):
+        previous = np.searchsorted(sorted_keys, cell_keys, side="right") - 1
+        valid = previous >= 0
+        candidate = sorted_runs[previous[valid]]
+        if np.any(np.all(candidate[:,:2] == cells[valid,:2], axis=1) & (cells[valid,2] < candidate[:,3])):
+            raise ValueError("partial cells overlap full material runs")
+    cumulative = np.cumsum(cells[:,3], dtype=np.int64)
+    for start in range(0, len(atoms), 65536):
+        end = min(start + 65536, len(atoms))
+        owners = np.searchsorted(cumulative, np.arange(start, end), side="right")
+        low = cells[owners,:3]
+        tolerance = 128*np.finfo(float).eps*max(1, side)
+        if np.any(atoms[start:end,:3] < low-tolerance) or np.any(atoms[start:end,:3] > low+1+tolerance):
+            raise ValueError("partial material atom escaped its registered cell")
+    full = np.asarray(material.moments(), dtype=float)
+    if full.shape != (10,) or not np.isfinite(full).all() or full[0] <= 0:
+        raise ValueError("nonempty finite sparse material required")
+    error = None
+    if material_cache_moments is not None:
+        error = float(np.max(np.abs(full-np.asarray(material_cache_moments))/scale))
+        if error > 1e-10:
+            raise ValueError("sparse material changed after its static moment receipt")
+    return dict(representation="analytic_runs_plus_positive_partial_atoms",
+                full_volume_atoms_expanded=False, full_runs=len(runs), partial_cells=len(cells),
+                stored_partial_atoms=len(atoms), cubature_moments=full.tolist(),
+                cache_scaled_error=error,
+                scope="material integrity and full moments only; cut accuracy is not certified")
+
+
+def load_baseline_case(path, *, cache_directory=None, static_cache=None, asset_verification_cache=None,
+                       allowed_native_resolutions=(256,), material_layout="blocks"):
     """Load existing physical assets; no Boolean or new derivative label is computed."""
     from importlib import import_module
+    allowed = _native_resolutions(allowed_native_resolutions)
+    if material_layout not in ("blocks", "prepared"):
+        raise ValueError("material_layout must be blocks or prepared")
     started = time.perf_counter()
     path = Path(path).resolve(strict=True)
     spec = json.loads(path.read_text())
@@ -271,27 +349,36 @@ def load_baseline_case(path, *, cache_directory=None, static_cache=None, asset_v
             if "direction" in data:
                 case["direction"] = data["direction"].copy()
     width = spec.get("block_voxels", 8)
-    if type(width) is not int or width <= 0 or 256 % width:
+    if type(width) is not int or width <= 0:
         raise ValueError("block_voxels must be a positive divisor of the grid side")
     directory = Path(cache_directory) if cache_directory is not None else path.parent / "p0-block-cache"
-    cache_key = (receipts["material"]["sha256"], meta["material_identity"], width, str(directory.resolve()))
+    # PreparedMaterial has no query-local packed-block directory. Including
+    # that directory here would decompress the same high-resolution material
+    # once per case before the manifest later aliases the objects.
+    cache_key = ((receipts["material"]["sha256"], meta["material_identity"], material_layout)
+                 if material_layout == "prepared" else
+                 (receipts["material"]["sha256"], meta["material_identity"], width, str(directory.resolve()), material_layout))
     prepared = static_cache.get(cache_key) if static_cache is not None else None
     if prepared is None:
         material = import_module(PREFIX + ".v21_material").load_material(paths["material"], meta["material_identity"])
-        if material.side != 256:
-            raise ValueError("real V2.1 code path requires native256")
-        blocks = import_module(PREFIX + ".v21_blocks").BlockMeasure.build(
-            material, directory / f"{material.identity}-b{width}", block_voxels=width)
-        # Only memory-mapped packed blocks and small invariant totals survive;
-        # do not retain every geometry's decompressed boundary nodes in RAM.
+        if material.side not in allowed:
+            raise ValueError("native material resolution outside explicit admission contract")
+        if material.side % width:
+            raise ValueError("block_voxels must divide the actual native material resolution")
+        blocks = (material if material_layout == "prepared" else
+                  import_module(PREFIX + ".v21_blocks").BlockMeasure.build(
+                      material, directory / f"{material.identity}-b{width}", block_voxels=width))
+        # One material object per verified static identity, or the legacy
+        # memory-mapped packed blocks, is reused across query manifests.
         prepared = dict(blocks=blocks, moments=material.moments(), density=material.density)
         if static_cache is not None:
             static_cache[cache_key] = prepared
     if prepared["density"] != meta["density"]:
         raise ValueError("material density mismatch")
     case["blocks"] = prepared["blocks"]
+    case["material_layout"] = material_layout
     case["material_cache_moments"] = prepared["moments"].copy()
-    validate_case(case)
+    validate_case(case, allowed_native_resolutions=allowed)
     case["load_and_pack_seconds"] = time.perf_counter() - started
     return case
 

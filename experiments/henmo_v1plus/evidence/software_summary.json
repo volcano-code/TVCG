@@ -1,0 +1,44 @@
+{
+  "schema": "henmo.software-summary.v1",
+  "date": "2026-11-27",
+  "source_baseline_commit": "50706a45580e8be7a70e4ed22a7b13c56c67730e",
+  "branch": "research/henmo-v1plus",
+  "environment": {
+    "python": "3.12.14",
+    "torch": "2.8.0+cpu",
+    "numpy": "2.3.5",
+    "cuda_available": false,
+    "device_count": 0
+  },
+  "integrated_pytest": {
+    "tests": 169,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "passed": 169,
+    "duration_s": 24.81,
+    "warnings": 2,
+    "command": "python -m pytest -q tests/research/test_henmo_operator.py tests/research/test_henmo_hierarchy.py tests/research/test_henmo_execution.py tests/research/test_henmo_response.py tests/research/test_henmo_training.py tests/research/test_henmo_metrics.py tests/research/test_henmo_deployment.py experiments/compact_pino_v21/training/test_training.py experiments/compact_pino_v21/p0_diagnostics/test_export_cases.py tests/research/test_compact_pino_v24_cut_attention.py --junitxml=experiments/henmo_v1plus/evidence/software_tests.xml"
+  },
+  "final_metadata_label_fix_regression": {
+    "tests_passed": 4,
+    "duration_s": 3.35,
+    "scope": "semantic migration/CLI after explicit initialization source-label correction",
+    "agent_reported": true
+  },
+  "software_smoke": {
+    "status": "PASS",
+    "actual_committed_updates": 2,
+    "resumed_next_update_exact": true,
+    "scope": "CPU analytic software fixture; no production teacher or blind geometry",
+    "temporary_fixture_checkpoint_included": false
+  },
+  "scope_exclusions": [
+    "No production dataset training",
+    "No RTX5090 timing or memory measurement",
+    "No original-mesh final solution from the new network",
+    "No GPU parallel multistart solver"
+  ],
+  "physics_promotion": false,
+  "acceleration_proven": false
+}

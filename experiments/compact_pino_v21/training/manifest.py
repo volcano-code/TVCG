@@ -7,7 +7,8 @@ from pathlib import Path
 
 import numpy as np
 
-from ..p0_diagnostics.baseline_cases import load_baseline_case, moment_scale, sha256, verify_file_receipt
+from ..p0_diagnostics.baseline_cases import (load_baseline_case, moment_scale, sha256, verify_file_receipt,
+                                            _native_resolutions, audit_prepared_material)
 from ..p0_diagnostics.deterministic_quadrature import _audit_blocks
 from ..p0_diagnostics.export_cases import verify_export_qualification
 from ..p0_diagnostics.handoff_authority import verify_packaged_authority, match_authorized_record
@@ -79,7 +80,8 @@ def _load_residual_target(item, parent, case, mode, verification_cache):
     return True
 
 
-def load_training_manifest(path, *, mode, cache_directory=None):
+def load_training_manifest(path, *, mode, cache_directory=None,
+                            allowed_native_resolutions=(256,), material_layout="blocks"):
     """Read labels only after role and split checks; never relabel a case's role.
 
     ``loader_eligible`` only controls membership. It is not authorization to
@@ -87,6 +89,9 @@ def load_training_manifest(path, *, mode, cache_directory=None):
     """
     if mode not in ('smoke', 'trial', 'long'):
         raise ValueError('mode must be smoke, trial or long')
+    allowed_native_resolutions = _native_resolutions(allowed_native_resolutions)
+    if material_layout not in ("blocks", "prepared"):
+        raise ValueError("material_layout must be blocks or prepared")
     path = Path(path).resolve(strict=True)
     raw = json.loads(path.read_text())
     if raw.get('schema') != SCHEMA or not str(raw.get('snapshot_id','')).strip():
@@ -182,8 +187,13 @@ def load_training_manifest(path, *, mode, cache_directory=None):
         if not item['loader_eligible']:
             continue
         meta = item['case_meta']
+        resolution_kwargs = ({} if tuple(allowed_native_resolutions) == (256,) else
+                             dict(allowed_native_resolutions=allowed_native_resolutions))
+        if material_layout != "blocks":
+            resolution_kwargs["material_layout"] = material_layout
         case = load_baseline_case(item['case_path'], cache_directory=cache_directory,
-                                 static_cache=static_cache,asset_verification_cache=asset_verification_cache)
+                                 static_cache=static_cache,asset_verification_cache=asset_verification_cache,
+                                 **resolution_kwargs)
         if mode != 'smoke':
             qualification = verify_export_qualification(case,item['record_id'],
                 asset_verification_cache=asset_verification_cache)
@@ -191,9 +201,11 @@ def load_training_manifest(path, *, mode, cache_directory=None):
                 raise ValueError('real cases require the exported original-teacher binding receipt; unqualified J must remain Moment-only')
             item['qualification_receipt'] = qualification
         scale = moment_scale(meta['editable_mass'],meta['length_scale'])
-        key = f"{meta['material_identity']}/blocks-{case['blocks'].block_voxels}"
+        key = (f"{meta['material_identity']}/prepared" if material_layout == "prepared" else
+               f"{meta['material_identity']}/blocks-{case['blocks'].block_voxels}")
         if key not in physics_receipts:
-            physics_receipts[key] = _audit_blocks(case['blocks'],scale,case['material_cache_moments'])
+            audit = audit_prepared_material if material_layout == "prepared" else _audit_blocks
+            physics_receipts[key] = audit(case['blocks'],scale,case['material_cache_moments'])
             shared_blocks[key] = case['blocks']
         else:
             case['blocks'] = shared_blocks[key]

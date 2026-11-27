@@ -1,0 +1,198 @@
+{
+  "schema": "henmo.implementation-manifest.v1",
+  "base_commit": "50706a45580e8be7a70e4ed22a7b13c56c67730e",
+  "branch": "research/henmo-v1plus",
+  "scope": "changed source/tests/configuration/guides; evidence is separately archived",
+  "files": [
+    {
+      "path": "experiments/compact_pino_v21/p0_diagnostics/baseline_cases.py",
+      "sha256": "a7abe8512831b82632158162109deeef7cc8a87c86435c38ad353189f8199f02",
+      "bytes": 26567
+    },
+    {
+      "path": "experiments/compact_pino_v21/p0_diagnostics/export_cases.py",
+      "sha256": "058424d1ae2e287d0dbec5bde2115a9d0928ffdb845c7ca54d577d8c1d6bb72f",
+      "bytes": 26145
+    },
+    {
+      "path": "experiments/compact_pino_v21/training/manifest.py",
+      "sha256": "2735317b58ceb3e4f8dca7b523ccef4955303b9eed97b7f5e77721a17101a192",
+      "bytes": 13953
+    },
+    {
+      "path": "experiments/henmo_v1plus/DEPLOYMENT_GUIDE.md",
+      "sha256": "2b4b834809550b744008827da94b998bedeb33f94cf7f30a843ab8763786e5e3",
+      "bytes": 20645
+    },
+    {
+      "path": "experiments/henmo_v1plus/IMPLEMENTATION_AUDIT.md",
+      "sha256": "f2a9aee781993d5c83b761bf11545722bd48610330b53d9b3aaec7a9e5a2a3a2",
+      "bytes": 8652
+    },
+    {
+      "path": "experiments/henmo_v1plus/README.md",
+      "sha256": "0a1a106fea62b505ff9fb647bd99761fe80af7817bac6ceb3b97376343878c24",
+      "bytes": 12706
+    },
+    {
+      "path": "experiments/henmo_v1plus/WORK_A_ACTION_GUIDE.md",
+      "sha256": "808e3c4e8689e83859e76cb051fa1d007cb0dc33863078ece7e94a3ffa001360",
+      "bytes": 6928
+    },
+    {
+      "path": "experiments/henmo_v1plus/WORK_B_ACTION_GUIDE.md",
+      "sha256": "adb287d4d68059dfc24bb33dd187717ece21de4500f5fa402d790a067cf045e5",
+      "bytes": 11455
+    },
+    {
+      "path": "experiments/henmo_v1plus/WORK_HANDOFF.md",
+      "sha256": "38c6e3d139c8f3a931552abfb0d7ba788b2e571c7ba617dc1d84037cd52d849c",
+      "bytes": 1400
+    },
+    {
+      "path": "experiments/henmo_v1plus/__init__.py",
+      "sha256": "c62fc9a2dd1494b64fb0383aa603f0fd1f65e26f05bf8f5956123b073839b6d1",
+      "bytes": 86
+    },
+    {
+      "path": "experiments/henmo_v1plus/cli.py",
+      "sha256": "c773e158c11866e11584a4230a2427add6b8ec4497f73d4c298cdd3684f24d59",
+      "bytes": 24495
+    },
+    {
+      "path": "experiments/henmo_v1plus/configs/cpu_smoke.json",
+      "sha256": "2caa14615690f9e00b8f37b6d027fe7ff5ac33caad5a93b2019ad0d3f3af980a",
+      "bytes": 991
+    },
+    {
+      "path": "experiments/henmo_v1plus/configs/e16_compatible.json",
+      "sha256": "eea76d87c35e772acd3580e0523b40dfdfb4a73857f3baf367b3a3307fb929eb",
+      "bytes": 996
+    },
+    {
+      "path": "experiments/henmo_v1plus/configs/pilot1024.json",
+      "sha256": "adc4b013023b49f45fcd41fc9ffcc1e43b7196e133a03d8716ac380b65a88537",
+      "bytes": 1008
+    },
+    {
+      "path": "experiments/henmo_v1plus/configs/pilot256.json",
+      "sha256": "647f4a1e3b109d91512125455a1ebe672b034e901e6ffb97b6c3dfa9275a783e",
+      "bytes": 1007
+    },
+    {
+      "path": "experiments/henmo_v1plus/configs/pilot512.json",
+      "sha256": "e544292bb169592b296a05e256d28a58a18efbe741f23fd5513ab8d29f1aee5f",
+      "bytes": 1007
+    },
+    {
+      "path": "experiments/henmo_v1plus/configs/training_pilot.json",
+      "sha256": "52cdcd067dbdf3c8b683c59bd36c6f4d2c378b134acca27430588e3dab17107c",
+      "bytes": 282
+    },
+    {
+      "path": "experiments/henmo_v1plus/dataset.py",
+      "sha256": "a0eeddb4659d22e5904681637ee6a9921802daf1189dbe25752a4c20f891b9b4",
+      "bytes": 10789
+    },
+    {
+      "path": "experiments/henmo_v1plus/deployment.py",
+      "sha256": "8f7d70e538dbbfb761dc151125453a0feb7aaf38ddb3a9dfd1f552bb847648e5",
+      "bytes": 27558
+    },
+    {
+      "path": "experiments/henmo_v1plus/fixtures.py",
+      "sha256": "3f939a30476f1542232f7f8b79a6cdff29fccffd819dabb1872f94e53b5eb315",
+      "bytes": 4860
+    },
+    {
+      "path": "experiments/henmo_v1plus/metrics.py",
+      "sha256": "67153358631d3adb8b367bc3c21b0f61c8ebe28dadd8700609dc8d5e68868c56",
+      "bytes": 14311
+    },
+    {
+      "path": "experiments/henmo_v1plus/migration.py",
+      "sha256": "64db60e8bd58d3c31482a5e3c50030ead5e219d9da0750a87d7df9bd47e5d56b",
+      "bytes": 6968
+    },
+    {
+      "path": "experiments/henmo_v1plus/training.py",
+      "sha256": "f1960511fde91c1ed76459ab6556cd4b0a91075481e61ee2ce84f5f02417a3ff",
+      "bytes": 22705
+    },
+    {
+      "path": "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/henmo_config.py",
+      "sha256": "801739b82223f1ee727871f999cc4a2b66427beee13c43851c4e390ebdf10599",
+      "bytes": 7849
+    },
+    {
+      "path": "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/henmo_cubature.py",
+      "sha256": "6250d12d9c84ef49cec7b2aa106bd24102c4f18d9521c2b140268bb4bb0c2634",
+      "bytes": 5664
+    },
+    {
+      "path": "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/henmo_execution.py",
+      "sha256": "9dd2b8ea45a7156b179d494ec159a0644d5f010bd2baf8dc3445e777b9360a8e",
+      "bytes": 11982
+    },
+    {
+      "path": "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/henmo_geometry.py",
+      "sha256": "ed2bb323d2b6755926f7e0ed8d356d340bbe663c539632966d311808fb6f3cdf",
+      "bytes": 8132
+    },
+    {
+      "path": "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/henmo_hierarchy.py",
+      "sha256": "64f72f0f616213652a07422ebbd7e7ae462a9146b6ea090786b49186cd2c7bf0",
+      "bytes": 32553
+    },
+    {
+      "path": "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/henmo_operator.py",
+      "sha256": "495ff591599383f22f55a50876ebcde482761cf95caed041c579b624f625a784",
+      "bytes": 32552
+    },
+    {
+      "path": "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/henmo_response.py",
+      "sha256": "d1238ca7cb58dbc5fb003a53fa15617ecd7e2a8473e7618f326938efc14d5085",
+      "bytes": 20676
+    },
+    {
+      "path": "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/unified_factory.py",
+      "sha256": "6b73c3bdc34a763e714f2c30651ac1301a863ce3742bdc9af2067d94fabafd3d",
+      "bytes": 18228
+    },
+    {
+      "path": "tests/research/test_henmo_deployment.py",
+      "sha256": "c21b0042a904848363b21fb87edc0bad241f59d90232357c52ff87d4a59fc6dd",
+      "bytes": 20304
+    },
+    {
+      "path": "tests/research/test_henmo_execution.py",
+      "sha256": "143c95eaf3ca719cadd4765ab33005022c5c0cb70a554b5943e5d1de59a8f70c",
+      "bytes": 10187
+    },
+    {
+      "path": "tests/research/test_henmo_hierarchy.py",
+      "sha256": "ff893f9e1d5e83217e7e506b5145524399fe9eb60b15ffaa726dd2ab0bed1da7",
+      "bytes": 12495
+    },
+    {
+      "path": "tests/research/test_henmo_metrics.py",
+      "sha256": "51d3bf83a31469abe296f154ab3b5220cc81f28cbb48f42ea554d6fb2e592edb",
+      "bytes": 5701
+    },
+    {
+      "path": "tests/research/test_henmo_operator.py",
+      "sha256": "40267c90e059cf43f82cfa240eaa9b49bade71a8e2e4f2af8ec7e3548f7f47c6",
+      "bytes": 10887
+    },
+    {
+      "path": "tests/research/test_henmo_response.py",
+      "sha256": "04869e4419b4fcc66c7ee0ec9084e51b2f553219ad75ae472112548de70b99e1",
+      "bytes": 12245
+    },
+    {
+      "path": "tests/research/test_henmo_training.py",
+      "sha256": "0f49acf48ab78ace07c9d25f19c545bfc0be31ffa4edc897bb30ea69a233436b",
+      "bytes": 33865
+    }
+  ]
+}

@@ -272,6 +272,11 @@ def build_model(
     config_overrides: Mapping[str, Any] | None = None,
 ) -> torch.nn.Module:
     """Construct a complete unified model from a named V1 configuration."""
+    if name == 'henmo_v1plus':
+        from .henmo_config import HENMOConfig
+        from .henmo_operator import HENMOOperator
+        model = HENMOOperator(HENMOConfig(**dict(config_overrides or {})))
+        return model.to(device) if device is not None else model
     cfg = get_config(name, **dict(config_overrides or {}))
     pcraft_cfg = _make_native_config(cfg)
     if cfg.operator_kind=="compact_pino_v2":

@@ -1,0 +1,155 @@
+{
+  "schema": "henmo.parameter-inventory.v1",
+  "torch": "2.8.0+cpu",
+  "profiles": [
+    {
+      "profile": "pilot256",
+      "config_fingerprint": "6601930babcc00dcb05c088c4a373a239ead3dc497675ff2d61804706c265bb0",
+      "parameters": {
+        "shared_encoder": {
+          "tensor_elements": 403394,
+          "real_scalar_equivalents": 489410,
+          "bytes": 1957640,
+          "trainable_elements": 403394
+        },
+        "geometry_attention": {
+          "tensor_elements": 37248,
+          "real_scalar_equivalents": 37248,
+          "bytes": 148992,
+          "trainable_elements": 37248
+        },
+        "local_geometry": {
+          "tensor_elements": 17472,
+          "real_scalar_equivalents": 17472,
+          "bytes": 69888,
+          "trainable_elements": 17472
+        },
+        "response": {
+          "tensor_elements": 15745,
+          "real_scalar_equivalents": 15745,
+          "bytes": 62980,
+          "trainable_elements": 15745
+        }
+      },
+      "encoding_performed": false
+    },
+    {
+      "profile": "pilot512",
+      "config_fingerprint": "9bceaa141de4250b2a8ede84c29f086e1714e6eff62240a13878294688853711",
+      "parameters": {
+        "shared_encoder": {
+          "tensor_elements": 403394,
+          "real_scalar_equivalents": 489410,
+          "bytes": 1957640,
+          "trainable_elements": 403394
+        },
+        "geometry_attention": {
+          "tensor_elements": 37248,
+          "real_scalar_equivalents": 37248,
+          "bytes": 148992,
+          "trainable_elements": 37248
+        },
+        "local_geometry": {
+          "tensor_elements": 17472,
+          "real_scalar_equivalents": 17472,
+          "bytes": 69888,
+          "trainable_elements": 17472
+        },
+        "response": {
+          "tensor_elements": 15745,
+          "real_scalar_equivalents": 15745,
+          "bytes": 62980,
+          "trainable_elements": 15745
+        }
+      },
+      "encoding_performed": false
+    },
+    {
+      "profile": "pilot1024",
+      "config_fingerprint": "3d702e7cc64a2e36bb742ba51d52fcca2304111ee0a1c2ac189402a5d1b41b72",
+      "parameters": {
+        "shared_encoder": {
+          "tensor_elements": 403394,
+          "real_scalar_equivalents": 489410,
+          "bytes": 1957640,
+          "trainable_elements": 403394
+        },
+        "geometry_attention": {
+          "tensor_elements": 37248,
+          "real_scalar_equivalents": 37248,
+          "bytes": 148992,
+          "trainable_elements": 37248
+        },
+        "local_geometry": {
+          "tensor_elements": 17472,
+          "real_scalar_equivalents": 17472,
+          "bytes": 69888,
+          "trainable_elements": 17472
+        },
+        "response": {
+          "tensor_elements": 15745,
+          "real_scalar_equivalents": 15745,
+          "bytes": 62980,
+          "trainable_elements": 15745
+        }
+      },
+      "encoding_performed": false
+    },
+    {
+      "profile": "e16_compatible",
+      "config_fingerprint": "440e0822c2cbd17c1aa3b5ead3513d7bb8084a9a9243bce415b2298d7b6e2f29",
+      "parameters": {
+        "shared_encoder": {
+          "tensor_elements": 2815874,
+          "real_scalar_equivalents": 3774338,
+          "bytes": 15097352,
+          "trainable_elements": 0
+        },
+        "geometry_attention": {
+          "tensor_elements": 148224,
+          "real_scalar_equivalents": 148224,
+          "bytes": 592896,
+          "trainable_elements": 0
+        },
+        "response": {
+          "tensor_elements": 12674,
+          "real_scalar_equivalents": 12674,
+          "bytes": 50696,
+          "trainable_elements": 12674
+        }
+      },
+      "encoding_performed": false
+    },
+    {
+      "profile": "cpu_smoke",
+      "config_fingerprint": "341d7630dad25605aaaacd037b00ca713fea7d7d812b401c98a1a518f087f8fa",
+      "parameters": {
+        "shared_encoder": {
+          "tensor_elements": 3670,
+          "real_scalar_equivalents": 4198,
+          "bytes": 16792,
+          "trainable_elements": 3670
+        },
+        "geometry_attention": {
+          "tensor_elements": 288,
+          "real_scalar_equivalents": 288,
+          "bytes": 1152,
+          "trainable_elements": 288
+        },
+        "local_geometry": {
+          "tensor_elements": 752,
+          "real_scalar_equivalents": 752,
+          "bytes": 3008,
+          "trainable_elements": 752
+        },
+        "response": {
+          "tensor_elements": 369,
+          "real_scalar_equivalents": 369,
+          "bytes": 1476,
+          "trainable_elements": 369
+        }
+      },
+      "encoding_performed": false
+    }
+  ]
+}

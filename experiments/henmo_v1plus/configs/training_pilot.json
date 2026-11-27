@@ -1,0 +1,13 @@
+{
+  "seed": 830251,
+  "learning_rate": 3e-05,
+  "batch_size": 1,
+  "jacobian_loss_weight": 1.0,
+  "residual_loss_weight": 0.0,
+  "constraint_loss_weight": 0.0,
+  "chunk_size": 65536,
+  "max_steps": 312,
+  "max_attempts": 624,
+  "gradient_clip_norm": null,
+  "deterministic": true
+}
