@@ -1,5 +1,7 @@
 # HENMO V1+：层级边界神经矩算子
 
+**当前执行入口（2026-11-27 三轮评估后）：** [R3优化方案](OPTIMIZATION_PLAN_R3_2026-11-27.md)、[Work A清单](WORK_A_DELIVERY_CHECKLIST_R3_2026-11-27.md)、[Work B清单](WORK_B_DELIVERY_CHECKLIST_R3_2026-11-27.md)、[联合交付](WORK_HANDOFF_R3_2026-11-27.md)。新增 `diagnose-paths`、`diagnose-gradients`、`screen`、有界静态输入缓存与评估前checkpoint。原配置维持NO-GO；新代码不等于已取得更好生产权重。下文保留默认模型与历史训练入口，当前研发顺序以R3清单为准。
+
 本目录是从已发布 V2.4 代码构建的独立研究实现。目标是减少每次查询的材料积分和神经计算，同时保留有限切面语义、十矩守恒、同源一阶 Jacobian 与原网格最终验收。**代码可训练、可比较、可接入原生求解；本次软件验证不代表已经训练出合格生产权重，也不代表已经测得 GPU 加速。**
 
 代码入口：`build_model("henmo_v1plus", config_overrides=config)`，或 `HENMOOperator(HENMOConfig(...))`。旧 Compact 模型的名称与默认配置保持原样。数据导出/读取的高分辨率支持是显式 opt-in，旧默认仍为 256。

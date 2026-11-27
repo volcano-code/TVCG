@@ -19,7 +19,7 @@ from .compact_pino_v21 import PackedPrediction, native_proposal_status
 from .henmo_config import HENMOConfig
 from .henmo_hierarchy import CoarseCubatureUnavailable
 from .henmo_execution import evaluate_stencil_batch
-from .henmo_geometry import (GraphLifetime, HENMOGeometry, MaterialHandle,
+from .henmo_geometry import (GraphLifetime, HENMOGeometry, MaterialHandle, StaticGeometryInputCache,
                              encode_table, geometry_versions, make_hierarchy)
 from .henmo_response import HENMOBoundaryResponse, finite_cut_tokens, integrate_boundary_response
 from .v21_response import LocalRetention, prepare_measure, prepare_stencil, evaluate_stencil, prepare_surface
@@ -30,7 +30,8 @@ def _stage(trace, name):
     return nullcontext() if trace is None else trace.stage(name)
 
 
-def blend_moments(coarse, fine, probe, scale, *, tolerance, start=1., end=4.):
+def blend_moments(coarse, fine, probe, scale, *, tolerance, start=1., end=4.,
+                  diagnostic_derivatives=False):
     """C1 blend using the coarse-to-one-level-probe discrepancy.
 
 ``fine`` may itself be recursively refined. The gate uses ``probe``, not a
@@ -43,21 +44,25 @@ The discrepancy is an empirical refinement indicator, not a rigorous error bound
     t = ((u-start)/(end-start)).clamp(0.,1.)
     alpha = t*t*(3.-2.*t)
     moment = (1.-alpha)*coarse.moments+alpha*fine.moments
-    jacobian = None
+    jacobian = gate = dalpha = None
     if coarse.jacobian is not None and fine.jacobian is not None and probe.jacobian is not None:
         du = (2.*delta[:,None]*(probe.jacobian-coarse.jacobian)/scale[:,None]**2).sum(0)/tolerance**2
         slope = 6.*t*(1.-t)/(end-start)
         slope = slope*((u > start)&(u < end)).to(slope.dtype)
         dalpha = slope*du
-        jacobian = ((1.-alpha)*coarse.jacobian+alpha*fine.jacobian
-                    +(fine.moments-coarse.moments)[:,None]*dalpha[None,:])
-    return PackedPrediction(moment,jacobian,dict(blend_alpha=float(alpha.detach()),
+        gate = (fine.moments-coarse.moments)[:,None]*dalpha[None,:]
+        jacobian = ((1.-alpha)*coarse.jacobian+alpha*fine.jacobian+gate)
+    details = dict(blend_alpha=float(alpha.detach()),
                 normalized_squared_discrepancy=float(u.detach()),
-                indicator_kind='empirical_parent_child_moment_discrepancy'))
+                indicator_kind='empirical_parent_child_moment_discrepancy')
+    if diagnostic_derivatives:
+        details.update(gate_jacobian=None if gate is None else gate.detach().cpu().tolist(),
+                       alpha_derivative=None if dalpha is None else dalpha.detach().cpu().tolist())
+    return PackedPrediction(moment,jacobian,details)
 
 
 class HENMOOperator(nn.Module):
-    def __init__(self, config=None):
+    def __init__(self, config=None, *, static_input_cache_bytes=256*1024**2):
         super().__init__()
         self.config = HENMOConfig() if config is None else config
         if not isinstance(self.config,HENMOConfig):
@@ -81,6 +86,9 @@ class HENMOOperator(nn.Module):
                              use_cut_attention=c.cut_attention,zero_init=c.response_zero_init,
                              profile=c.response_profile))
         self.surface_execution = SurfaceExecutionContext(max_workers=c.surface_workers)
+        # Runtime-only cache: inputs are immutable, parameter-dependent features
+        # still get a fresh graph after every optimizer update.
+        self._static_input_cache = StaticGeometryInputCache(max_bytes=static_input_cache_bytes)
         self._tree_entry = self._feature_entry = None
         self._closed = False
         self._counts = dict(encoder_calls=0,feature_hits=0,hierarchy_builds=0,queries=0)
@@ -116,6 +124,8 @@ class HENMOOperator(nn.Module):
         return self
 
     def _apply(self, fn, recurse=True):
+        if hasattr(self,'_static_input_cache'):
+            self._static_input_cache.clear()
         result = super()._apply(fn,recurse=recurse)
         self.invalidate_caches()
         return result
@@ -134,6 +144,7 @@ class HENMOOperator(nn.Module):
 
     def clear_efficiency_caches(self):
         self.invalidate_caches(force=True)
+        self._static_input_cache.clear()
         if self._tree_entry is not None:
             self._tree_entry[1].clear_cache()
         self._tree_entry = None
@@ -154,6 +165,7 @@ class HENMOOperator(nn.Module):
         return dict(self._counts,architecture='HENMO_V1_PLUS',config_fingerprint=self.config.fingerprint(),
                     native_resolution=self.config.native_material_resolution,
                     feature_cache_bytes=0 if self._feature_entry is None else self._feature_entry[1].nbytes,
+                    static_input_cache=self._static_input_cache.snapshot(),
                     hierarchy=None if self._tree_entry is None else self._tree_entry[1].diagnostics,
                     surface_execution=self.surface_execution.snapshot(),closed=self._closed)
 
@@ -192,7 +204,7 @@ class HENMOOperator(nn.Module):
                 p = next(self.parameters())
                 table = p.new_zeros((1,self.config.geometry_width))
             else:
-                table = encode_table(self,tree,fixed,float(density))
+                table = encode_table(self,tree,fixed,float(density),static_cache=self._static_input_cache)
                 self._counts['encoder_calls'] += 1
             if table.is_inference():
                 with torch.inference_mode(False),torch.no_grad():
@@ -221,7 +233,8 @@ class HENMOOperator(nn.Module):
         cache.hierarchy.assert_source_unchanged()
 
     def evaluate_operand(self, cache, operand, *, with_jacobian=True, bandwidth=None,
-                         chunk_size=None, trace=None, parameter_scales=None,coarse_grid=None):
+                         chunk_size=None, trace=None, parameter_scales=None,coarse_grid=None,
+                         diagnostic_nodes=0):
         if type(with_jacobian) is not bool:
             raise ValueError('with_jacobian must be Boolean')
         if with_jacobian and operand.vertex_velocity is None:
@@ -231,12 +244,15 @@ class HENMOOperator(nn.Module):
         return self.evaluate_surface(cache,surface,operation=operand.operation,
             vertex_velocity=operand.vertex_velocity if with_jacobian else None,
             bandwidth=bandwidth,chunk_size=chunk_size,trace=trace,parameter_scales=parameter_scales,
-            coarse_grid=coarse_grid)
+            coarse_grid=coarse_grid,diagnostic_nodes=diagnostic_nodes)
 
     def evaluate_surface(self, cache, surface, *, operation='intersection', vertex_velocity=None,
-                         bandwidth=None, chunk_size=None, trace=None, parameter_scales=None,coarse_grid=None):
+                         bandwidth=None, chunk_size=None, trace=None, parameter_scales=None,coarse_grid=None,
+                         diagnostic_nodes=0):
         """Also accepts a live tensor FiniteSurface for independent local AD checks."""
         self._validate_geometry(cache)
+        if type(diagnostic_nodes) is not int or diagnostic_nodes < 0:
+            raise ValueError('diagnostic_nodes must be a nonnegative integer')
         c, tree = self.config, cache.hierarchy
         execution = c.training_execution if self.training else c.execution
         query_grid = c.coarse_grid if coarse_grid is None else coarse_grid
@@ -281,7 +297,46 @@ class HENMOOperator(nn.Module):
             max_output_fine_jacobian_discrepancy=0.,
             derivative_discrepancy_exceeded=False,error_indicator_is_certificate=False,
             bandwidth=width,operation=operation,requires_native_acceptance=True,
+            classification_bandwidth=selection_width,
+            initial_coarse_support=coarse_support,
             parameter_scale_supplied=parameter_scales is not None)
+        trace_enabled = diagnostic_nodes > 0
+        frontier_ids = set(selected.boundary_nodes)
+        route_trace = dict(enabled=trace_enabled,detail_limit=diagnostic_nodes,details=[],
+            details_truncated=False,all_level_counts={},frontier_counts={},frontier_material_mass={},
+            selected_frontier_material_mass=sum(float(tree.node(i).moments[0]) for i in frontier_ids),
+            max_scaled_gate_jacobian=0.,
+            mass_scope='nonoverlapping initial boundary frontier; excludes fixed and saturated material',
+            timing_scope='diagnostic tracing may synchronize device; not a throughput benchmark')
+
+        def record_route(node_id, kind, *, alpha=None, moment_error=None, jacobian_error=None,
+                         coarse=None, probe=None, fine=None, output=None):
+            if not trace_enabled:
+                return
+            route_trace['all_level_counts'][kind] = route_trace['all_level_counts'].get(kind,0)+1
+            node = tree.node(node_id)
+            if node_id in frontier_ids:
+                route_trace['frontier_counts'][kind] = route_trace['frontier_counts'].get(kind,0)+1
+                route_trace['frontier_material_mass'][kind] = route_trace['frontier_material_mass'].get(kind,0.)+float(node.moments[0])
+            local_scale = node.moments[0]*(tree.side*tree.pitch)**np.array([0,1,1,1,2,2,2,2,2,2])
+            gate = None if output is None else output.diagnostics.get('gate_jacobian')
+            gate_error = None
+            if gate is not None:
+                gate_error = float(np.abs(np.asarray(gate)*parameter_scale[None,:]/local_scale[:,None]).max())
+                route_trace['max_scaled_gate_jacobian'] = max(route_trace['max_scaled_gate_jacobian'],gate_error)
+            if len(route_trace['details']) >= diagnostic_nodes:
+                route_trace['details_truncated'] = True
+                return
+            def values(value):
+                return None if value is None else dict(moments=value.moments.detach().cpu().tolist(),
+                    jacobian=None if value.jacobian is None else value.jacobian.detach().cpu().tolist())
+            route_trace['details'].append(dict(node_id=int(node_id),grid=int(node.grid),
+                initial_frontier=node_id in frontier_ids,kind=kind,alpha=alpha,
+                material_mass=float(node.moments[0]),moment_discrepancy=moment_error,
+                jacobian_discrepancy=jacobian_error,scaled_gate_jacobian=gate_error,
+                gate_jacobian=gate,
+                alpha_derivative=None if output is None else output.diagnostics.get('alpha_derivative'),
+                coarse=values(coarse),probe=values(probe),fine=values(fine),output=values(output)))
         if c.response_path == 'neural':
             with _stage(trace,'finite_cut_descriptors'):
                 cut = finite_cut_tokens(surface,motion,origin=tree.origin,
@@ -487,7 +542,9 @@ class HENMOOperator(nn.Module):
 
         def refine(node_id, initial=None):
             if not tree.children(node_id):
-                return evaluate_node(node_id,coarse=False)
+                result = evaluate_node(node_id,coarse=False)
+                record_route(node_id,'fine_leaf',alpha=1.,output=result)
+                return result
             coarse = evaluate_node(node_id,coarse=True) if initial is None else initial
             children = child_values(node_id)
             probe = add(value for _,_,value in children)
@@ -505,12 +562,18 @@ class HENMOOperator(nn.Module):
                 # This branch's gate is exactly zero with zero gate slope.
                 if j_error is not None and j_error > c.jacobian_tolerance:
                     diagnostics['derivative_discrepancy_exceeded'] = True
+                record_route(node_id,'coarse',alpha=0.,moment_error=error,jacobian_error=j_error,
+                             coarse=coarse,probe=probe,output=coarse)
                 return coarse
             diagnostics['refined_nodes'] += 1
             fine = add(refine(child,value) if kind == 0 else value for child,kind,value in children)
             diagnostics['blend_nodes'] += int(u < c.blend_end)
             result = blend_moments(coarse,fine,probe,scale,tolerance=c.moment_tolerance,
-                                    start=c.blend_start,end=c.blend_end)
+                                    start=c.blend_start,end=c.blend_end,
+                                    diagnostic_derivatives=trace_enabled)
+            record_route(node_id,'blend' if u < c.blend_end else 'fine',
+                         alpha=result.diagnostics['blend_alpha'],moment_error=error,jacobian_error=j_error,
+                         coarse=coarse,probe=probe,fine=fine,output=result)
             if dimension is not None and result.jacobian is not None and fine.jacobian is not None:
                 discrepancy = float(((result.jacobian-fine.jacobian)*tensor(parameter_scale)[None,:]
                                      /tensor(scale)[:,None]).abs().max().detach())
@@ -544,6 +607,9 @@ class HENMOOperator(nn.Module):
         if dimension is not None and result.jacobian is None:
             diagnostics['solver_status'] = 'NATIVE_REQUIRED_DERIVATIVE'
         diagnostics['jacobian_source'] = 'same_moment_complete_first_tangent_chain'
+        if trace_enabled:
+            route_trace['applicable'] = execution == 'adaptive' and c.response_path != 'deterministic'
+            diagnostics['route_trace'] = route_trace
         return PackedPrediction(result.moments,result.jacobian,diagnostics)
 
     def evaluate_operands(self, cache, operands, **kwargs):

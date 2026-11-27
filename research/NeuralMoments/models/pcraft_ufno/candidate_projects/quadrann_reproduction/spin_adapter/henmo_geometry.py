@@ -6,6 +6,7 @@ require a 1024-cubed dense tensor or a complete expanded point pack.
 """
 from __future__ import annotations
 
+from collections import OrderedDict
 from dataclasses import dataclass, field
 import numpy as np
 import torch
@@ -16,7 +17,11 @@ from .v21_material import PreparedMaterial
 
 
 def geometry_versions(model):
-    result = []
+    # Runtime query choices (coarse level/execution) do not change an encoding.
+    # Its input grids and deterministic bypass do: reject previously learned
+    # tables if those semantics change even when parameter tensors do not.
+    result = [('encoding_inputs', model.config.feature_grid,
+               tuple(model.config.context_grids), model.config.response_path)]
     for prefix, module in (('encoder',model.shared_encoder),('summary',model.geometry_attention),
                            ('local_geometry',getattr(model,'local_geometry',None))):
         if module is None:
@@ -135,7 +140,103 @@ def encoder_grid(tree, grid, density):
     return np.stack((fraction, occupied, np.tanh(signed/2), boundary)).astype(np.float32)
 
 
-def encode_table(model, tree, fixed, density):
+@dataclass(frozen=True)
+class StaticEncoderInputs:
+    """Weight-independent tensors only; never a learned encoding or AD graph."""
+    active: torch.Tensor
+    features: torch.Tensor
+    coords: torch.Tensor
+    stats: torch.Tensor
+    log_mass: torch.Tensor
+    images: tuple[torch.Tensor, ...]
+
+    @property
+    def tensors(self):
+        return (self.active, self.features, self.coords, self.stats,
+                self.log_mass, *self.images)
+
+    @property
+    def nbytes(self):
+        return sum(value.numel()*value.element_size() for value in self.tensors)
+
+    @property
+    def versions(self):
+        return tuple((id(value), value.data_ptr(), value._version, value.shape,
+                      value.dtype, value.device) for value in self.tensors)
+
+
+class StaticGeometryInputCache:
+    """Byte-bounded, per-operator LRU for immutable geometry preparation.
+
+    A hit skips material aggregation, distance fields and device transfer, but
+    every ``encode_table`` still executes the encoder and attention. Entries
+    contain ordinary non-grad tensors, including when first built inside
+    ``inference_mode``; this permits a later training forward to save them for
+    backward. The budget counts owned tensor storage, not allocator reservation
+    or tensors temporarily retained by a currently live training graph.
+    """
+    def __init__(self, max_bytes=128*1024**2):
+        if type(max_bytes) is not int or max_bytes < 0:
+            raise ValueError('static input cache max_bytes must be a nonnegative integer')
+        self.max_bytes = max_bytes
+        self._entries = OrderedDict()
+        self._bytes = 0
+        self._hits = self._misses = self._evictions = self._oversized = 0
+
+    def clear(self):
+        self._entries.clear()
+        self._bytes = 0
+
+    def snapshot(self):
+        return dict(entries=len(self._entries), bytes=self._bytes,
+                    max_bytes=self.max_bytes, hits=self._hits, misses=self._misses,
+                    evictions=self._evictions, oversized=self._oversized,
+                    learned_features_cached=False,
+                    storage='weight-independent device tensors; no autograd graphs')
+
+    def prepare(self, model, tree, fixed, density):
+        # Do this on hits as well. In particular, a changed read-only mmap or
+        # replaced material array must not be concealed by a stale cache hit.
+        tree.assert_source_unchanged()
+        key = _static_input_key(model, tree, fixed, density)
+        previous = self._entries.get(key)
+        if previous is not None:
+            inputs, versions = previous
+            if inputs.versions != versions:
+                raise ValueError('static geometry input cache tensor was modified; clear the cache')
+            self._entries.move_to_end(key)
+            self._hits += 1
+            return inputs
+        self._misses += 1
+        inputs = _prepare_static_inputs(model, tree, fixed, density)
+        if inputs.nbytes > self.max_bytes:
+            self._oversized += 1
+            return inputs
+        while self._entries and self._bytes+inputs.nbytes > self.max_bytes:
+            _, (old, _) = self._entries.popitem(last=False)
+            self._bytes -= old.nbytes
+            self._evictions += 1
+        self._entries[key] = (inputs, inputs.versions)
+        self._bytes += inputs.nbytes
+        return inputs
+
+
+def _static_input_key(model, tree, fixed, density):
+    fixed = np.asarray(fixed, dtype=np.float64)
+    if fixed.shape != (10,) or not np.isfinite(fixed).all():
+        raise ValueError('static encoding requires ten finite fixed moments')
+    if not np.isfinite(density) or density <= 0:
+        raise ValueError('static encoding requires positive finite density')
+    parameter = next(model.shared_encoder.parameters())
+    config = model.config
+    return ('henmo.static-encoder-inputs.v1', tree.identity, tree.material_identity,
+            tree.side, tree.pitch, tuple(tree.origin), tree.leaf_grid,
+            config.feature_grid, tuple(config.context_grids), float(density),
+            fixed.tobytes(), str(parameter.device), parameter.dtype)
+
+
+def _prepare_static_inputs(model, tree, fixed, density):
+    """The original preparation arithmetic, separated from learned forwards."""
     config = model.config
     grid = config.feature_grid
     masses = aggregate_grid(tree, grid)
@@ -155,22 +256,43 @@ def encode_table(model, tree, fixed, density):
     stats = np.r_[(editable+fixed)/scale, fixed/scale, editable/scale,
                   (low+high)/(2*span),(high-low)/span]
     coords = (2*(means[:,1:4]-tree.origin)/span-1)[:,[2,1,0]].copy()
+    parameter = next(model.shared_encoder.parameters())
+    # Inputs first prepared during evaluation must remain legal saved tensors
+    # when a subsequent real update reuses this static cache.
+    with torch.inference_mode(False), torch.no_grad():
+        def tensor(value):
+            return torch.tensor(value, dtype=parameter.dtype, device=parameter.device)
+        return StaticEncoderInputs(
+            active=torch.tensor(active, device=parameter.device),
+            features=tensor(features), coords=tensor(coords), stats=tensor(stats),
+            log_mass=tensor(np.log(m[:,0]/editable[0]))[None],
+            images=tuple(tensor(encoder_grid(tree, g, density))[None]
+                         for g in config.context_grids))
+
+
+def encode_table(model, tree, fixed, density, *, static_cache=None):
+    """Recompute learned features, optionally reusing only static inputs."""
+    if static_cache is None:
+        tree.assert_source_unchanged()
+        _static_input_key(model, tree, fixed, density)
+        inputs = _prepare_static_inputs(model, tree, fixed, density)
+    elif isinstance(static_cache, StaticGeometryInputCache):
+        inputs = static_cache.prepare(model, tree, fixed, density)
+    else:
+        raise TypeError('static_cache must be a StaticGeometryInputCache or None')
+    config = model.config
+    grid = config.feature_grid
     encoder = model.shared_encoder
-    parameter = next(encoder.parameters())
-    def tensor(value):
-        return torch.tensor(value, dtype=parameter.dtype, device=parameter.device)
     maps, globals_ = [], []
-    for context_grid in config.context_grids:
-        image = encoder_grid(tree, context_grid, density)
-        pooled, feature_map = encoder.pino_encoder.forward_with_map(tensor(image)[None], preserve_resolution=True)
+    for image in inputs.images:
+        pooled, feature_map = encoder.pino_encoder.forward_with_map(image, preserve_resolution=True)
         maps.append(feature_map)
         globals_.append(encoder.pino_global(pooled))
-    glob, s = torch.stack(globals_,dim=1), tensor(stats)[None]
+    glob, s = torch.stack(globals_,dim=1), inputs.stats[None]
     score = encoder.pino_scale_score(torch.cat((glob,s[:,None].expand(-1,len(maps),-1)),-1))
     shared = encoder.statistics_context(s)+(glob*score.softmax(1)).sum(1)
-    local = encoder._interval_features(tensor(features),tensor(coords),maps,shared)
-    log_mass = tensor(np.log(m[:,0]/editable[0]))[None]
+    local = encoder._interval_features(inputs.features,inputs.coords,maps,shared)
     summary,_ = model.geometry_attention(shared[:,None],local[None],local[None],
-                                         attn_mask=log_mass,need_weights=False)
+                                         attn_mask=inputs.log_mass,need_weights=False)
     return torch.index_copy(local.new_zeros((grid**3,local.shape[1])),0,
-                            torch.tensor(active,device=parameter.device),local+summary[0])
+                            inputs.active,local+summary[0])

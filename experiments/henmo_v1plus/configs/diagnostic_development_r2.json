@@ -1,0 +1,22 @@
+{
+  "schema": "henmo.r3.diagnostic-selection.v1",
+  "snapshot_id": "CPINO-20261125-1756-R1",
+  "manifest_sha256": "3f4efce1fc6e5db863a7faac179e20da33bfd0f2dfae19f5ca9eca4c34d49701",
+  "selection_is_not_training_admission": true,
+  "split": "development",
+  "record_ids": [
+    "combB__7ee62320ba3ef4e01a44e9ec945d89a6d07b6ae5b242a78e46686ca9b4032af5",
+    "combB__538e717f608f971a68639b3d1122b725aac9e6048191aba1045b19b4d4a93fa6",
+    "R01__87fe61685b511eac24ce4e588d2cc65a8cd2d1cabb36bd96f02ac6049dff2ec4",
+    "combB__1bff8d8de496c2681cbb693aaeb7f156d77a1cf5caac265aa9127edf2f85433f",
+    "maskB__74bc07cfdf943f593a91fc7d3d6d52005850415ecc9c90fdfb0093fbd4bf6694",
+    "R01__fbd33a978544c44bf75fa19cc168737c571036d3db00cfccc4078db3426bba52",
+    "R02__eeb580754d243255c8b849822601f6ecf9083e020d222697fc2cff642c1431a7",
+    "maskB__474fccf828c7b0f0ba86e00fa472966cae77a2747083a7d06265adf2a071ba1a",
+    "R02__55ed98b36570c202d48a043f570e98b1260ee28fd4ccc430bd19919672e9fcb2",
+    "R01__61c5c2af0d5af377f1e4009be1b393ff8afae268a60569e89e0f14060a907338",
+    "R01__b2f8b2750f02095a753d7b6f7d2a27602ff9a23d75a13c9169da00dbf8bdded4",
+    "combB__cdf6378f7d5157de7279b689d8cade4f367fa497a6e9d6156c0a928df839c7ed"
+  ],
+  "purpose": "Previously exposed R2 failure localization plus ordinary controls; not independent test evidence"
+}

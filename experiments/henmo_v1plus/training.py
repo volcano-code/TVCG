@@ -6,7 +6,8 @@ this trainer grants no automatic promotion or long-training authorization.
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from contextlib import contextmanager
+from dataclasses import asdict, dataclass, is_dataclass, replace
 import copy
 import hashlib
 import inspect
@@ -68,7 +69,7 @@ class HENMOTrainingConfig:
 
 
 def default_predict(model, record, *, evaluation, chunk_size, jacobian_loss_weight,
-                    geometry_cache=None):
+                    geometry_cache=None, coarse_grid=None):
     case, meta = record["case"], record["case"]["meta"]
     key = (id(case["blocks"]), np.asarray(case["fixed_moments"], dtype="<f8").tobytes(), float(meta["density"]))
     features = None if geometry_cache is None else geometry_cache.get(key)
@@ -85,11 +86,57 @@ def default_predict(model, record, *, evaluation, chunk_size, jacobian_loss_weig
     if "bandwidth" in record:
         kwargs["bandwidth"] = record["bandwidth"]
     grids = getattr(getattr(model, "config", None), "training_coarse_grids", None)
-    if not evaluation and grids:
+    if coarse_grid is not None:
+        if type(coarse_grid) is not int or coarse_grid < 1 or coarse_grid & (coarse_grid - 1):
+            raise ValueError("fixed coarse_grid must be a positive power of two")
+        kwargs["coarse_grid"] = coarse_grid
+    elif not evaluation and grids:
         # One scale per existing query occurrence, with the Python RNG captured
         # in exact-resume state. This does not add labels or multiply exposure.
         kwargs["coarse_grid"] = random.choice(grids)
     return model.evaluate_operand(features, case["operand"], **kwargs)
+
+
+def _json_value(value):
+    """Detach report values without retaining graphs or silently writing NaN."""
+    if isinstance(value, torch.Tensor):
+        return _json_value(value.detach().cpu().tolist())
+    if isinstance(value, np.ndarray):
+        return _json_value(value.tolist())
+    if isinstance(value, np.generic):
+        return _json_value(value.item())
+    if isinstance(value, dict):
+        if any(not isinstance(key, str) for key in value):
+            raise TypeError("prediction diagnostic keys must be strings")
+        return {key: _json_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_value(item) for item in value]
+    if value is None or isinstance(value, (str, bool, int)):
+        return value
+    if isinstance(value, float) and math.isfinite(value):
+        return value
+    raise ValueError("prediction diagnostics require finite JSON values: " + type(value).__name__)
+
+
+def detached_prediction_payload(prediction):
+    """Raw outputs and execution diagnostics for subsequent independent audit.
+
+    The caller still uses prediction_metrics to validate physical output shape,
+    derivative qualification and teacher scales. This does not grant acceptance.
+    """
+    return dict(predicted_moments=_json_value(prediction.moments),
+                predicted_jacobian=_json_value(prediction.jacobian),
+                diagnostics=_json_value(getattr(prediction, "diagnostics", {})))
+
+
+@contextmanager
+def _host_stage(receipt, name):
+    """Host elapsed intervals, including implicit sync; never CUDA kernel time."""
+    started = time.perf_counter()
+    try:
+        yield
+    finally:
+        receipt["stages_host_s"][name] = receipt["stages_host_s"].get(name, 0.) + time.perf_counter() - started
 
 
 def _file_sha256(path):
@@ -199,11 +246,14 @@ class HENMOTrainer:
         if [id(parameter) for parameter in trainable] != [id(parameter) for parameter in self.parameters]:
             raise ValueError("trainable parameter inventory changed during this optimizer run")
 
-    def _predict(self, row, *, evaluation, geometry_cache=None):
+    def _predict(self, row, *, evaluation, geometry_cache=None, coarse_grid=None):
         options = dict(evaluation=evaluation, chunk_size=self.config.chunk_size,
                        jacobian_loss_weight=self.config.jacobian_loss_weight)
         if self.predict is default_predict:
             options["geometry_cache"] = geometry_cache
+            options["coarse_grid"] = coarse_grid
+        elif coarse_grid is not None:
+            raise ValueError("explicit coarse probes require the default HENMO predictor")
         return self.predict(self.model, row, **options)
 
     def step(self, records=None):
@@ -219,37 +269,47 @@ class HENMOTrainer:
         self.attempts += 1
         self.model.train()
         self.optimizer.zero_grad(set_to_none=True)
+        backup_started = time.perf_counter()
         before = {name: parameter.detach().clone() for name, parameter in self.model.named_parameters()
                   if parameter.requires_grad}
+        parameter_backup_host_s = time.perf_counter() - backup_started
         started = time.perf_counter()
         receipt = dict(schema="henmo.optimizer-step.v1", attempt=self.attempts, step=self.step_count,
                        record_ids=[row["record_id"] for row in records],
                        training_manifest_sha256=self.binding["manifest_sha256"],
-                       timing_basis="host_wall_not_an_inference_benchmark", committed=False, error=None)
+                       timing_basis="host_wall_not_an_inference_benchmark",
+                       stage_timing_scope="host elapsed, asynchronous CUDA dispatch and implicit synchronization; not device kernel timing",
+                       parameter_backup_host_s=parameter_backup_host_s,
+                       parameter_backup_in_wall_s=False,
+                       stages_host_s={}, committed=False, error=None)
         try:
             # Reuse one encoder graph within this one combined backward only.
             # Never carry a training graph over a parameter update.
             geometry_cache = {}
-            predictions = [self._predict(row, evaluation=False, geometry_cache=geometry_cache) for row in records]
+            with _host_stage(receipt, "forward"):
+                predictions = [self._predict(row, evaluation=False, geometry_cache=geometry_cache) for row in records]
             receipt["coarse_grids"] = [getattr(prediction, "diagnostics", {}).get("coarse_grid")
                                         for prediction in predictions]
-            loss, info = physical_loss(predictions, records,
-                jacobian_loss_weight=self.config.jacobian_loss_weight,
-                residual_loss_weight=self.config.residual_loss_weight,
-                constraint_loss_weight=self.config.constraint_loss_weight)
-            receipt.update(info)
-            if not bool(torch.isfinite(loss)):
-                raise FloatingPointError("nonfinite training loss")
-            receipt["loss"] = float(loss.detach())
+            with _host_stage(receipt, "loss_and_scalar_audit"):
+                loss, info = physical_loss(predictions, records,
+                    jacobian_loss_weight=self.config.jacobian_loss_weight,
+                    residual_loss_weight=self.config.residual_loss_weight,
+                    constraint_loss_weight=self.config.constraint_loss_weight)
+                receipt.update(info)
+                if not bool(torch.isfinite(loss)):
+                    raise FloatingPointError("nonfinite training loss")
+                receipt["loss"] = float(loss.detach())
             if not loss.requires_grad:
                 receipt["reason"] = "NO_DIFFERENTIABLE_CONTRIBUTION"
                 receipt["gradient_norm"] = 0.
             else:
-                loss.backward()
-                gradients = [parameter.grad for parameter in self.parameters if parameter.grad is not None]
-                if any(not bool(torch.isfinite(gradient).all()) for gradient in gradients):
-                    raise FloatingPointError("nonfinite training gradient; no optimizer update committed")
-                norm = math.sqrt(sum(float(gradient.detach().abs().double().square().sum()) for gradient in gradients))
+                with _host_stage(receipt, "backward"):
+                    loss.backward()
+                with _host_stage(receipt, "gradient_audit"):
+                    gradients = [parameter.grad for parameter in self.parameters if parameter.grad is not None]
+                    if any(not bool(torch.isfinite(gradient).all()) for gradient in gradients):
+                        raise FloatingPointError("nonfinite training gradient; no optimizer update committed")
+                    norm = math.sqrt(sum(float(gradient.detach().abs().double().square().sum()) for gradient in gradients))
                 receipt["gradient_norm"] = norm
                 if norm == 0:
                     receipt["reason"] = "ZERO_GRADIENT_NO_UPDATE"
@@ -259,24 +319,29 @@ class HENMOTrainer:
                                                        error_if_nonfinite=True)
                     # Keep a recoverable transaction boundary if Adam produces
                     # a nonfinite parameter or a finite-precision no-op.
-                    optimizer_before = copy.deepcopy(self.optimizer.state_dict())
+                    with _host_stage(receipt, "optimizer_backup"):
+                        optimizer_before = copy.deepcopy(self.optimizer.state_dict())
                     try:
-                        self.optimizer.step()
+                        with _host_stage(receipt, "optimizer_step"):
+                            self.optimizer.step()
                     except Exception:
-                        current = dict(self.model.named_parameters())
-                        with torch.no_grad():
-                            for name, value in before.items():
-                                current[name].copy_(value)
-                        self.optimizer.load_state_dict(optimizer_before)
+                        with _host_stage(receipt, "rollback"):
+                            current = dict(self.model.named_parameters())
+                            with torch.no_grad():
+                                for name, value in before.items():
+                                    current[name].copy_(value)
+                            self.optimizer.load_state_dict(optimizer_before)
                         raise
-                    current = dict(self.model.named_parameters())
-                    nonfinite = any(not bool(torch.isfinite(current[name]).all()) for name in before)
-                    changed = [name for name, value in before.items() if not torch.equal(value, current[name].detach())]
+                    with _host_stage(receipt, "update_audit"):
+                        current = dict(self.model.named_parameters())
+                        nonfinite = any(not bool(torch.isfinite(current[name]).all()) for name in before)
+                        changed = [name for name, value in before.items() if not torch.equal(value, current[name].detach())]
                     if nonfinite or not changed:
-                        with torch.no_grad():
-                            for name, value in before.items():
-                                current[name].copy_(value)
-                        self.optimizer.load_state_dict(optimizer_before)
+                        with _host_stage(receipt, "rollback"):
+                            with torch.no_grad():
+                                for name, value in before.items():
+                                    current[name].copy_(value)
+                            self.optimizer.load_state_dict(optimizer_before)
                         if nonfinite:
                             raise FloatingPointError("nonfinite optimizer result rolled back")
                         receipt["reason"] = "NO_PARAMETER_CHANGE_ROLLED_BACK"
@@ -298,7 +363,6 @@ class HENMOTrainer:
 
     def evaluate(self, records):
         """Evaluate held-out development rows without hiding invalid predictions."""
-        from .metrics import prediction_metrics, summarize_prediction_metrics
         records = list(records)
         if any(row.get("role") != "development" or row.get("loader_eligible") is not True for row in records):
             raise ValueError("evaluation requires admitted development rows")
@@ -307,17 +371,54 @@ class HENMOTrainer:
             if (bound.get("role") != "development" or bound.get("case_sha256") != row.get("case_sha256")
                     or row["case"]["meta"].get("split") not in ("development", "synthetic")):
                 raise ValueError("evaluation row is not bound to this development snapshot")
-        was_training = self.model.training
-        self.model.eval()
+        return self._evaluate_records(records, scope="held_out_development")
+
+    def evaluate_training_probe(self, records, *, execution="coarse", coarse_grid):
+        """Observe bound training queries at an explicit route without updating.
+
+        Uses evaluation mode (no stochastic training layers) with the requested
+        coarse route and fixed grid. It never samples training_coarse_grids and
+        never advances the training sampler, optimizer or exposure counters.
+        Its metrics are training diagnostics, not held-out promotion evidence.
+        """
+        self._check_contract()
+        records = list(records)
+        if not records or any(self._by_id.get(row.get("record_id")) is not row for row in records):
+            raise ValueError("training probes must use registered training record objects")
+        if self.predict is not default_predict:
+            raise ValueError("fixed-route training probes require the default HENMO predictor")
+        if execution not in ("coarse", "adaptive", "leaf"):
+            raise ValueError("unknown fixed probe execution")
+        config = getattr(self.model, "config", None)
+        if not is_dataclass(config) or not hasattr(config, "execution"):
+            raise ValueError("fixed-route training probes require a HENMO scientific config")
+        if (type(coarse_grid) is not int or coarse_grid < 1 or coarse_grid & (coarse_grid - 1)
+                or coarse_grid > config.leaf_grid):
+            raise ValueError("fixed coarse_grid must be a valid power-of-two hierarchy level")
+        return self._evaluate_records(records, scope="bound_training_probe_not_held_out",
+                                      execution=execution, coarse_grid=coarse_grid)
+
+    def _evaluate_records(self, records, *, scope, execution=None, coarse_grid=None):
+        from .metrics import prediction_metrics, summarize_prediction_metrics
+        # A diagnostic pass must not change the next training query's random
+        # scale, dropout stream or a fixture's random prediction noise.
+        rng = capture_rng()
+        modes = [(module, module.training) for module in self.model.modules()]
+        original_config = self.model.config
         rows = []
         try:
+            if execution is not None:
+                self.model.config = replace(original_config, execution=execution)
+            self.model.eval()
             # The operator may need local first-order derivatives. Its outputs
             # are detached per row; no graph or learned cache crosses this pass.
             with torch.enable_grad():
                 for record in records:
                     try:
-                        prediction = self._predict(record, evaluation=True)
-                        rows.append(prediction_metrics(prediction, record))
+                        prediction = self._predict(record, evaluation=True, coarse_grid=coarse_grid)
+                        row = prediction_metrics(prediction, record)
+                        row.update(detached_prediction_payload(prediction))
+                        rows.append(row)
                     except Exception as exc:
                         rows.append(dict(record_id=record["record_id"],
                             source_group=record["case"]["meta"]["source_group"], status="FAILED",
@@ -325,9 +426,19 @@ class HENMOTrainer:
                             error=dict(type=type(exc).__name__, message=str(exc)),
                             moment=None, jacobian=None))
         finally:
-            self.model.train(was_training)
+            self.model.config = original_config
+            self.model.train(modes[0][1])
+            # Preserve deliberately frozen submodules as well as the root flag.
+            for module, was_training in modes:
+                module.training = was_training
             self._invalidate()
-        return summarize_prediction_metrics(rows)
+            restore_rng(rng)
+        result = summarize_prediction_metrics(rows)
+        result.update(evaluation_scope=scope,
+                      execution_override=execution, coarse_grid_override=coarse_grid,
+                      raw_predictions_and_execution_diagnostics=True,
+                      optimizer_updates=0, stochastic_state_preserved=True)
+        return result
 
     def checkpoint_state(self):
         self._check_contract()

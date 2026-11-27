@@ -9,6 +9,7 @@ import argparse
 from dataclasses import asdict,replace
 import hashlib
 import json
+import math
 from pathlib import Path
 import platform
 import time
@@ -181,50 +182,71 @@ def train_command(args):
         trainer = HENMOTrainer(model,training,dataset_binding(data,model_contract(model)),records=data.train)
         resume_receipt = (trainer.load_checkpoint(args.resume,expected_sha256=args.resume_sha256)
                           if args.resume else None)
-        initial_checkpoint = trainer.save_checkpoint(output/'initial.pt')
-        start_step = trainer.step_count
-        initial = trainer.evaluate(data.development)
-        _write(output/f'development_step_{trainer.step_count:06d}.json',initial)
-        selected = None
-        best = float('inf')
-        initial_score = initial['source_macro_raw_moment_rmse']
-        if initial['complete'] and initial_score is not None:
-            best = initial_score
-            selected = trainer.save_checkpoint(output/'selected.pt')
-        while trainer.step_count < training.max_steps and trainer.attempts < training.max_attempts:
-            step = trainer.step()
-            with (output/'steps.jsonl').open('a') as stream:
-                stream.write(json.dumps(step,ensure_ascii=False,allow_nan=False)+'\n')
-            if not step['committed']:
-                continue
-            if trainer.step_count % args.evaluate_every == 0 or trainer.step_count == training.max_steps:
-                evaluation = trainer.evaluate(data.development)
-                _write(output/f'development_step_{trainer.step_count:06d}.json',evaluation)
-                score = evaluation['source_macro_raw_moment_rmse']
-                if evaluation['complete'] and score is not None and score < best:
-                    best = score
-                    selected = trainer.save_checkpoint(output/'selected.pt')
-                trainer.save_checkpoint(output/'last.pt')
-                print(json.dumps(dict(step=trainer.step_count,attempts=trainer.attempts,
-                                      development_source_macro_raw_moment_rmse=score)),flush=True)
-        final = trainer.save_checkpoint(output/'last.pt')
-        _write(output/'run.json',dict(schema='henmo.training-run.v1',config=asdict(config),
-            training_config=asdict(training),environment=_environment(),last=final,selected=selected,
-            device=str(device),dtype=args.dtype,initial=initial_checkpoint,resumed_from=resume_receipt,
-            state_tensor_dtypes=sorted({str(value.dtype) for value in model.state_dict().values()}),
-            selection_scope=dict(start_step=start_step,end_step=trainer.step_count,
-                includes_starting_state=True,
-                scope='current_continuation_only' if args.resume else 'entire_current_run'),
-            selection_protocol='HENMO_starting_incumbent_v1_not_a_replay_of_V21_104_208_312_only',
-            selected_step=None if selected is None else selected['step_count'],
-            selected_has_new_updates=selected is not None and selected['step_count'] > start_step,
-            best_source_macro_raw_moment_rmse=None if selected is None else best,
-            update_budget_reached=trainer.step_count == training.max_steps,
-            scope=data.scope,initialization='explicit_transfer' if args.initialize_from else 'fresh_or_exact_resume',
-            selection='lowest complete development source-macro raw Moment RMSE including starting state; not promotion',
-            physics_promotion=False,long_training_promotion=False))
+        _run_training_session(trainer,data,args,output,resumed_from=resume_receipt,
+            initialization='explicit_transfer' if args.initialize_from else 'fresh_or_exact_resume')
     finally:
         model.close()
+
+
+def _run_training_session(trainer,data,args,output,*,resumed_from=None,
+                          initialization='fresh',stage=None):
+    """Checkpoint committed updates before expensive evaluation, not after it."""
+    model,training = trainer.model,trainer.config
+    config_payload = model_contract(model)['config']
+    _write(output/'model_config.json',config_payload)
+    _write(output/'training_config.json',asdict(training))
+    if stage is not None:
+        _write(output/'stage.json',stage)
+    initial_checkpoint = trainer.save_checkpoint(output/'initial.pt')
+    trainer.save_checkpoint(output/'last.pt')
+    start_step = trainer.step_count
+    initial = trainer.evaluate(data.development)
+    _write(output/f'development_step_{trainer.step_count:06d}.json',initial)
+    selected,best = None,float('inf')
+    initial_score = initial['source_macro_raw_moment_rmse']
+    if initial['complete'] and initial_score is not None:
+        best = initial_score
+        selected = trainer.save_checkpoint(output/'selected.pt')
+    while trainer.step_count < training.max_steps and trainer.attempts < training.max_attempts:
+        step = trainer.step()
+        with (output/'steps.jsonl').open('a') as stream:
+            stream.write(json.dumps(step,ensure_ascii=False,allow_nan=False)+'\n')
+        if not step['committed']:
+            continue
+        evaluate = trainer.step_count % args.evaluate_every == 0 or trainer.step_count == training.max_steps
+        if evaluate or trainer.step_count % args.save_every == 0:
+            trainer.save_checkpoint(output/'last.pt')
+        if evaluate:
+            # Keep the exact evaluated state even if evaluation is interrupted
+            # or this state does not win the selection metric.
+            trainer.save_checkpoint(output/f'step_{trainer.step_count:06d}.pt')
+            evaluation = trainer.evaluate(data.development)
+            _write(output/f'development_step_{trainer.step_count:06d}.json',evaluation)
+            score = evaluation['source_macro_raw_moment_rmse']
+            if evaluation['complete'] and score is not None and score < best:
+                best = score
+                selected = trainer.save_checkpoint(output/'selected.pt')
+            print(json.dumps(dict(step=trainer.step_count,attempts=trainer.attempts,
+                                  development_source_macro_raw_moment_rmse=score)),flush=True)
+    final = trainer.save_checkpoint(output/'last.pt')
+    report = dict(schema='henmo.training-run.v1',config=config_payload,
+        training_config=asdict(training),environment=_environment(),last=final,selected=selected,
+        device=str(next(model.parameters()).device),dtype=args.dtype,initial=initial_checkpoint,
+        resumed_from=resumed_from,stage=stage,checkpoint_before_evaluation=True,save_every=args.save_every,
+        state_tensor_dtypes=sorted({str(value.dtype) for value in model.state_dict().values()}),
+        selection_scope=dict(start_step=start_step,end_step=trainer.step_count,
+            includes_starting_state=True,
+            scope='current_continuation_only' if resumed_from else 'entire_current_run'),
+        selection_protocol='HENMO_starting_incumbent_v1_not_a_replay_of_V21_104_208_312_only',
+        selected_step=None if selected is None else selected['step_count'],
+        selected_has_new_updates=selected is not None and selected['step_count'] > start_step,
+        best_source_macro_raw_moment_rmse=None if selected is None else best,
+        update_budget_reached=trainer.step_count == training.max_steps,
+        scope=data.scope,initialization=initialization,
+        selection='lowest complete development source-macro raw Moment RMSE including starting state; not promotion',
+        physics_promotion=False,long_training_promotion=False)
+    _write(output/'run.json',report)
+    return report
 
 
 def _load_comparison_checkpoint(model,path,data,expected_sha256=None):
@@ -260,7 +282,7 @@ def _load_comparison_checkpoint(model,path,data,expected_sha256=None):
     model.load_state_dict(state['model'],strict=True)
     return dict(sha256=digest,binding_sha256=state['binding_sha256'],
                 model_tensor_sha256=receipt['model_tensor_sha256'],step_count=state['step_count'],
-                evaluation_scope='same_admitted_snapshot_development_only')
+                evaluation_scope='same_admitted_snapshot_binding_only')
 
 
 def compare_command(args):
@@ -362,6 +384,148 @@ def compare_command(args):
     print(json.dumps(dict(report=str(Path(args.output).resolve()),queries=len(records),acceleration_proven=False)))
 
 
+def _diagnostic_records(data, *, split, selection=None, limit=None):
+    """Select existing admitted identities; never rewrite a role or load sealed data."""
+    if split not in ('train','development'):
+        raise ValueError('diagnostics accept train/development only')
+    available = list(getattr(data,split))
+    inventory = {record['record_id']:record for record in available}
+    if len(inventory) != len(available):
+        raise ValueError('duplicate admitted diagnostic identities')
+    selection_info = None
+    if selection is not None:
+        spec = json.loads(Path(selection).read_text())
+        ids = spec.get('record_ids') if isinstance(spec,dict) else spec
+        if (not isinstance(ids,list) or not ids or any(not isinstance(i,str) or not i for i in ids)
+                or len(set(ids)) != len(ids)):
+            raise ValueError('selection needs nonempty distinct record_ids')
+        if isinstance(spec,dict):
+            for name,actual in (('split',split),('snapshot_id',data.snapshot_id),
+                                ('manifest_sha256',data.manifest_sha256)):
+                if name in spec and spec[name] != actual:
+                    raise ValueError('diagnostic selection mismatch: '+name)
+        missing = [rid for rid in ids if rid not in inventory]
+        if missing:
+            raise ValueError('selection is not admitted in requested split: '+', '.join(missing[:4]))
+        rows = [inventory[rid] for rid in ids]
+        selection_info = dict(path=str(Path(selection).resolve()),sha256=_sha(selection))
+    else:
+        rows = available[:12 if limit is None else limit]
+    if limit is not None:
+        if type(limit) is not int or limit < 1:
+            raise ValueError('positive diagnostic query limit required')
+        rows = rows[:limit]
+    if not rows or any(row.get('role') != split for row in rows):
+        raise ValueError('nonempty same-role admitted diagnostic queries required')
+    return rows,dict(split=split,record_ids=[row['record_id'] for row in rows],
+                     selection=selection_info,limit=limit,
+                     membership_only=True,not_a_new_training_or_test_split=True)
+
+
+def diagnostics_command(args):
+    from .diagnostics import run_path_diagnostics,run_gradient_diagnostics
+    config = _model_config(args.config)
+    device = _device(args.device)
+    torch.set_num_threads(args.threads)
+    seed_everything(830251)
+    data,coverage = load_henmo_dataset(args.manifest,mode=args.mode,cache_directory=args.cache,
+        allowed_native_resolutions=(config.native_material_resolution,))
+    split = 'train' if args.command == 'diagnose-gradients' else args.split
+    records,selection = _diagnostic_records(data,split=split,selection=args.selection,limit=args.limit)
+    if Path(args.output).exists():
+        raise ValueError('diagnostic report must be a new path')
+    with _place_model(config,device,args.dtype) as model:
+        checkpoint = _load_comparison_checkpoint(model,args.checkpoint,data,args.checkpoint_sha256)
+        if args.command == 'diagnose-paths':
+            report = run_path_diagnostics(model,records,coarse_grids=tuple(args.coarse_grids),
+                chunk_size=config.chunk_size,diagnostic_nodes=args.diagnostic_nodes)
+            complete = all(route['complete'] and route.get('derivative_complete') is not False
+                           for route in report['routes'].values())
+        else:
+            report = run_gradient_diagnostics(model,records,coarse_grid=args.coarse_grid,
+                chunk_size=config.chunk_size,jacobian_loss_weight=args.jacobian_weight)
+            complete = report['complete'] and report.get('derivative_objective_complete') is not False
+        report.update(checkpoint=checkpoint,selection=selection,environment=_environment(),
+            manifest_sha256=data.manifest_sha256,snapshot_id=data.snapshot_id,
+            source_config=asdict(config),missing_coverage=coverage['missing'],
+            complete=complete,physics_promotion=False,long_training_promotion=False)
+        _write(args.output,report)
+    print(json.dumps(dict(report=str(Path(args.output).resolve()),queries=len(records),
+                          complete=complete,actual_parameter_updates=0)))
+    if not complete:
+        raise RuntimeError('diagnostic run incomplete; failures retained in report')
+
+
+def _calibrated_weight(args,source_checkpoint,data):
+    if args.arm in ('moment','joint'):
+        if args.jacobian_weight is not None or args.calibration_report:
+            raise ValueError('explicit J coefficient/report is reserved for calibrated arm')
+        return (0. if args.arm == 'moment' else 1.),None
+    if (args.jacobian_weight is None or not math.isfinite(args.jacobian_weight)
+            or args.jacobian_weight <= 0 or not args.calibration_report):
+        raise ValueError('calibrated arm requires positive --jacobian-weight and train --calibration-report')
+    report = json.loads(Path(args.calibration_report).read_text())
+    if (report.get('schema') != 'henmo.gradient-diagnostics.v1' or not report.get('complete')
+            or report.get('selection',{}).get('split') != 'train'
+            or report.get('checkpoint',{}).get('sha256') != source_checkpoint['sha256']
+            or report.get('manifest_sha256') != data.manifest_sha256
+            or report.get('snapshot_id') != data.snapshot_id
+            or report.get('execution_override',{}).get('coarse_grid') != args.coarse_grid
+            or report.get('derivative_objective_complete') is not True
+            or not report.get('qualified_derivative_objectives')
+            or report.get('actual_parameter_updates') != 0
+            or not report.get('nonzero_joint_gradient_queries')):
+        raise ValueError('calibration must be a complete same-checkpoint/snapshot/grid train gradient report')
+    return args.jacobian_weight,dict(path=str(Path(args.calibration_report).resolve()),
+        sha256=_sha(args.calibration_report),coefficient_origin='explicit_training_side_choice_not_auto_tuning')
+
+
+def screen_command(args):
+    """Fork a declared bounded experiment; never resume old Adam into a new objective."""
+    config = _model_config(args.config)
+    device = _device(args.device)
+    torch.set_num_threads(args.threads)
+    if not 1 <= args.steps <= 256:
+        raise ValueError('screen supports 1..256 committed updates, not long training')
+    fixed = replace(config,coarse_grid=args.coarse_grid,training_coarse_grids=(args.coarse_grid,),
+                    training_execution='coarse',execution='coarse')
+    seed_everything(args.seed)
+    data,coverage = load_henmo_dataset(args.manifest,mode=args.mode,cache_directory=args.cache,
+        allowed_native_resolutions=(config.native_material_resolution,))
+    with _place_model(config,device,args.dtype) as model:
+        checkpoint = _load_comparison_checkpoint(model,args.checkpoint,data,args.checkpoint_sha256)
+        weight,calibration = _calibrated_weight(args,checkpoint,data)
+        training = HENMOTrainingConfig(seed=args.seed,learning_rate=args.learning_rate,
+            batch_size=1,jacobian_loss_weight=weight,max_steps=args.steps,max_attempts=2*args.steps,
+            chunk_size=config.chunk_size).validate()
+        if config.response_path == 'deterministic':
+            raise ValueError('controlled learning screen requires a trainable response')
+        output = _new_output_directory(args.output)
+        _write(output/'coverage.json',coverage)
+        before = asdict(config)
+        changed = {k:dict(source=before[k],screen=v) for k,v in asdict(fixed).items() if before[k] != v}
+        model.config = fixed
+        model.clear_efficiency_caches()
+        # Query order and stochastic forwards start from the same seed in every
+        # arm; source model weights are exact, but optimizer/state are new.
+        seed_everything(training.seed,training.deterministic)
+        stage = dict(schema='henmo.controlled-screen.v1',arm=args.arm,
+            source_checkpoint=checkpoint,source_config=asdict(config),declared_model_changes=changed,
+            source_weight_tensor_sha256=_tensor_digest(model.state_dict()),
+            source_config_path=str(Path(args.config).resolve()),
+            source_config_sha256=_sha(args.config),calibration=calibration,
+            optimizer='new_Adam',old_optimizer_loaded=False,exact_resume=False,
+            equal_exposure_protocol='same full training pool, batch1, seed and committed update budget; check failures',
+            evaluation_scope='fixed_coarse_development_diagnostic_not_original_adaptive_promotion',
+            next_evaluation='diagnose-paths on screen model_config.json + selected/last checkpoint before deployment',
+            physics_promotion=False,long_training_promotion=False)
+        trainer = HENMOTrainer(model,training,dataset_binding(data,model_contract(model)),records=data.train)
+        report = _run_training_session(trainer,data,args,output,
+            initialization='verified_weights_new_controlled_stage',stage=stage)
+        if not report['update_budget_reached']:
+            raise RuntimeError('controlled screen did not complete its committed update budget; see saved run report')
+
+
 def parser():
     p = argparse.ArgumentParser(description=__doc__)
     commands = p.add_subparsers(dest='command',required=True)
@@ -371,7 +535,9 @@ def parser():
     smoke = commands.add_parser('smoke')
     smoke.add_argument('--output',required=True); smoke.add_argument('--threads',type=int,default=2)
     smoke.set_defaults(run=smoke_command)
-    for name,handler in (('audit-data',audit_command),('train',train_command),('compare',compare_command)):
+    for name,handler in (('audit-data',audit_command),('train',train_command),('compare',compare_command),
+                         ('diagnose-paths',diagnostics_command),('diagnose-gradients',diagnostics_command),
+                         ('screen',screen_command)):
         sub = commands.add_parser(name)
         sub.add_argument('--manifest',required=True); sub.add_argument('--config',required=True)
         sub.add_argument('--mode',choices=('smoke','trial','long'),default='trial',
@@ -387,15 +553,41 @@ def parser():
             sub.add_argument('--initialize-state-key',default='model',
                              help='checkpoint mapping key; use none for a bare state dict')
             sub.add_argument('--evaluate-every',type=int,default=104)
+            sub.add_argument('--save-every',type=int,default=16)
         if name == 'compare':
             sub.add_argument('--checkpoint'); sub.add_argument('--checkpoint-sha256'); sub.add_argument('--limit',type=int)
             sub.add_argument('--threads',type=int,default=2)
+        if name in ('diagnose-paths','diagnose-gradients','screen'):
+            sub.add_argument('--checkpoint',required=True)
+            sub.add_argument('--checkpoint-sha256',required=True)
+            sub.add_argument('--threads',type=int,default=2)
+        if name in ('diagnose-paths','diagnose-gradients'):
+            sub.add_argument('--selection',help='JSON record_ids from the existing admitted split')
+            sub.add_argument('--limit',type=int)
+        if name == 'diagnose-paths':
+            sub.add_argument('--split',choices=('train','development'),default='development')
+            sub.add_argument('--coarse-grids',type=int,nargs='+',default=[32,64])
+            sub.add_argument('--diagnostic-nodes',type=int,default=128)
+        if name == 'diagnose-gradients':
+            sub.add_argument('--coarse-grid',type=int,required=True)
+            sub.add_argument('--jacobian-weight',type=float,default=1.)
+        if name == 'screen':
+            sub.add_argument('--coarse-grid',type=int,required=True)
+            sub.add_argument('--arm',choices=('moment','joint','calibrated'),required=True)
+            sub.add_argument('--jacobian-weight',type=float)
+            sub.add_argument('--calibration-report')
+            sub.add_argument('--steps',type=int,default=128)
+            sub.add_argument('--seed',type=int,default=830251)
+            sub.add_argument('--learning-rate',type=float,default=3e-5)
+            sub.add_argument('--evaluate-every',type=int,default=32)
+            sub.add_argument('--save-every',type=int,default=16)
     return p
 
 
 def main(argv=None):
     args = parser().parse_args(argv)
-    if getattr(args,'evaluate_every',1) < 1 or getattr(args,'threads',1) < 1:
+    if (getattr(args,'evaluate_every',1) < 1 or getattr(args,'save_every',1) < 1
+            or getattr(args,'threads',1) < 1):
         raise ValueError('positive evaluation interval and thread count required')
     if getattr(args,'limit',None) is not None and args.limit < 1:
         raise ValueError('positive query limit required')

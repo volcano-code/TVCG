@@ -1,0 +1,23 @@
+{
+  "schema": "henmo.r3.diagnostic-selection.v1",
+  "snapshot_id": "CPINO-20261125-1756-R1",
+  "manifest_sha256": "3f4efce1fc6e5db863a7faac179e20da33bfd0f2dfae19f5ca9eca4c34d49701",
+  "selection_is_not_training_admission": true,
+  "split": "train",
+  "record_ids": [
+    "N027__1479db2b3c29e52f518206265c77d67d0cee6c7b3e93d122c98af1f07679c55e",
+    "N027__3f606a61707b41866a128b133ed059300e278aa6548b925d3cd186eacff211d0",
+    "N058__4a8fa05f56c8172f81c2e4aab1571cec10665a144dfd48a1de27a275551b7abf",
+    "N058__7098f0f764455ce501a5fab3316b68f3874e0a34da2c4aa4e7ce9d43cb83f72b",
+    "S082__cc81f98006e210695949057f38752f6afc2de003b171e6e791b6f1fdb6ac6782",
+    "S082__a3d1aa0d196a87a6acb4413cefe8680afc6f5c61410fdb03062bd185296db4a3",
+    "P213B1-part0__436d04ca08f47f29ec9a087ed3229458d6a9fe6dd6ec1bd172a31c07c164a58e",
+    "P213B1-part0__2e51335e8f32c82fec9dea82d787aaee1e6e2ce8383e0cd2d7324e67870dde99",
+    "S082__0a01e2af2e37c513ce52a52661ed8d58150b72992dce8559800f5befbf41a320",
+    "N027__23e22118f460fd374aed1b64bcdd71ee94f10ecbc4c18be60ea1a805cc03f270",
+    "N058__5b3716e34d8fbc57e333eb25cb6bec0fbc39ea33e5e39994c85c4f62295c4214",
+    "S082__318a334bed7b57e122ee537f16bf168662fc38c852b6342d7179414dff4e7eed",
+    "P213B1-part0__c73fcc7f6125bca2bfa67fffdc84fb8ee59ecb1519658768fd3385789fea770e"
+  ],
+  "purpose": "Same-query gradient audit and fixed training probes; includes qualified J and Moment-only controls"
+}

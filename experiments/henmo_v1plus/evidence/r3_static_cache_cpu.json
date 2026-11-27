@@ -1,0 +1,34 @@
+{
+  "schema": "henmo.static-input-cache.cpu-component-evidence.v1",
+  "scope": "synthetic_software_only",
+  "measurement": "CPU static input preparation only; excludes hierarchy construction, encoder, query, backward, optimizer and GPU execution",
+  "material": "half cuboid represented by native 64 RLE material",
+  "native_material_resolution": 64,
+  "context_grids": [32, 64],
+  "feature_grid": 8,
+  "leaf_grid": 16,
+  "dtype": "float32",
+  "torch_cpu_threads": 2,
+  "method": "Warm imports and CPU kernels first; compare six uncached preparations with twenty accesses after one separate cache fill. Timings are descriptive component measurements, not a statistically qualified whole-model benchmark.",
+  "uncached": {
+    "repetitions": 6,
+    "median_s": 0.12736049600425758,
+    "aggregate_grid_calls": 18,
+    "encoder_grid_calls": 12
+  },
+  "warm_cache": {
+    "repetitions": 20,
+    "median_s": 0.00003789550100918859,
+    "aggregate_grid_calls": 0,
+    "encoder_grid_calls": 0,
+    "entries": 1,
+    "owned_tensor_bytes": 4738192,
+    "budget_bytes": 67108864,
+    "hits": 20,
+    "misses_including_initial_fill": 1
+  },
+  "learned_features_cached": false,
+  "gpu_speedup_proven": false,
+  "end_to_end_speedup_proven": false,
+  "physical_accuracy_promotion": false
+}
