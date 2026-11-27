@@ -32,6 +32,15 @@ def test_cut_tokens_receive_gradient():
     assert c.grad is not None and torch.isfinite(c.grad).all() and c.grad.abs().sum()>0
     assert x.grad is not None and torch.isfinite(x.grad).all()
 
+def test_zero_init_delta_projection_is_trainable_on_first_step():
+    m = CutConditionedCrossAttention(width=32, heads=4)
+    x,c = torch.randn(1,7,32), torch.randn(1,3,32)
+    active = torch.ones(1,7,dtype=torch.bool)
+    _,delta,_ = m(x,c,active)
+    delta.square().sum().backward()
+    grad = m.response_delta[-1].weight.grad
+    assert grad is not None and torch.isfinite(grad).all() and grad.abs().sum()>0
+
 def test_cut_mask_blocks_invalid_tokens():
     torch.manual_seed(9)
     m = CutConditionedCrossAttention(width=32,heads=4).eval()
