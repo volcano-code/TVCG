@@ -24,8 +24,9 @@ class CutConditionedCrossAttention(nn.Module):
       cut_mask: [B,S] bool; True denotes a valid cut token.
 
     Complexity is O(B*N_active*S*D), not O(N^2). The zero-initialized residual
-    gate makes the module an exact identity at initialization. Keep cut_tokens
-    attached to autograd: their derivative contribution belongs in dM/dc.
+    gate makes the conditioned feature path an exact identity at initialization.
+    Keep cut_tokens attached to autograd: their derivative contribution belongs
+    in dM/dc.
     """
     def __init__(self, width: int = 192, heads: int = 4,
                  output_dim: int = 2, dropout: float = 0.0):
@@ -68,7 +69,9 @@ class CutConditionedCrossAttention(nn.Module):
             key_padding_mask=~cut_mask, need_weights=need_weights, average_attn_weights=False)
         gate = torch.tanh(self.residual_gate)
         conditioned = material_tokens + gate * self.ffn(attended)
-        delta = gate * self.response_delta(conditioned)
+        # Zero final-layer initialization gives delta=0 initially while still
+        # allowing the final projection to receive gradients on the first step.
+        delta = self.response_delta(conditioned)
         mask = active_mask.unsqueeze(-1)
         conditioned = torch.where(mask, conditioned, material_tokens)
         delta = torch.where(mask, delta, torch.zeros_like(delta))
