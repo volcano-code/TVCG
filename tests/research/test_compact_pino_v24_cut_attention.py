@@ -11,6 +11,7 @@ def test_zero_init_is_exact_identity_and_zero_delta():
     assert torch.equal(y,x)
     assert torch.equal(delta,torch.zeros_like(delta))
     assert stats.active_queries == 12
+    assert stats.attention_elements == (9*5 + 3*5)
 
 def test_nonactive_tokens_are_exact_passthrough_after_gate_opens():
     m = CutConditionedCrossAttention(width=32, heads=4)
