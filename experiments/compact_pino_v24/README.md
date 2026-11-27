@@ -1,6 +1,17 @@
-# Compact PINO V2.4 research candidate — Cut-conditioned Conservative Geometry Operator
+# Compact PINO V2.4 — Cut-conditioned Conservative Geometry Operator
 
-**Status: experimental branch. Not production default; no trained or physically accepted V2.4 checkpoint is claimed.**
+**Status: experimental research branch. Not production default; no trained or physically accepted V2.4 checkpoint is claimed.**
+
+## Decision and scope
+
+The objective is not to maximize grid resolution or add attention modules indiscriminately. It is to reduce the wall-clock time to a **native-accepted optimization result** while preserving conservative ten-moment prediction and derivative correctness.
+
+V2.4 is organized as two gated steps:
+
+- **V2.4-A (first candidate):** native 256^3 material, real P-CRAFT 64^3 + 128^3 context, Token16, one active-band cut-conditioned cross-attention layer, bounded monotone retention, unified M/J.
+- **V2.4-B (only if A shows local-resolution error):** add sparse 256^3 local patches (512^3 only as a limited sensitivity experiment) around active cut bands, thin walls, caps and certified high-error regions. Do not build a dense global 256^3/512^3 feature volume.
+
+The sparse local level is a conditional extension, not a pre-approved default. It must demonstrate accuracy or correction-call gains that justify its memory and query cost.
 
 ## Evidence motivating the design
 
@@ -8,66 +19,67 @@ The supplied 2026-11-26 speed audit reports:
 - V1 E13 at native RLE 256^3: 0.4774 s median hot query; at 1024^3: 7.4445 s.
 - V2.2 Noodles v8 seed 0: 34.26 s neural proposal (16 dynamic calls), 38.42 s native correction, 21.00 s independent native acceptance, 21.36 s other cold-start overhead; total 115.04 s.
 - Static geometry encoding was only 0.72 s in that run. Thus merely making the static encoder smaller is not the primary direct latency lever.
-- V2.2/E16 improves fixed-development moment metrics and one E16 hybrid path reached a native-accepted solution, but direct neural termination still failed native stationarity. The single seed-0 hybrid result is not a generalization claim.
+- V2.2/E16 improves fixed-development Moment metrics and provides one successful neural-proposal + native-correction Noodles seed-0 solve, but direct neural termination still failed native stationarity. The single seed-0 hybrid result is not a generalization claim.
+- V1's hot query is not an accepted-solution speed result: the cited E34 run exhausted 480 evaluations without an accepted solution.
 
-The supplied architecture history also confirms that a 32^3/64^3 Compact-Lite context replaced an earlier P-CRAFT 32^3/64^3/128^3 multiscale plan. This V2.4 candidate explicitly restores a real 128^3 context scale while retaining the 256^3 native material representation. These are different resolution layers.
+The architecture history confirms that a 32^3/64^3/128^3 P-CRAFT context pyramid existed before Compact-Lite reduced the context to 32^3/64^3. V2.4 restores a **real 64^3+128^3 context candidate**, without confusing context resolution with native 256^3 material.
 
-## Research hypothesis
+## Research hypothesis and contribution
 
-The proposed paper contribution is **cut-conditioned conservative moment operator learning for fast, derivative-consistent geometry optimization**, not simply a larger PINO.
+The proposed contribution is a **cut-conditioned conservative moment operator**:
 
-1. **Geometry branch:** P-CRAFT-derived factorized Fourier/U-shaped encoder at 64^3 + 128^3, computed once per geometry. Native 256^3 RLE/material atoms remain the conservation source.
-2. **Cut branch:** encode a small number of descriptors of the current finite, oriented cut (signed-distance band, local normal, local curvature/shape, cap/side identity and certified motion-chart features) into cut tokens.
-3. **Local interaction:** only active-band material tokens query the cut tokens through one zero-initialized cross-attention residual block. This is not all-token self-attention; interaction cost scales with active material tokens × cut tokens.
-4. **Conservative output:** the interaction modulates the existing bounded local retention field. All ten moments still come from one positive weighted material integral.
-5. **Derivative consistency:** the full Jacobian is differentiated from that same final moment graph. Cut-token dependence must remain attached to autograd; no detached conditioning and no independent J head.
-6. **Solver-aware use:** cheap neural proposal followed by exact native correction and unchanged independent native acceptance. The primary metric is wall-clock to a native-accepted solution, not callback latency alone.
+1. Geometry is encoded once by a P-CRAFT-derived multi-resolution trunk (64^3+128^3); native material/RLE and positive quadrature remain the source of conservation.
+2. A compact descriptor of the current finite, oriented cut (signed-distance band, local normal/curvature/cap/operation-side and motion-chart features where certified) becomes a small set of cut tokens.
+3. Only active-band material tokens are compacted and query those cut tokens through one zero-initialized cross-attention residual block. Inactive tokens do not enter the attention operation.
+4. The same final retention field produces all ten moments and its complete derivative. Any cut-dependent attention path must remain in the autograd graph; no detached conditioning and no independent J head.
+5. A solver-aware handoff policy proposes cheaply, then calls exact native correction/acceptance. The scientific metric is wall-clock to a native-accepted solution, not neural callback latency alone.
 
-GINO motivates geometry-aware local-to-global mappings; DINO/DIFNO motivates derivative-aware operator training. Neither alone is the novelty claim. The proposed contribution is their task-specific combination with finite-cut conditioning, positive-measure moment conservation and exact solver handoff.
+Potential paper novelty is the combination of (a) cut-conditioned local geometric interaction, (b) positive-measure conservative moment integration with derivative-consistent output, and (c) solver-aware exact correction evaluated under paired accepted-solution time. GINO, DINO/DIFNO and geometric attention are inspirations, not claims of novelty by themselves.
 
-## Candidate architecture contract
+## Architecture contract
 
-- Native material: 256^3 RLE / positive-measure atoms; fixed material is added exactly once.
-- P-CRAFT context: exactly 64^3 and 128^3. The 128^3 feature map must be produced by a real encoder forward and sampled into local material features, not interpolated from 64^3.
-- Material tokenization: Token16 for the first controlled comparison.
-- Dynamic cut interaction: one 4-head, width-192, zero-initialized residual cross-attention block; 16 cut tokens initially; active-band queries only.
-- Local response: existing monotone_warp warm-start; cross-attention conditions its two response channels.
-- Output: ten moments in the existing order; J from the same M graph.
-- Exact native correction/acceptance unchanged.
-
-The initial configuration contract is in `v24_config.py`; the attention primitive is in `cut_conditioned_attention.py`.
+- Native material: 256^3 RLE / positive-measure material atoms; fixed material is added exactly once.
+- First context candidate: exactly 64^3 and 128^3; 128^3 must be a real encoder forward and sampled into local token features, not interpolation from 64^3.
+- Optional local level: sparse 256^3 patches only after profiling demonstrates a local geometry representation gap; 512^3 is not a default.
+- Material tokens: Token16 initially retained for controlled comparison.
+- Dynamic cut interaction: one 4-head, width-192, zero-initialized residual cross-attention block; 16 cut tokens initially. Active-band material tokens are compacted before attention.
+- Local response: existing monotone_warp as warm-start baseline; cross-attention conditions its two response channels.
+- Physical head: one positive retention measure; M in fixed ten-component order; J obtained by differentiating the same M graph.
+- Native correction and independent original-mesh acceptance remain mandatory; no threshold is relaxed.
 
 ## Required ablations
 
-All arms must share the same E16 source checkpoint where compatible, same geometry/query manifest, native teacher, optimizer budget and evaluation protocol:
+All candidates use the same geometry/query manifests, native teacher and evaluation protocol. E16 is an initializer where shapes are compatible; migration must be explicit.
 
-| Arm | Encoder context | Dynamic cut interaction | Purpose |
-|---|---|---|---|
-| A | 32/64 | none | V2.3 reference |
-| B | 64/128 | none | isolate resolution |
-| C | 32/64 | cut-conditioned MLP | isolate added cut information |
-| D | 32/64 | cross-attention | isolate attention |
-| E | 64/128 | cut-conditioned MLP | scale + conditioning without attention |
-| F | 64/128 | cross-attention | combined candidate |
+A. V2.3 E16 (32/64, no dynamic cut attention) — reference.
+B. 64/128 encoder only, no dynamic attention — isolates scale change.
+C. 32/64 + cut-conditioned MLP — isolates added cut information.
+D. 32/64 + cut-conditioned cross-attention — isolates attention.
+E. 64/128 + cut-conditioned MLP — scale plus conditioning without attention.
+F. 64/128 + cut-conditioned cross-attention — combined first candidate.
+G. Only if B–F show a local geometry error: add sparse 256^3 active patches to the best candidate; compare against the same candidate without patches.
 
-Do not compare only A vs F; that confounds resolution, information and attention.
+Do not compare only A vs F; that confounds resolution, information and attention. Report parameter count, peak memory, cold encoding, per-new-cut preparation, response+M/J, native correction, final acceptance, accepted-solution success rate and total wall time.
 
-## Self-audit before integration
+## Self-audit / risks
 
-- **128^3 memory risk:** profile peak allocated/reserved memory on RTX 5090 D first. Use checkpointing and chunked sampling; never silently downsample the 128^3 input.
-- **Attention cost:** never apply dense self-attention over all 4096 Token16 cells. Restrict queries to active-band tokens and keep cut token count small.
-- **Cut descriptor cost:** finite caps, orientation, operation side and chart semantics must be represented. If descriptor construction requires the expensive Boolean path, the speed hypothesis may fail; time descriptor creation separately.
-- **Jacobian correctness:** because attention depends on cut parameters, the chain term through cut tokens must be included in dM/dc. The existing analytic-slope shortcut is insufficient unless this extra derivative is added and verified.
-- **Conservation:** attention may modulate only bounded local retention parameters; it must not directly emit ten moments. Positive weights and 0<=retention<=1 remain invariant.
-- **Checkpoint migration:** E16 is an initializer, not a strict drop-in checkpoint. Report every mapped/missing/unexpected tensor; do not silently use strict=False.
-- **Performance uncertainty:** the V2.3 shared-CPU surface-executor microbenchmark did not show stable speedup. Only same-GPU, same-query, idle-window Work B tests can establish runtime benefit.
-- **Scientific scope:** one Noodles seed-0 hybrid success is feasibility evidence only. Independent geometries, multiple paired initial conditions, success rate and confidence intervals are required for a paper-level claim.
+- 128^3 activation memory can be large; profile peak allocated/reserved on RTX 5090 D before training. Use checkpointing and chunked local feature sampling, not silent downsampling.
+- Do not jump to dense global 256^3/512^3. Sparse local patches are conditional and require a measured local-resolution error.
+- Attention must not be applied to all 4096 Token16 positions. The primitive compacts active material tokens before MHA; Work B must verify real active counts and timings.
+- The cut-token descriptor must preserve finite surface, cap, operation-side and chart semantics. If descriptor extraction calls expensive Boolean/full-J paths, it may erase the speed benefit; time descriptor creation separately.
+- The new attention output depends on cut parameters. Its derivative contribution must be included in J. The current analytic-slope shortcut is insufficient unless the additional chain term is implemented and independently verified.
+- Positive weights and 0<=retention<=1 remain invariant. Cross-attention may only modulate bounded local response parameters, not directly emit ten moments.
+- E16 checkpoint compatibility is partial: geometry trunk may initialize, but new attention parameters are new and zero-gated; 128^3 context has a different input path. Report mapped/missing/unexpected tensors; never silently use strict=False.
+- The V2.3 shared-CPU surface-executor microbenchmark did not show stable speedup. Only same-GPU, same-query, idle-window Work B tests can establish runtime benefit.
+- One Noodles seed-0 hybrid success is feasibility evidence only. Independent geometries, paired initial conditions and confidence intervals are required for a paper-level claim.
 
-## Implementation boundary in this commit
+## Implementation slice in this branch
 
-This commit adds:
+This branch currently adds:
 - a standalone zero-gated cut-conditioned attention primitive;
-- a strict 64^3/128^3 + native-256^3 architecture contract;
-- unit tests for identity initialization, inactive-token pass-through, cut-token gradients, masking and configuration semantics.
+- actual active-token compaction before attention (inactive material tokens do not enter Q/K/V);
+- an explicit 64^3/128^3 + native-256^3 configuration contract;
+- unit tests for identity initialization, inactive-token pass-through, cut-token gradients, active-token attention accounting, masking and configuration semantics;
+- Work A/B integration and acceptance handoff.
 
-**It is intentionally not wired into production `evaluate_stencil` yet.** The current response API does not carry a complete differentiable cut-token descriptor into the local response. Wiring only the forward path would produce an incomplete Jacobian and would be scientifically invalid. The next integration change must extend the stencil descriptor and the full chain rule together, then compare the analytic/autograd Jacobian with native finite differences before any training.
+It is **not yet wired into production `evaluate_stencil`**, and the actual 64^3/128^3 multiscale encoder is not yet integrated into the Compact V2.3 execution path. The current `v24_config.py` is a strict architecture contract, not proof that a full encoder is already built. The next integration change must extend the stencil descriptor and the full Jacobian chain together; wiring only the forward path would be scientifically invalid.
