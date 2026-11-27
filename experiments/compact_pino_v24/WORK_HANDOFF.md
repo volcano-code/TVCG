@@ -2,14 +2,14 @@
 
 Base: `cd49802ee480bc168b9902d453280e334658a1c7`
 Branch: `research/compact-pino-v24-cut-conditioned`
-Current candidate commit: `8b51276a4e4782b4eda275ac2e14841af0d090b3`
+Current candidate commit: `8f689316ca52ca71f4a052e792ca8bd95c51ee59`
 
 ## Work A — data and teacher assets
 
 ### A0. Freeze identity before generating anything
-- Keep the historical R1 train split and fixed 222-row development set unchanged.
-- Keep E16 as the warm-start checkpoint; record its SHA256, architecture config, source manifest and optimizer-state availability.
-- Create a separate V2.4 data snapshot and new development supplement. Never append new rows into the old 222-row denominator.
+- Keep historical R1 train split and fixed 222-row development set unchanged.
+- Keep E16 as warm-start checkpoint; record SHA256, architecture config, source manifest and optimizer-state availability.
+- Create a separate V2.4 data snapshot and supplemental development set. Never append new rows into the old 222-row denominator.
 - For each case bind native mesh/RLE, density, coordinate frame, fixed/editable material split, finite operand (faces, caps, orientation, retained side), raw coefficient chart, vertex motion, teacher build/version, operation result, ten moments and provenance hashes.
 
 ### A1. Required coverage
@@ -31,13 +31,13 @@ For every finite cut, generate a compact token sequence with a fixed schema:
 - chart/vertex-motion basis features and validity mask;
 - topology/event/closest-feature ambiguity flags.
 
-The descriptor must be computed from the same finite, oriented, capped operand used by the deployed teacher. Preserve the exact query-to-token provenance. If descriptor extraction calls an expensive Boolean or full Jacobian path, time and report it separately.
+The descriptor must be computed from the same finite, oriented, capped operand used by the deployed teacher. Preserve exact query-to-token provenance. If descriptor extraction calls an expensive Boolean or full Jacobian path, time and report it separately.
 
 ### A3. Work A deliverables
 - V2.4 train and supplemental development manifests with frozen source-group splits.
 - Teacher/mesh/operand hashes and per-label qualification receipts.
 - Coverage table: source × geometry × cut family × retention bin × trajectory phase × derivative rank.
-- Explicit fixed-material audit; fixed moments must be added once and only once.
+- Explicit fixed-material audit; fixed moments are added once and only once.
 - Rejected/ambiguous rows with reason codes, not silently dropped.
 - A small balanced smoke subset for Work B integration, plus the full training snapshot.
 
@@ -46,11 +46,11 @@ The descriptor must be computed from the same finite, oriented, capped operand u
 ### B0. Checkout and environment
 ```bash
 git fetch origin research/compact-pino-v24-cut-conditioned
-git worktree add --detach ../TVCG-v24 8b51276a4e4782b4eda275ac2e14841af0d090b3
+git worktree add --detach ../TVCG-v24 8f689316ca52ca71f4a052e792ca8bd95c51ee59
 cd ../TVCG-v24
 python -m pytest -q tests/research/test_compact_pino_v24_cut_attention.py
 ```
-Use the existing validated CUDA/PyTorch environment; record GPU, driver, CUDA, PyTorch, CPU affinity and native build IDs.
+Use the validated CUDA/PyTorch environment; record GPU, driver, CUDA, PyTorch, CPU affinity and native build IDs.
 
 ### B1. Integrate 64^3 + 128^3 correctly
 - Add a named V2.4 encoder config that performs real P-CRAFT forwards at 64^3 and 128^3.
@@ -61,33 +61,35 @@ Use the existing validated CUDA/PyTorch environment; record GPU, driver, CUDA, P
 - Compare 32/64 and 64/128 with matched width/modes/layers and same query/teacher split.
 
 ### B2. Integrate differentiable cut tokens
-- Extend the prepared stencil with a cut descriptor carrying local oriented patch/cap features and their derivative with respect to the raw solver coefficients.
-- Build cut tokens from this descriptor; query them only with active-band material tokens.
-- Feed the conditioned context and two-channel response delta into the existing bounded monotone retention parameterization.
-- Do not detach cut tokens, descriptor tensors, attention outputs or their coefficient-dependent inputs.
-- Keep positive quadrature weights and 0<=retention<=1. All ten moments must still come from one final retention field.
+- Extend prepared stencil with cut descriptors carrying local oriented patch/cap features and derivatives with respect to raw solver coefficients.
+- Build cut tokens from this descriptor; compact active-band material tokens before attention. Verify measured attention work equals sum(N_active × N_cut), not N_all × N_cut.
+- Feed conditioned context and two-channel response delta into existing bounded monotone retention parameterization.
+- Do not detach cut tokens, descriptor tensors, attention outputs or coefficient-dependent inputs.
+- Keep positive quadrature weights and 0<=retention<=1. All ten moments still come from one final retention field.
 - Include both derivative paths:
   `dr/dc = (dr/ds)(ds/dc) + (dr/dz)(dz/dc)`.
-- If cap/topology/closest-feature validity is ambiguous, preserve the current native-refusal/fallback behavior.
+- If cap/topology/closest-feature validity is ambiguous, preserve native-refusal/fallback behavior.
 
 ### B3. Mandatory numerical gates before training
-1. Zero-gated initialization reproduces V2.3 E16 Moment and J exactly within the frozen FP64/FP32 tolerance.
-2. Cut-token MLP and cross-attention both receive finite, nonzero gradients.
+1. Zero-gated initialization reproduces V2.3 E16 Moment and J within frozen tolerances.
+2. Cut-token MLP and cross-attention both receive finite, nonzero gradients; the zero-initialized response projection receives a useful first-step gradient against nonzero targets.
 3. Analytic/autograd J agrees with independent multi-step finite differences on valid Full/R3/R8 charts.
 4. Same-cut side complementarity, fixed-material add-once, positive weights and retention bounds pass.
-5. Near ties, caps, topology events and invalid charts reject or fall back exactly as registered.
-6. Compare full Moment, J, Jv, native stationarity vector and next Newton direction against the native teacher.
+5. Near ties, caps, topology events and invalid charts reject/fallback exactly as registered.
+6. Compare full Moment, J, Jv, native stationarity vector and next Newton direction against native teacher.
 7. Check checkpoint migration explicitly: mapped, new, missing and unexpected tensors; no silent `strict=False`.
 
 ### B4. Ablations — do not collapse factors
-Use same E16-derived starting state, data, exposure schedule, optimizer, loss coefficients and evaluation:
+Use same E16-derived starting state where shape-compatible, data, exposure schedule, optimizer, loss coefficients and evaluation:
 - A: 32/64, no dynamic attention (V2.3 reference).
 - B: 64/128, no dynamic attention (scale only).
 - C: 32/64 + cut-conditioned MLP.
-- D: 32/64 + cut-conditioned cross-attention.
+- D: 32/64 + active-band cut-conditioned cross-attention.
 - E: 64/128 + cut-conditioned MLP.
-- F: 64/128 + cut-conditioned cross-attention.
-First run a small pilot. If 128^3 memory or attention cost is excessive, do not silently reduce the grid; report the failure and compare checkpointing/chunked sampling.
+- F: 64/128 + active-band cut-conditioned cross-attention.
+- G (only if B–F show local geometry representation error): add sparse 256^3 active patches to the best candidate; compare with the same candidate without patches. 512^3 is a sensitivity experiment only, never a default dense grid.
+
+Do not compare only A vs F; that confounds resolution, information and attention. Report parameter count, peak memory, cold encoding, per-new-cut preparation, response+M/J, native correction, final acceptance, accepted-solution success rate and total wall time.
 
 ### B5. Performance protocol
 Measure on RTX 5090 D in an idle, fixed-affinity window:
@@ -100,12 +102,12 @@ Measure on RTX 5090 D in an idle, fixed-affinity window:
 - CPU/GPU transfer and synchronization;
 - native correction and final independent acceptance.
 
-Run both callback microbenchmarks and full cold-start solve. Full solve timing starts at original mesh read and includes all failures, rejected steps, fallback, correction and final acceptance. Compare against a freshly re-run optimized pure-native baseline using identical input, seed, tolerances and hardware.
+Run callback microbenchmarks and full cold-start solve. Full solve timing starts at original mesh read and includes all failures, rejected steps, fallback, correction and final acceptance. Compare against a freshly re-run optimized pure-native baseline using identical input, seed, tolerances and hardware.
 
 ### B6. Physical and paper-level gates
-- Keep the original native stationarity and balance thresholds unchanged.
+- Keep original native stationarity and balance thresholds unchanged.
 - Report direct neural proposal acceptance separately from hybrid accepted-solution success.
-- Use multiple independent geometries and paired initial conditions; Noodles seed 0 is a diagnostic only.
+- Use multiple independent geometries and paired initial conditions; Noodles seed 0 is diagnostic only.
 - Report success rate, restarts, function evaluations, Newton iterations, accepted objective, constraint residuals, native stationarity residuals, cold/steady time, P50/P95 and paired time-ratio confidence intervals.
 - Include training/teacher construction cost and estimate amortization over repeated optimization tasks.
 
@@ -114,4 +116,5 @@ Run both callback microbenchmarks and full cold-start solve. Full solve timing s
 - If cut attention adds no gain over the same cut descriptor with an MLP, keep the MLP.
 - If descriptor generation is as expensive as native surface preparation, the cut-attention route has not achieved the intended amortization; redesign the descriptor or use a cheaper chart-native descriptor.
 - If new attention improves M but worsens J/Jv, do not train further; fix the complete derivative path.
-- Do not start long training until B3 passes and the Work A smoke manifest is admitted. The production V2.3/E16 branch remains untouched.
+- Add sparse local 256^3 only when the 64/128 model demonstrates a repeatable local error that the patch is intended to resolve.
+- Do not start long training until B3 passes and the Work A smoke manifest is admitted. Production V2.3/E16 remains untouched.
