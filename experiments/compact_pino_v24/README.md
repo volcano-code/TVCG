@@ -8,7 +8,7 @@ The objective is not to maximize grid resolution or add attention modules indisc
 
 V2.4 is organized as two gated steps:
 
-- **V2.4-A (first candidate):** native 256^3 material, real P-CRAFT 64^3 + 128^3 context, Token16, one active-band cut-conditioned cross-attention layer, bounded monotone retention, unified M/J.
+- **V2.4-A (first candidate):** native 256^3 material, real P-CRAFT 64^3 + 128^3 context, Token16, one active-band cut-conditioned cross-attention layer, bounded local retention, unified M/J.
 - **V2.4-B (only if A shows local-resolution error):** add sparse 256^3 local patches (512^3 only as a limited sensitivity experiment) around active cut bands, thin walls, caps and certified high-error regions. Do not build a dense global 256^3/512^3 feature volume.
 
 The sparse local level is a conditional extension, not a pre-approved default. It must demonstrate accuracy or correction-call gains that justify its memory and query cost.
@@ -29,12 +29,12 @@ The architecture history confirms that a 32^3/64^3/128^3 P-CRAFT context pyramid
 The proposed contribution is a **cut-conditioned conservative moment operator**:
 
 1. Geometry is encoded once by a P-CRAFT-derived multi-resolution trunk (64^3+128^3); native material/RLE and positive quadrature remain the source of conservation.
-2. A compact descriptor of the current finite, oriented cut (signed-distance band, local normal/curvature/cap/operation-side and motion-chart features where certified) becomes a small set of cut tokens.
+2. A compact descriptor of the current finite, oriented cut (signed-distance band, local position/normal/curvature/cap features with a certified coefficient-motion chain) becomes a small set of cut tokens.
 3. Only active-band material tokens are compacted and query those cut tokens through one zero-initialized cross-attention residual block. Inactive tokens do not enter the attention operation.
 4. The same final retention field produces all ten moments and its complete derivative. Any cut-dependent attention path must remain in the autograd graph; no detached conditioning and no independent J head.
 5. A solver-aware handoff policy proposes cheaply, then calls exact native correction/acceptance. The scientific metric is wall-clock to a native-accepted solution, not neural callback latency alone.
 
-Potential paper novelty is the combination of (a) cut-conditioned local geometric interaction, (b) positive-measure conservative moment integration with derivative-consistent output, and (c) solver-aware exact correction evaluated under paired accepted-solution time. GINO, DINO/DIFNO and geometric attention are inspirations, not claims of novelty by themselves.
+Potential paper novelty is the combination of (a) cut-conditioned local geometric interaction, (b) positive-measure conservative moment integration with derivative-consistent output, and (c) solver-aware exact correction evaluated under paired accepted-solution time. GINO, DINO and geometric attention are inspirations, not claims of novelty by themselves.
 
 ## Architecture contract
 
@@ -43,7 +43,7 @@ Potential paper novelty is the combination of (a) cut-conditioned local geometri
 - Optional local level: sparse 256^3 patches only after profiling demonstrates a local geometry representation gap; 512^3 is not a default.
 - Material tokens: Token16 initially retained for controlled comparison.
 - Dynamic cut interaction: one 4-head, width-192, zero-initialized residual cross-attention block; 16 cut tokens initially. Active-band material tokens are compacted before attention.
-- Local response: existing monotone_warp as warm-start baseline; cross-attention conditions its two response channels.
+- Local response: existing monotone_warp as warm-start baseline; cross-attention conditions its two response channels before the bounded parameter mapping. Bounds must hold; global monotonicity under arbitrary coefficient-dependent conditioning is not claimed.
 - Physical head: one positive retention measure; M in fixed ten-component order; J obtained by differentiating the same M graph.
 - Native correction and independent original-mesh acceptance remain mandatory; no threshold is relaxed.
 
@@ -66,7 +66,7 @@ Do not compare only A vs F; that confounds resolution, information and attention
 - 128^3 activation memory can be large; profile peak allocated/reserved on RTX 5090 D before training. Use checkpointing and chunked local feature sampling, not silent downsampling.
 - Do not jump to dense global 256^3/512^3. Sparse local patches are conditional and require a measured local-resolution error.
 - Attention must not be applied to all 4096 Token16 positions. The primitive compacts active material tokens before MHA; Work B must verify real active counts and timings.
-- The cut-token descriptor must preserve finite surface, cap, operation-side and chart semantics. If descriptor extraction calls expensive Boolean/full-J paths, it may erase the speed benefit; time descriptor creation separately.
+- The cut-token descriptor must preserve finite surface, cap and chart semantics. Never use Boolean-result material, true cut moments, or teacher-only information as model inputs. Vertex motion is derivative metadata; feeding coefficient-dependent vertex velocities as learned Moment inputs would require the additional higher-order construction chain. Compute one canonical inside-retention field and route operation side at the output.
 - The new attention output depends on cut parameters. Its derivative contribution must be included in J. The current analytic-slope shortcut is insufficient unless the additional chain term is implemented and independently verified.
 - Positive weights and 0<=retention<=1 remain invariant. Cross-attention may only modulate bounded local response parameters, not directly emit ten moments.
 - E16 checkpoint compatibility is partial: geometry trunk may initialize, but new attention parameters are new and zero-gated; 128^3 context has a different input path. Report mapped/missing/unexpected tensors; never silently use strict=False.
@@ -80,6 +80,17 @@ This branch currently adds:
 - actual active-token compaction before attention (inactive material tokens do not enter Q/K/V);
 - an explicit 64^3/128^3 + native-256^3 configuration contract;
 - unit tests for identity initialization, inactive-token pass-through, cut-token gradients, active-token attention accounting, masking and configuration semantics;
+- default higher-order-safe math attention and a ten-moment / 10-by-10 Jacobian loss backward regression (7 CPU tests passed with PyTorch 2.8.0+cpu; target CUDA integration remains untested);
 - Work A/B integration and acceptance handoff.
 
 It is **not yet wired into production `evaluate_stencil`**, and the actual 64^3/128^3 multiscale encoder is not yet integrated into the Compact V2.3 execution path. The current `v24_config.py` is a strict architecture contract, not proof that a full encoder is already built. The next integration change must extend the stencil descriptor and the full Jacobian chain together; wiring only the forward path would be scientifically invalid.
+
+## Current action guides (2026-11-27)
+
+- [Verified update summary and limitations](UPDATE_SUMMARY_20261127.md)
+- [Work A: data and teacher actions](WORK_A_ACTION_GUIDE.md)
+- [Work B: integration, training, timing and acceptance](WORK_B_ACTION_GUIDE.md)
+- [Proposed training contract, not yet a runnable Trainer config](TRAINING_RECOMMENDATION.yaml)
+
+These guides supersede earlier handoff wording about unconditional E16 output identity across grid changes, allowing Boolean-derived inputs, and treating every native-J error increase as an implementation derivative bug.
+

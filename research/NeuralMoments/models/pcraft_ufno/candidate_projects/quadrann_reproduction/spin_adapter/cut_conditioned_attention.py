@@ -4,9 +4,11 @@ Opt-in research primitive; not wired into the V2.3 production path. It condition
 only compacted active material tokens on descriptors of the current finite cut.
 """
 from __future__ import annotations
+from contextlib import nullcontext
 from dataclasses import dataclass
 import torch
 from torch import Tensor, nn
+from torch.nn.attention import SDPBackend, sdpa_kernel
 
 @dataclass(frozen=True)
 class CutAttentionStats:
@@ -23,15 +25,24 @@ class CutConditionedCrossAttention(nn.Module):
     enter Q/K/V work and remain exact pass-through values. The residual gate
     preserves the input feature at initialization. Keep cut_tokens attached to
     autograd so their derivative contribution is included in dM/dc.
+
+    The default math attention backend supports the higher-order backward
+    required to train on dM/dc. Set higher_order_safe=False only after verifying
+    Jacobian-loss backward for the selected device and automatic backend.
+    Requesting attention weights uses MHA's explicit math path instead.
     """
     def __init__(self, width: int = 192, heads: int = 4,
-                 output_dim: int = 2, dropout: float = 0.0):
+                 output_dim: int = 2, dropout: float = 0.0,
+                 *, higher_order_safe: bool = True):
         super().__init__()
         if width < 1 or heads < 1 or width % heads:
             raise ValueError("width must be positive and divisible by heads")
         if output_dim < 1 or not 0.0 <= dropout < 1.0:
             raise ValueError("invalid output_dim or dropout")
+        if not isinstance(higher_order_safe, bool):
+            raise TypeError("higher_order_safe must be Boolean")
         self.width, self.heads, self.output_dim = width, heads, output_dim
+        self.higher_order_safe = higher_order_safe
         self.norm_q, self.norm_kv = nn.LayerNorm(width), nn.LayerNorm(width)
         self.attention = nn.MultiheadAttention(width, heads, dropout=dropout, batch_first=True)
         self.ffn = nn.Sequential(nn.LayerNorm(width), nn.Linear(width, 2*width),
@@ -83,8 +94,12 @@ class CutConditionedCrossAttention(nn.Module):
             q = self.norm_q(q_raw)
             kv_raw = cut_tokens[batch_index:batch_index+1].index_select(1,kv_index)
             kv = self.norm_kv(kv_raw)
-            attended, weights = self.attention(q,kv,kv,need_weights=need_weights,
-                                               average_attn_weights=False)
+            backend = (sdpa_kernel(SDPBackend.MATH)
+                       if self.higher_order_safe and not need_weights
+                       else nullcontext())
+            with backend:
+                attended, weights = self.attention(q,kv,kv,need_weights=need_weights,
+                                                   average_attn_weights=False)
             updated = q_raw.squeeze(0) + gate * self.ffn(attended).squeeze(0)
             response = self.response_delta(updated)
             conditioned[batch_index] = conditioned[batch_index].index_copy(0,q_index,updated)
@@ -96,3 +111,4 @@ class CutConditionedCrossAttention(nn.Module):
         if need_weights:
             return conditioned, delta, stats, attention_weights
         return conditioned, delta, stats
+

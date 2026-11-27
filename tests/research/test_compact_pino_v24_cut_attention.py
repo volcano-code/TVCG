@@ -60,3 +60,46 @@ def test_config_is_128_context_not_native_resolution():
     assert cfg.native_material_resolution==256
     assert cfg.pcraft_context_grids==(64,128)
     assert len(cfg.fingerprint())==64
+
+def test_ten_moment_jacobian_loss_backpropagates_through_cut_attention():
+    """Positive bounded-retention toy exercises dM/dc and its parameter backward."""
+    torch.manual_seed(19)
+    model = CutConditionedCrossAttention(width=32, heads=4).double()
+    assert model.higher_order_safe
+    with torch.no_grad():
+        model.residual_gate.fill_(0.25)
+        model.response_delta[-1].weight.normal_(0.0, 0.07)
+
+    coefficients = (0.1 * torch.randn(10, dtype=torch.float64)).requires_grad_()
+    cut_projection = 0.2 * torch.randn(10, 3 * 32, dtype=torch.float64)
+    cut_tokens = (coefficients @ cut_projection).reshape(1, 3, 32)
+    cut_tokens.retain_grad()
+    material = torch.randn(1, 5, 32, dtype=torch.float64)
+    active = torch.tensor([[True, True, True, False, False]])
+    _, delta, _ = model(material, cut_tokens, active)
+
+    nodes = torch.tensor([[.1, .2, .3], [-.4, .1, .2], [.2, -.3, .4],
+                          [-.2, -.1, .3], [.3, .2, -.1]], dtype=torch.float64)
+    x, y, z = nodes.unbind(dim=1)
+    basis = torch.stack((torch.ones_like(x), x, y, z, x*x, y*y, z*z,
+                         y*z, x*z, x*y), dim=1)
+    weights = torch.tensor([.1, .2, .3, .1, .3], dtype=torch.float64)
+    retention = torch.sigmoid(delta[0, :, 0])
+    moments = basis.T @ (weights * retention)
+    jacobian = torch.stack([
+        torch.autograd.grad(component, coefficients, create_graph=True,
+                            retain_graph=True)[0]
+        for component in moments
+    ])
+    assert jacobian.shape == (10, 10)
+    assert torch.isfinite(jacobian).all() and jacobian.abs().sum() > 0
+
+    # Clear gradients retained while constructing J: check J-loss backward itself.
+    cut_tokens.grad = None
+    target = torch.full_like(jacobian, 0.01)
+    (jacobian - target).square().sum().backward()
+    for gradient in (model.attention.in_proj_weight.grad, cut_tokens.grad,
+                     coefficients.grad):
+        assert gradient is not None
+        assert torch.isfinite(gradient).all() and gradient.abs().sum() > 0
+

@@ -1,0 +1,42 @@
+{
+  "base_commit": "558a24df380b7e7120a6072c678885b218e1eb7b",
+  "status": "CPU primitive verification; publication revision is the commit containing this evidence",
+  "environment": {
+    "python": "3.12.14",
+    "torch": "2.8.0+cpu",
+    "cuda_available": false,
+    "threads": 2
+  },
+  "before": {
+    "existing_tests_passed": 6,
+    "pytest_duration_s": 1.74,
+    "jacobian_loss_default_backend": "failed",
+    "error": "RuntimeError: derivative for aten::_scaled_dot_product_flash_attention_for_cpu_backward is not implemented",
+    "diagnostics_file": "v24_primitive_diagnostics.json (retained in audit workspace)"
+  },
+  "after": {
+    "tests_passed": 7,
+    "pytest_duration_s": 1.33,
+    "default_higher_order_safe": true,
+    "backend": "torch.nn.attention.SDPBackend.MATH unless explicit higher_order_safe=False; need_weights=True uses explicit MHA math",
+    "new_test": "test_ten_moment_jacobian_loss_backpropagates_through_cut_attention",
+    "warnings": 1,
+    "warning_description": "unrelated pytest/anyio deprecated CallSpec2 alias"
+  },
+  "state_dict_keys_equal_between_backend_modes": true,
+  "modified_files": [
+    {
+      "path": "research/NeuralMoments/models/pcraft_ufno/candidate_projects/quadrann_reproduction/spin_adapter/cut_conditioned_attention.py",
+      "sha256": "07acdf2e532f473c1fad5961ba9dd8f55a9ade572a7d66e41fa072d30a9983bd"
+    },
+    {
+      "path": "tests/research/test_compact_pino_v24_cut_attention.py",
+      "sha256": "ba78bbe31a73ff36ac12356534732ca94b9da88d268bb480b5e7a1f59d5764be"
+    }
+  ],
+  "limitations": [
+    "CPU only; target CUDA/PyTorch environment untested",
+    "Primitive plus positive-retention ten-moment toy, not integrated V2.4 physical operator",
+    "No accuracy, wall-clock speedup, training convergence or physical acceptance claim"
+  ]
+}

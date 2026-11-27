@@ -1,0 +1,139 @@
+# Compact PINO V2.4: proposed integration/training contract, 2026-11-27.
+# This is NOT an executable config for the current V2.1/V2.3 Trainer.
+schema: tvcg.compact-pino.v24.training-proposal.1
+status: proposed_pending_full_operator_integration_and_cuda_checks
+validated_checkpoint_v24: null
+
+model:
+  native_material_resolution: 256
+  pcraft_context_grids: [64, 128]
+  context_is_real_forward: true
+  token_grid: 16
+  context_width: 192
+  cut_token_count: 16
+  cut_attention_heads: 4
+  cut_attention_layers: 1
+  cut_attention_scope: active_material_tokens_only
+  higher_order_safe: true
+  attention_backend_default: math
+  attention_dropout: 0.0
+  response_type: monotone_warp
+  response_hidden_width: 64
+  dynamic_response_channels: 2
+  bound_dynamic_parameters_before_retention: true
+  separate_jacobian_head: false
+  fixed_material_add_once: true
+  optional_sparse_256_patches: false
+  preserve_e16_trunk_width_modes_layers: true
+  preserve_e16_quadrature_and_bandwidth: true
+
+initialization:
+  source: explicitly_verified_e16_checkpoint
+  type: partial_parameter_migration_new_run
+  strict_migration_receipt: true
+  new_branch_identity_initialization: true
+  inherit_optimizer_state: false
+  require_shape_and_config_manifest: true
+  changing_grids_preserves_predictions: false
+
+hardware:
+  target: RTX_5090_D
+  precision:
+    neural_network: float32
+    geometry_and_physical_reductions: float64
+    amp: "off"
+    jacobian_training_requires_higher_order_backward: true
+  numerical_reference: float64_cpu_and_target_device
+  chunk_size_initial: 65536
+  chunk_size_is_measured_tuning_parameter: true
+  activation_checkpointing_when_needed: true
+
+optimizer:
+  name: Adam
+  betas: [0.9, 0.999]
+  eps: 1.0e-8
+  weight_decay: 0.0
+  parameter_groups:
+    cut_descriptor_attention_and_response:
+      learning_rate: 3.0e-5
+      trainable: true
+    pretrained_static_geometry_trunk:
+      trainable_initially: false
+      optional_unfreeze_learning_rate: 3.0e-6
+      unfreeze_requires_new_declared_experiment: true
+  automatic_linear_lr_scaling_with_batch: false
+
+data_and_batch:
+  source_snapshot: freeze_actual_work_a_manifest_before_run
+  legacy_development: fixed_222_unchanged
+  supplementary_development: source_disjoint_frozen_separate
+  train_seed: 830251
+  replication_seeds_after_selection: [830252, 830253]
+  query_batch_size_initial: 1
+  gradient_accumulation_initial: 1
+  batch_candidates_after_integration: [1, 2, 4]
+  frozen_exposure_schedule_across_ablation_arms: true
+  moment_and_derivative_denominators_separate: true
+  source_balance_policy: preregister_and_report_final_effective_weights
+  no_live_snapshot_updates: true
+
+loss:
+  moment: mass_length_degree_scaled_mse
+  moment_weight: 1.0
+  qualified_jacobian_weight: 1.0
+  unqualified_jacobian: excluded_without_discarding_valid_moment
+  jacobian_scale: explicit_parameter_chart_scale
+  auxiliary_weight: 0.0
+  residual_match_weight_initial: 0.0
+  constraint_match_weight_initial: 0.0
+  residual_followup:
+    only_after_architecture_shortlist: true
+    target: difference_from_native_vector_at_fixed_query_and_multipliers
+    generic_queries_are_zero_residual_targets: false
+    coefficients: calibrate_on_training_sources_before_candidate_predictions
+  newton_direction_jv: mandatory_diagnostic_and_optional_separate_loss_ablation
+
+budget:
+  initial_paired_pilot_epochs: 3
+  shortlist_continue_to_total_epochs: 10
+  max_shortlisted_candidates: 2
+  selected_candidate_max_total_epochs: 60
+  max_long_training_candidates: 1
+  evaluate_each_epoch: true
+  reduce_lr:
+    monitor: frozen_source_macro_selection_metric_with_protections
+    plateau_evaluations: 5
+    factor: 0.5
+    minimum_learning_rate: 3.0e-6
+  early_stop:
+    min_total_epochs: 10
+    patience_evaluations: 12
+    require_at_least_one_lr_reduction: true
+    min_evaluations_after_reduction: 5
+    significant_relative_improvement: 0.005
+  save: [best_eligible, last_resumable, scheduled_milestones]
+  timing_estimate_from: measured_first_200_real_updates_and_full_validation
+  max_wall_seconds: null # Freeze after profiling, before the extended research run.
+
+research_screening:
+  improvement_from_same_arm_epoch0: 0.05
+  protected_error_max_ratio: 1.05
+  compare_absolute_performance_to_e16: true
+  compare_to_nonlearned_integrator: true
+  missing_label_group: evidence_insufficient
+  full_protocol_go_requires_all_registered_protection_denominators: true
+  bounded_research_budget_may_continue_with_explicit_scope_limits: true
+  untrained_model_native_acceptance_is_not_training_entry_requirement: true
+
+deployment:
+  route_primary: neural_proposal_then_native_correction_then_independent_acceptance
+  direct_neural_route_reported_separately: true
+  stationary_tolerance_from_frozen_protocol: 1.0e-12
+  balance_tolerance_from_frozen_protocol: 1.0e-6
+  objective_relative_difference_max: 0.01
+  paired_initial_condition_seeds: 0_to_49_after_development_selection
+  isolated_source_geometries_required: true
+  include_all_failed_attempts_fallback_and_verification: true
+  time_ratio_direction: candidate_over_native
+  speedup_evidence: paired_95_percent_ci_upper_bound_below_1
+  generalization_unit: independent_source_and_geometry_not_only_initial_condition
